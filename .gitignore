@@ -1,0 +1,40 @@
+# Ignore common LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.bbl
+*.blg
+*.run.xml
+*.idx
+*.ilg
+*.ind
+
+# Ignore build directories
+_build/
+build/
+latex-build/
+
+# Optional: ignore generated PDFs (uncomment to enable)
+# *.pdf
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Misc
+*.synctex
