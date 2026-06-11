@@ -19,26 +19,39 @@
 \begin{document}
 \maketitle
 
-\begin{abstract}
--Este documento es un borrador preliminar en formato IEEE que incluye título, autores, introducción y estado del arte. Aquí debe ir un resumen de 150--250 palabras describiendo objetivos, metodología y resultados esperados.
-\end{abstract}
+%\begin{abstract}
+%-Este documento es un borrador preliminar en formato IEEE que incluye título, autores, introducción y estado del arte. Aquí debe ir un resumen de 150--250 palabras describiendo objetivos, metodología y resultados esperados.
+%\end{abstract}
 
 \section{Introducción}
-La introducción debe motivar el problema, explicar su importancia y definir los objetivos del trabajo. Incluya contexto, preguntas de investigación y contribuciones principales.
-
-Los CGRAs \textit{Coarse-Grained Reconfigurable Arrays} son arquitecturas de hardware que conceptualmente permiten que el silicio sea maleable y su funcionabilidad pueda reconfigurarse de manera dinámica \cite{Podobas}.
+%La introducción debe motivar el problema, explicar su importancia y definir los objetivos del trabajo. Incluya contexto, preguntas de investigación y contribuciones principales.
 
 
+Las arquitecturas reconfigurables han sido muy exitosas en la industria debido a que la evolución del software ha presentado una rápida evolución, con diversas aplicaciones,
+distintas necesidades de usuario y progreso científico, por lo que el hardware no se puede adaptar en la misma velocidad al software \cite{LeiboLiu}. Sistemas de propósito específico
+pueden sufrir de obsolescencia rápida y si el precio del desarrollo y producción del harware es alto, se vuelve inviable económicamente \cite{LeiboLiu}.
 
+Actualmente, arquitecturas como las FPGA (\textit{Field Programmable Gate Arrays}) han sido ampliamente adoptadas en diversas aplicaciones debido a su flexibilidad y capacidad de personalización, tomando fuerza en Computación de alto desempeño (HPC) por sus siglas en inglés. 
+Sin embargo, las FPGAs presentan ciertas limitaciones como tiempos de configuración lentos, largos tiempos de compilación y aunque es algo relativo, bajas frecuiencias de operación \cite{Podobas}.
 
-que permiten la reconfiguración dinámica para optimizar el rendimiento en aplicaciones específicas. Este trabajo se centra en el desarrollo de una celda reconfigurable para CGRA, con el objetivo de mejorar la eficiencia y flexibilidad en la ejecución de tareas computacionales.
+Debido a lo anterior, se ha tomado un interés en HPC en utilizar arquitecturas como los CGRAs (\textit{Coarse-Grained Reconfigurable Arrays)} que ofrecen una solución intermedia entre los FPGAs y los procesadores de propósito general (GPP).
+Los CGRAs son arquitecturas de hardware que conceptualmente permiten que el silicio sea maleable y su funcionabilidad pueda reconfigurarse de manera dinámica \cite{Podobas}.
+Los CGRA tienen la ventaja de ser uno o dos ordenes de magnitud más eficientes que las FPGAs y más de 2 a 3 ordenes de magnitud más eficientes que los GPPs \cite{LeiboLiu}.
+
+El desarrollo de una celda reconfigurable de CGRA es de gran importancia por su relevancia no solo en HPC, si no también en su adopción en aplicaciones de \textit{Machine-learning}, procesamiento de imágenes y visión por computadora, 
+comunicaciones y otras áreas \cite{GuoweiZhu}. Por lo tanto el objetivo de este trabajo es el desarrollo de un CGRA heterogéneo, que posea tentativamente celdas de ruteo de datos,
+cedas con bancos de memoria distribuida, celdas de procesamiento escalar y celdas de procesamiento vectorial, con la capacidad de ejecutar programas utilizando el set de instrucciones RISC-V, con la capacidad de ejecutar lógica de ocho, 16 y 32 bits.
+
+La importancia de utilizar este set de instrucciones es que este es un estándar abierto, facilitando su adopción debido a que no requiere pagos por licencias. Este es un set de instrucciones basado en la simplicidad,
+haciendo que el diseño de hardware sea sencillo y una implementación más directa \cite{riscv}.
+
 
 
 
 \section{Antecedentes y Trabajo Relacionado}
 Revisión de trabajos previos y estado del arte. Compare enfoques relevantes y destaque limitaciones que su trabajo aborda.
 
-Cite referencias clave usando \cite{smith2019example,doe2020sample}.
+%Cite referencias clave usando \cite{smith2019example,doe2020sample}.
 
 \section{Conclusión provisional}
 Resumen breve y próximos pasos.
@@ -47,3 +60,9 @@ Resumen breve y próximos pasos.
 \bibliography{references}
 
 \end{document}
+
+
+
+%https://github.com/ECASLab/risc-v-cgra/tree/main
+
+%https://github.com/esl-epfl/OpenEdgeCGRA/tree/main
