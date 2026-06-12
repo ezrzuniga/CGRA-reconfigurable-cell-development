@@ -29,18 +29,18 @@
 
 Las arquitecturas reconfigurables han sido muy exitosas en la industria debido a que la evolución del software ha presentado una rápida evolución, con diversas aplicaciones,
 distintas necesidades de usuario y progreso científico, por lo que el hardware no se puede adaptar en la misma velocidad al software \cite{LeiboLiu}. Sistemas de propósito específico
-pueden sufrir de obsolescencia rápida y si el precio del desarrollo y producción del harware es alto, se vuelve inviable económicamente \cite{LeiboLiu}.
+pueden sufrir de obsolescencia rápida y si el precio del desarrollo y producción del hardware es alto, se vuelve inviable económicamente \cite{LeiboLiu}.
 
 Actualmente, arquitecturas como las FPGA (\textit{Field Programmable Gate Arrays}) han sido ampliamente adoptadas en diversas aplicaciones debido a su flexibilidad y capacidad de personalización, tomando fuerza en Computación de alto desempeño (HPC) por sus siglas en inglés. 
-Sin embargo, las FPGAs presentan ciertas limitaciones como tiempos de configuración lentos, largos tiempos de compilación y aunque es algo relativo, bajas frecuiencias de operación \cite{Podobas}.
+Sin embargo, las FPGAs presentan ciertas limitaciones como tiempos de configuración lentos, largos tiempos de compilación y aunque es algo relativo, bajas frecuencias de operación \cite{Podobas}.
 
 Debido a lo anterior, se ha tomado un interés en HPC en utilizar arquitecturas como los CGRAs (\textit{Coarse-Grained Reconfigurable Arrays)} que ofrecen una solución intermedia entre los FPGAs y los procesadores de propósito general (GPP).
-Los CGRAs son arquitecturas de hardware que conceptualmente permiten que el silicio sea maleable y su funcionabilidad pueda reconfigurarse de manera dinámica \cite{Podobas}.
+Los CGRAs son arquitecturas de hardware que conceptualmente permiten que el silicio sea maleable y su funcionalidad pueda reconfigurarse de manera dinámica \cite{Podobas}.
 Los CGRA tienen la ventaja de ser uno o dos ordenes de magnitud más eficientes que las FPGAs y más de 2 a 3 ordenes de magnitud más eficientes que los GPPs \cite{LeiboLiu}.
 
 El desarrollo de una celda reconfigurable de CGRA es de gran importancia por su relevancia no solo en HPC, si no también en su adopción en aplicaciones de \textit{Machine-learning}, procesamiento de imágenes y visión por computadora, 
 comunicaciones y otras áreas \cite{GuoweiZhu}. Por lo tanto el objetivo de este trabajo es el desarrollo de un CGRA heterogéneo, que posea tentativamente celdas de ruteo de datos,
-cedas con bancos de memoria distribuida, celdas de procesamiento escalar y celdas de procesamiento vectorial, con la capacidad de ejecutar programas utilizando el set de instrucciones RISC-V, con la capacidad de ejecutar lógica de ocho, 16 y 32 bits.
+celdas con bancos de memoria distribuida, celdas de procesamiento escalar y celdas de procesamiento vectorial, con la capacidad de ejecutar programas utilizando el set de instrucciones RISC-V, con la capacidad de ejecutar lógica de ocho, 16 y 32 bits.
 
 La importancia de utilizar este set de instrucciones es que este es un estándar abierto, facilitando su adopción debido a que no requiere pagos por licencias. Este es un set de instrucciones basado en la simplicidad,
 haciendo que el diseño de hardware sea sencillo y una implementación más directa \cite{riscv}.
@@ -55,6 +55,9 @@ Investigaciones recientes han demostrado las ventajas de integrar estrechamente 
 
 Para que este tipo de sistemas alcance su máximo potencial, el diseño interno de la celda reconfigurable individual (PE) y las herramientas de compilación asociadas son críticos \cite{satyajit}. Destacan la necesidad de un mapeo consciente del contexto de memoria (context-memory aware mapping) para asegurar una aceleración eficiente desde el punto de vista energético, subrayando que la latencia en el acceso a datos dicta el rendimiento global. En este marco, el diseño y desarrollo de una nueva celda reconfigurable de CGRA se fundamenta en la necesidad de optimizar las interconexiones locales, el acceso determinista a operandos intermedios y la versatilidad de sus operaciones a nivel de ciclo de reloj, retos que continúan siendo áreas de activa exploración en la frontera del diseño de aceleradores heterogéneos.
 
+
+\section*{Declaración de uso de herramientas de IA}
+Para este trabajo se hizo uso de Inteligencia Artificial para la ayuda en la estructura de la introducción y el estado del arte, así como para una revisión gramatical y ortográfica del documento.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
