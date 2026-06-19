@@ -68,7 +68,9 @@ Para que este tipo de sistemas alcance su máximo potencial, el diseño interno 
 \section{Análisis de Soluciones Existentes (SOTA)} %Jose
 \label{sec:sota}
 
-Existen distintos tipos de CGRAs, tipos como el ADRES y el HyCUBE son de tipo homogéneo, mientras que el Plasticine posee dos tipos de PEs \cite{DelSozzo2024Exploration}. 
+En la actualidad, existen distintos tipos de CGRAs, donde estos pueden tener un arreglo de PEs homogéneos como es el caso de los CGRA HyCUBE y los DySER \cite{Blocks2022} o pueden ser de tipo hererogéneos como el Plasticine que posee dos tipos de unidad, los PCU y los PMU \cite{plasticine2017}. Otra característica importante a destacar es el tipo de precisión que estos dispositivos pueden soportar, donde muchos de estos están restringidos a solo procesar operaciones de enteros, siendo estos más de propósito general y otros donde si se añade la ventaja de punto flotante para procesos más especializados \cite{exploration_tradeoffs}. 
+
+El tipo de construcción de las CGRA ha tomado mucha importancia debido a los sistemas HPC \textit{High Performance Computing}, donde estos se ven altamente beneficiados de que los PEs sean de tipo heterogéneo, donde se tenga una mezcla de PEs basicos y complejos \cite{exploration_tradeoffs}. Esto es es altamente importante para funciones matemáticas debido a que las CGRAs tradicionales no lo manejan de manera óptima
 
 
 
@@ -76,47 +78,46 @@ Existen distintos tipos de CGRAs, tipos como el ADRES y el HyCUBE son de tipo ho
 
 
 
-
-El diseño de soluciones óptimas requiere un escrutinio riguroso de las alternativas vigentes en la literatura científica. En esta sección se evalúan las fortalezas y debilidades de los enfoques predominantes en el estado del arte (SOTA), delimitando sus escenarios de viabilidad técnica.
-
-\subsection{Estudio Comparativo de Propuestas Vigentes}
-Las soluciones actuales presentan compromisos fundamentales (\textit{trade-offs}) entre flexibilidad, eficiencia y costo de implementación:
-
-\begin{itemize}
-    \item \textbf{Enfoque Basado en Procesadores de Propósito General (GPP):} Destaca por su alta flexibilidad de programación y madurez en cadenas de desarrollo. No obstante, presenta debilidades críticas en entornos de tiempo real debido al determinismo limitado y un consumo energético ineficiente bajo cargas masivas de datos. Es viable únicamente en escenarios donde las restricciones de potencia y latencia son secundarias.
-    \item \textbf{Enfoque Basado en Aceleradores Dedicados (ASIC):} Ofrece el máximo rendimiento por unidad de área y un consumo energético mínimo. Sin embargo, su rigidez absoluta impide la reconfiguración ante actualizaciones algorítmicas, además de acarrear costos de desarrollo inviables para producciones de bajo volumen.
-    \item \textbf{Enfoque Basado en Lógica Programable (FPGAs / Arquitecturas Reconfigurables):} Representa un punto medio balanceado. Permite la optimización a nivel de bits y paralelismo masivo. Su principal desventaja radica en la alta complejidad de diseño, tiempos de compilación elevados y la gestión compleja de la memoria compartida.
-\end{itemize}
-
-Para ilustrar de forma concisa estos compromisos, la Tabla~\ref{tab:comparativa_sota} resume los criterios de viabilidad tecnológica encontrados en la literatura.
-
-\begin{table}[htbp]
-\caption{Matriz Comparativa de Soluciones en el Estado del Arte}
-\label{tab:comparativa_sota}
-\centering
-% reduce font and use fixed-width columns to avoid overflow
-\small
-\begin{tabular}{l p{2.2cm} p{2.2cm} p{2.2cm}}
-\toprule
-\textbf{Solución} & \textbf{Fortalezas} & \textbf{Debilidades} & \textbf{Viabilidad} \\
-\midrule
-Propuesta A \cite{adres2004} & Baja latencia, optimización espacial. & Rigidez de hardware, alto tiempo de diseño. & Dominios fijos estables. \\
-\addlinespace
-Propuesta B \cite{hycube2017} & Alta flexibilidad, reconfiguración ágil. & Alto consumo de recursos, \textit{overhead}. & Entornos dinámicos no críticos. \\
-\addlinespace
-Propuesta C \cite{plasticine2017} & Procesamiento masivo por ciclo (OP/s). & Consumo energético restrictivo. & Infraestructura fija/servidores. \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Lista de Desafíos Observados}
-A partir del análisis sistemático del SOTA, se derivan los siguientes desafíos técnicos abiertos que justifican el desarrollo de una nueva alternativa:
-\begin{enumerate}
-    \item[\textbf{D1.}] \textbf{Rigidez Estructural:} Incapacidad de los aceleradores actuales para adaptarse a variaciones dinámicas en el dominio de los datos sin comprometer severamente el \textit{timing}.
-    \item[\textbf{D2.}] \textbf{Eficiencia de Recursos Embebidos:} Degradación del rendimiento de procesamiento por unidad de área o celda cuando se escalan los tamaños de datos.
-    \item[\textbf{D3.}] \textbf{Determinismo Temporal:} Cuellos de botella en la latencia de interconexión que impiden garantizar restricciones de tiempo real estricto.
-\end{enumerate}
-
+%El diseño de soluciones óptimas requiere un escrutinio riguroso de las alternativas vigentes en la literatura científica. En esta sección se evalúan las fortalezas y debilidades de los enfoques predominantes en el estado del arte (SOTA), delimitando sus escenarios de viabilidad técnica.
+%
+%\subsection{Estudio Comparativo de Propuestas Vigentes}
+%Las soluciones actuales presentan compromisos fundamentales (\textit{trade-offs}) entre flexibilidad, eficiencia y costo de implementación:
+%
+%\begin{itemize}
+%    \item \textbf{Enfoque Basado en Procesadores de Propósito General (GPP):} Destaca por su alta flexibilidad de programación y madurez en cadenas de desarrollo. No obstante, presenta debilidades críticas en entornos de tiempo real debido al determinismo limitado y un consumo energético ineficiente bajo cargas masivas de datos. Es viable únicamente en escenarios donde las restricciones de potencia y latencia son secundarias.
+%    \item \textbf{Enfoque Basado en Aceleradores Dedicados (ASIC):} Ofrece el máximo rendimiento por unidad de área y un consumo energético mínimo. Sin embargo, su rigidez absoluta impide la reconfiguración ante actualizaciones algorítmicas, además de acarrear costos de desarrollo inviables para producciones de bajo volumen.
+%    \item \textbf{Enfoque Basado en Lógica Programable (FPGAs / Arquitecturas Reconfigurables):} Representa un punto medio balanceado. Permite la optimización a nivel de bits y paralelismo masivo. Su principal desventaja radica en la alta complejidad de diseño, tiempos de compilación elevados y la gestión compleja de la memoria compartida.
+%\end{itemize}
+%
+%Para ilustrar de forma concisa estos compromisos, la Tabla~\ref{tab:comparativa_sota} resume los criterios de viabilidad tecnológica encontrados en la literatura.
+%
+%\begin{table}[htbp]
+%\caption{Matriz Comparativa de Soluciones en el Estado del Arte}
+%\label{tab:comparativa_sota}
+%\centering
+%% reduce font and use fixed-width columns to avoid overflow
+%\small
+%\begin{tabular}{l p{2.2cm} p{2.2cm} p{2.2cm}}
+%\toprule
+%\textbf{Solución} & \textbf{Fortalezas} & \textbf{Debilidades} & \textbf{Viabilidad} \\
+%\midrule
+%Propuesta A \cite{adres2004} & Baja latencia, optimización espacial. & Rigidez de hardware, alto tiempo de diseño. & Dominios fijos estables. \\
+%\addlinespace
+%Propuesta B \cite{hycube2017} & Alta flexibilidad, reconfiguración ágil. & Alto consumo de recursos, \textit{overhead}. & Entornos dinámicos no críticos. \\
+%\addlinespace
+%Propuesta C \cite{plasticine2017} & Procesamiento masivo por ciclo (OP/s). & Consumo energético restrictivo. & Infraestructura fija/servidores. \\
+%\bottomrule
+%\end{tabular}
+%\end{table}
+%
+%\subsection{Lista de Desafíos Observados}
+%A partir del análisis sistemático del SOTA, se derivan los siguientes desafíos técnicos abiertos que justifican el desarrollo de una nueva alternativa:
+%\begin{enumerate}
+%    \item[\textbf{D1.}] \textbf{Rigidez Estructural:} Incapacidad de los aceleradores actuales para adaptarse a variaciones dinámicas en el dominio de los datos sin comprometer severamente el \textit{timing}.
+%    \item[\textbf{D2.}] \textbf{Eficiencia de Recursos Embebidos:} Degradación del rendimiento de procesamiento por unidad de área o celda cuando se escalan los tamaños de datos.
+%    \item[\textbf{D3.}] \textbf{Determinismo Temporal:} Cuellos de botella en la latencia de interconexión que impiden garantizar restricciones de tiempo real estricto.
+%\end{enumerate}
+%
 % =========================================================
 % NUEVA INTEGRACIÓN: PROPUESTA DE SOLUCIÓN DE II NIVEL
 % =========================================================
