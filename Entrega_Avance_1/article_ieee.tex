@@ -17,8 +17,7 @@
 
 \title{Desarrollo de una celda reconfigurable de CGRA}
 \author{\IEEEauthorblockN{Duarte Sanchez David, Jimenez Ulate Eddy, Ruiz Rivera Jeffrey, Esquivel Arias Fabian Zúñiga Ramírez Jose Eduardo}
-\IEEEauthorblockA{Grupo de 5\\
-\{davidduarte28, e.jimenez.10, yr1ruiz, fabiesqui22, je.zuniga\}@estudiantec.cr}
+\IEEEauthorblockA{{davidduarte28, e.jimenez.10, yr1ruiz, fabiesqui22, je.zuniga}@estudiantec.cr}
 }
 \date{}
 
@@ -121,209 +120,116 @@ El tipo de construcción de las CGRA ha tomado mucha importancia debido a los si
 % =========================================================
 % NUEVA INTEGRACIÓN: PROPUESTA DE SOLUCIÓN DE II NIVEL
 % =========================================================
-\section{Propuesta de la Solución y Arquitectura de Segundo Nivel}
+\section{Propuesta de Solución y Arquitectura de Segundo Nivel}
 
-% ------------------------------------------------------------------------------
-\subsection{Descripción General de la Solución y Alcance}
-% ------------------------------------------------------------------------------
-
-El presente proyecto propone el diseño de una celda reconfigurable heterogénea para un arreglo de compuertas reconfigurables de grano grueso (CGRA) que supera las limitaciones fundamentales de las arquitecturas homogéneas dominantes en el estado del arte. A diferencia de los enfoques tradicionales donde todos los elementos de procesamiento (PEs) comparten la misma estructura funcional ---generando sub-utilización ante cargas de trabajo heterogéneas \cite{adres2004, hycube2017}---, la solución introduce \textbf{cuatro tipos de celdas especializadas} que coexisten dentro del mismo \textit{fabric} reconfigurable:
-
+\subsection{Descripción General y Alcance}
+Presenta una \textbf{celda reconfigurable heterogénea} para CGRA, superando arquitecturas homogéneas con sub-utilización ante cargas heterogéneas \cite{adres2004, hycube2017}. Introduce \textbf{cuatro tipos de celdas especializadas} en un único \textit{fabric}:
 \begin{enumerate}
-    \item \textbf{Celdas de enrutamiento} con FIFOs para manejo dinámico del flujo de datos sin bloqueos.
-    \item \textbf{Celdas de memoria distribuida} con bancos SRAM locales para eliminar cuellos de botella de acceso centralizado.
-    \item \textbf{Celdas de procesamiento escalar} con ALU multi-precisión (enteros de 8, 16 y 32 bits) y soporte de bucles hardware.
-    \item \textbf{Celdas de procesamiento vectorial} con unidad aritmética SIMD en punto flotante de 32 bits para 4 u 8 elementos simultáneos.
+    \item \textbf{Enrutamiento:} FIFOs para flujo dinámico sin bloqueos.
+    \item \textbf{Memoria distribuida:} Bancos SRAM locales (1–4 KB) eliminan cuellos de botella.
+    \item \textbf{Procesamiento escalar:} ALU multi-precisión (int8/16/32) + bucles hardware.
+    \item \textbf{Procesamiento vectorial:} SIMD float32 (4–8 lanes) para 4–8 elementos simultáneos.
 \end{enumerate}
 
-La Tabla~\ref{tab:desafios_soluciones} resume cómo la arquitectura propuesta aborda cada uno de los desafíos identificados en el análisis del estado del arte.
+La Tabla~\ref{tab:desafios_soluciones} mapea desafíos del SOTA a soluciones.
 
 \begin{table}[htbp]
 \centering
-\caption{Mapeo de desafíos del SOTA a soluciones propuestas.}
+\caption{Desafíos SOTA y soluciones propuestas.}
 \label{tab:desafios_soluciones}
-\small
+\normalsize
 \begin{adjustbox}{max width=\columnwidth}
-\begin{tabular}{@{}p{0.08\textwidth}p{0.35\textwidth}p{0.50\textwidth}@{}}
-\toprule
-\textbf{ID} & \textbf{Desafío} & \textbf{Solución propuesta} \\
+\begin{tabular}{@{}p{0.07\textwidth}p{0.33\textwidth}p{0.55\textwidth}@{}}
+	\textbf{ID} & \textbf{Desafío} & \textbf{Solución} \\
 \midrule
-C1 & PEs homogéneos generan sub-utilización & 4 tipos de celda especializados (enrutamiento, memoria, escalar, vectorial) \\
-C2 & Overhead de enrutamiento consume $>30\%$ del área & Celdas de enrutamiento dedicadas con FIFOs eliminan recursos de routing de las celdas de cómputo \\
-C3 & Memoria centralizada crea cuellos de botella & Bancos SRAM distribuidos en celdas de memoria accesibles localmente \\
-C4 & Latencia de configuración RISC-V & Interfaz CSR RISC-V con DMA para carga de bitstream; configuración parcial por contexto \\
-C5 & Multi-precisión simultánea & ALU escalar con modos int8/16/32; VALU vectorial float32 en celdas separadas \\
-C6 & Overhead de bucles software & Soporte de bucles hardware (contador + predicación) en celdas escalares \\
-C7 & Verificación costosa & Metodología de programas de prueba aleatorios \cite{verification_cgra} \\
-C8 & Tiempo de reconfiguración & Multi-contexto: hasta 4 configuraciones almacenadas, seleccionable en 1 ciclo \\
-C9 & NoC como cuello de botella & Malla 2D con enlaces de 32 bits, control de flujo basado en créditos por FIFO \\
-C10 & Compilación compleja & Mapeado asistido por tipo de celda: el scheduler RISC-V clasifica operaciones por tipo antes de asignar \\
+C1 & PEs homogéneos $\to$ sub-utilización & 4 celdas especializadas (enrut., mem., esc., vec.) \\
+C2 & Overhead routing $>30\%$ área & Celdas routing dedicadas con FIFOs \\
+C3 & Memoria centralizada $\to$ cuellos & SRAM distribuido local (1--4 KB) \\
+C4 & Latencia config. RISC-V & CSR + DMA; config. parcial por contexto \\
+C5 & Multi-precisión simultánea & ALU escalar int8/16/32; VALU float32 \\
+C9 & NoC $\to$ cuello de botella & Malla 2D, enlaces 32 b, FIFOs por crédito \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
 \end{table}
 
 \subsubsection{Novedad Arquitectónica}
+Combinación inédita: (a) routing como celda primaria con FIFOs, (b) memoria distribuida por celda, (c) multi-precisión entero-flotante en celdas diferenciadas, (d) acoplamiento nativo RISC-V (RV32IMAF) via CSR + DMA. Ninguna arquitectura revisada (ADRES, HyCUBE, Plasticine, etc.) integra simultáneamente estas 4 características.
 
-La contribución principal reside en la combinación inédita de: (a) enrutamiento como celda de primera clase con FIFOs dedicados, (b) memoria distribuida por celda, (c) multi-precisión entero-flotante en celdas diferenciadas, y (d) compatibilidad nativa con RISC-V (RV32IMAF) mediante registros de control y estado (CSR) y DMA en un único \textit{fabric} heterogéneo. Ninguna de las arquitecturas revisadas ---ADRES, HyCUBE, Plasticine, CGR-NPU, CGRA-RISC, DVHetero, MC-DeF--- combina simultáneamente estas cuatro características.
-
-\subsubsection{Alcance del Proyecto}
-
-El alcance del presente trabajo se delimita a los siguientes entregables:
-
+\subsubsection{Alcance y Entregables}
 \begin{itemize}
-    \item \textbf{Diseño RTL (VHDL)} de las 4 celdas individuales más el router NoC básico.
-    \item \textbf{Integración} de un arreglo mínimo de $2 \times 2$ celdas conectadas por NoC en malla.
-    \item \textbf{Verificación funcional} mediante testbench exhaustivo y método de programas de prueba aleatorios.
-    \item \textbf{Síntesis en FPGA} (target: Xilinx Artix-7 o Kintex-7) con reporte de recursos y frecuencia máxima.
-    \item \textbf{Evaluación de rendimiento} mediante benchmarks representativos: multiplicación de matrices, FFT de 8 puntos y reducción de vectores.
+    \item \textbf{RTL (VHDL):} 4 celdas + router NoC básico.
+    \item \textbf{Integración:} Arreglo $2\times2$ con NoC en malla.
+    \item \textbf{Verificación:} Testbench exhaustivo + programas aleatorios \cite{verification_cgra}.
+    \item \textbf{Síntesis FPGA:} Segun disponibilidad (recursos + $F_{\max}$).
+    \item \textbf{Benchmarks:} Multiplicación matrices, FFT, reducción vectores.
 \end{itemize}
 
-Las métricas de evaluación se resumen en la Tabla~\ref{tab:metricas}.
+Métricas en Tabla~\ref{tab:metricas_hls}.
 
 \begin{table}[htbp]
 \centering
-\caption{Métricas de evaluación del proyecto.}
-\label{tab:metricas}
-\small
-% use fixed-width columns to better wrap long entries
-\begin{tabular}{@{}p{0.35\linewidth}p{0.25\linewidth}p{0.35\linewidth}@{}}
+\caption{Métricas de evaluación (Flujo HLS + FPGA).}
+\label{tab:metricas_hls}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.35\linewidth}p{0.20\linewidth}p{0.45\linewidth}@{}}
 \toprule
 \textbf{Métrica} & \textbf{Unidad} & \textbf{Herramienta} \\
 \midrule
-Recursos FPGA & LUT, FF, DSP, BRAM & Vivado 2023.1 Implementation Report \\
-Frecuencia máxima ($F_{\max}$) & MHz & Vivado Timing Report \\
-Latencia por operación & ciclos & Simulación RTL (GHDL / Vivado Sim) \\
-Throughput & OP/s, GFlop/s & Calculado a partir de $F_{\max}$ y latencia \\
-Consumo de potencia & mW & Vivado Power Analysis (post-implementation) \\
-Cobertura de código & \% & GHDL + gcov / Vivado Simulator coverage \\
-Speedup sobre SW & $\times$ & Comparación ciclos CGRA vs.\ ciclos RISC-V \\
+Recursos FPGA & LUT/FF/DSP/BRAM & Vitis HLS / Vivado 2023.1 \\
+$F_{\max}$ & MHz & Vivado Timing \\
+Latencia & ciclos & C/RTL Co-simulación (HLS) \\
+Throughput & OP/s, GFlop/s & Análisis analítico ($F_{\max}$ + latencia) \\
+Potencia & mW & Vivado Power \\
+Speedup SW & $\times$ & SystemC vs. RISC-V (C++) \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{table}
 
-% ------------------------------------------------------------------------------
-\subsection{Arquitectura General de Segundo Nivel --- Detalle de Componentes}
-\label{subsec:arquitectura_2nivel}
-% ------------------------------------------------------------------------------
+\subsection{Arquitectura de Segundo Nivel: Componentes}
+Topología malla $2\times2$ con NoC (control por créditos). Fig.~\ref{fig:diagrama_2nivel_png} muestra el diagrama.
 
-La arquitectura de segundo nivel del CGRA heterogéneo se organiza en una topología de malla $2 \times 2$ que integra los cuatro tipos de celdas especializadas interconectadas mediante una red en chip (NoC) con control de flujo basado en créditos. La Figura~\ref{fig:diagrama_2nivel} presenta el diagrama de bloques de esta arquitectura.
-
-\begin{sidewaysfigure*}
+\begin{figure}[htbp]
     \centering
-    % Scale the TikZ input to fit page while keeping aspect ratio (rotated page)
-    \begin{adjustbox}{max width=0.8\textwidth,max height=0.7\textheight,keepaspectratio}
-        \shorthandoff{<>}%
-        \input{images/diagrama_2nivel_tikz.tex}%
-        \shorthandon{<>}%
-    \end{adjustbox}
-    \caption{Diagrama de arquitectura de segundo nivel del CGRA heterogéneo $2 \times 2$.}
-    \label{fig:diagrama_2nivel}
-\end{sidewaysfigure*}
-% Alternativa raster (descomentar si no se desea TikZ):
-% \begin{figure}[htbp]
-%     \centering
-%     \includegraphics[width=0.85\textwidth]{images/Diagrama_2_nivel.png}
-%     \caption{Diagrama de arquitectura de segundo nivel del CGRA heterogéneo $2 \times 2$.}
-%     \label{fig:diagrama_2nivel}
-% \end{figure}
+    \includegraphics[width=0.9\columnwidth]{images/lvl2_diagram.png}
+    \caption{Diagrama de arquitectura de segundo nivel generado con inteligencia artificial.}
+    \label{fig:diagrama_2nivel_png}
+\end{figure}
+\subsubsection{Celda de Enrutamiento}
+Primera clase (no multiplexores estáticos): FIFOs 4–8 entradas $\times$ 32 b por puerto; crossbar $4\times4$ (1 ciclo, multicast); control por créditos; 4 contextos (cambio 1 ciclo). Overhead routing $<15\%$ área (vs. $\sim30\%$ en HyCUBE \cite{hycube2017}).
 
-\subsubsection{Celda de Enrutamiento (Routing Cell)}
+\subsubsection{Celda de Memoria Distribuida}
+SRAM dual-port 1–4 KB (BRAM FPGA); controlador (directo/indirecto/stride); interfaz NoC (1–2 ciclos); DMA local (transferencias bloque sin host). Elimina contención centralizada.
 
-La celda de enrutamiento es un componente de primera clase en la arquitectura, a diferencia de los enfoques tradicionales donde el enrutamiento se realiza mediante multiplexores estáticos integrados en los PEs de cómputo. Sus características principales son:
+\subsubsection{Celda Escalar}
+ALU int8/16/32 (4 ops SIMD int8/ciclo); 16 registros $\times$ 32 b; bucles HW (contador + predicación); 4 contextos; interfaz NoC 32 b por crédito.
 
-\begin{itemize}
-    \item \textbf{FIFOs de entrada/salida:} Cada puerto cardinal (Norte, Sur, Este, Oeste) cuenta con un buffer FIFO de profundidad configurable (4--8 entradas de 32 bits) que permite absorber ráfagas de datos y desacoplar temporalmente productor y consumidor.
-    \item \textbf{Crossbar configurable:} Una matriz de interconexión interna permite enrutar cualquier entrada a cualquier salida en un único ciclo de reloj, soportando comunicación multicast.
-    \item \textbf{Control de flujo por créditos:} El mecanismo de créditos garantiza que no se envían datos cuando el FIFO receptor está lleno, eliminando la pérdida de datos sin requerir señales de stall globales.
-    \item \textbf{Configuración por contexto:} La tabla de enrutamiento se almacena en un registro de configuración seleccionable entre hasta 4 contextos, permitiendo cambio de mapeo en 1 ciclo.
-\end{itemize}
+\subsubsection{Celda Vectorial}
+VALU SIMD 4–8 lanes float32 (suma, MAC, reduce); 8 reg. vectoriales (128/256 b); carga/alm. strided; 4 contextos; NoC 128 b (modo ráfaga). Consumirá $\sim3\times$ DSP, entregará $\sim4\times$ throughput float32 \cite{exploration_tradeoffs}.
 
-Al dedicar una celda exclusivamente al enrutamiento, se libera área en las celdas de cómputo y se reduce el overhead de interconexión a menos del 15\% del área total del arreglo, comparado con el $\sim$30\% reportado en arquitecturas homogéneas como HyCUBE \cite{hycube2017}.
+\subsubsection{Router NoC}
+Malla 2D, enlaces 32 b; créditos + FIFO 4 flits; arbitraje round-robin; 1 ciclo/hop; puerto host CSR/DMA (config. celdas, transferencias DMA, lectura resultados).
 
-\subsubsection{Celda de Memoria Distribuida (Memory Cell)}
-
-La celda de memoria distribuida resuelve el cuello de botella de acceso centralizado presente en arquitecturas como Plasticine y DVHetero. Sus componentes internos incluyen:
-
-\begin{itemize}
-    \item \textbf{Banco SRAM local:} Un bloque de memoria de doble puerto (dual-port) implementado sobre BRAM de la FPGA, con capacidad de 1--4\,KB por celda y ancho de palabra de 32 bits.
-    \item \textbf{Controlador de acceso:} Unidad que gestiona las operaciones de lectura y escritura, soportando modos de direccionamiento directo, indirecto y con stride para patrones de acceso regulares.
-    \item \textbf{Interfaz NoC:} Puertos de entrada/salida compatibles con el protocolo de créditos de la malla, permitiendo que celdas vecinas accedan al banco SRAM con latencia de 1--2 ciclos.
-    \item \textbf{DMA local:} Un motor DMA simplificado permite transferencias en bloque entre la memoria principal del sistema (accedida vía la interfaz RISC-V) y el banco SRAM local sin intervención del procesador host durante la ejecución.
-\end{itemize}
-
-Esta distribución de memoria elimina la contención en un único controlador centralizado y permite que las celdas de cómputo adyacentes accedan a datos con latencia predecible y mínima.
-
-\subsubsection{Celda de Procesamiento Escalar (Scalar Processing Cell)}
-
-La celda escalar está optimizada para operaciones aritméticas y lógicas sobre datos enteros con soporte de múltiples precisiones. Sus componentes son:
-
-\begin{itemize}
-    \item \textbf{ALU multi-precisión:} Unidad aritmético-lógica que soporta operaciones en modos int8, int16 e int32, incluyendo suma, resta, multiplicación, operaciones lógicas (AND, OR, XOR, shift) y comparaciones. En modo int8, la ALU puede realizar hasta 4 operaciones SIMD empaquetadas por ciclo.
-    \item \textbf{Banco de registros local:} Archivo de registros de 8--16 entradas $\times$ 32 bits para almacenamiento temporal de operandos y resultados intermedios.
-    \item \textbf{Unidad de control de bucles hardware:} Contador de iteraciones con soporte de predicación que permite ejecutar bucles internos sin overhead de instrucciones de salto, reduciendo la penalización reportada en \cite{loop_overhead}.
-    \item \textbf{Registro de configuración multi-contexto:} Almacena hasta 4 configuraciones de operación (opcode, fuentes, destinos, modo de precisión), permitiendo cambio de función en 1 ciclo de reloj.
-    \item \textbf{Interfaz NoC:} Puertos de datos de 32 bits con protocolo de créditos para recepción de operandos y envío de resultados a celdas vecinas.
-\end{itemize}
-
-\subsubsection{Celda de Procesamiento Vectorial (Vector Processing Cell)}
-
-La celda vectorial proporciona capacidad de cómputo en punto flotante de alta densidad para cargas de trabajo que requieren operaciones de tipo SIMD. Sus componentes incluyen:
-
-\begin{itemize}
-    \item \textbf{Unidad aritmética vectorial (VALU):} Procesador SIMD de 4 u 8 \textit{lanes} operando en float32 (IEEE 754 single precision). Soporta las operaciones: suma, resta, multiplicación, multiplicación-acumulación (MAC) y operaciones de reducción (sum-reduce, max-reduce).
-    \item \textbf{Banco de registros vectoriales:} Archivo de 8 registros vectoriales de $4 \times 32$ bits (128 bits por registro) o $8 \times 32$ bits (256 bits) según la configuración de lanes.
-    \item \textbf{Unidad de carga/almacenamiento vectorial:} Interfaz para acceso a datos desde la celda de memoria vecina con soporte de acceso contiguo y \textit{strided}, optimizada para patrones regulares de matrices.
-    \item \textbf{Registro de configuración multi-contexto:} Similar a la celda escalar, almacena hasta 4 configuraciones que definen la operación vectorial, el ancho de vector activo y los patrones de acceso.
-    \item \textbf{Interfaz NoC extendida:} Puertos de datos de 32 bits (serializados) o 128 bits (modo ráfaga) para transferencia eficiente de vectores completos entre celdas.
-\end{itemize}
-
-Se estima que la celda vectorial float32 consumirá aproximadamente $3\times$ más recursos DSP que la celda escalar int32, pero entregará $\sim$$4\times$ más throughput en operaciones de punto flotante, consistente con los \textit{trade-offs} reportados en \cite{exploration_tradeoffs}.
-
-\subsubsection{Red en Chip (NoC) --- Router de Malla}
-
-El router NoC interconecta las cuatro celdas en topología de malla $2 \times 2$ y provee la interfaz hacia el procesador host RISC-V. Sus características son:
-
-\begin{itemize}
-    \item \textbf{Topología:} Malla 2D regular con enlaces bidireccionales de 32 bits entre celdas adyacentes.
-    \item \textbf{Control de flujo:} Basado en créditos por enlace, con profundidad de FIFO de entrada de 4 flits. Cada celda mantiene un contador de créditos por vecino para garantizar operación sin pérdida.
-    \item \textbf{Arbitraje:} Round-robin entre los puertos de entrada cuando múltiples fuentes solicitan el mismo puerto de salida en el mismo ciclo.
-    \item \textbf{Latencia:} 1 ciclo de reloj por salto (\textit{hop}) en el caso sin contención.
-    \item \textbf{Interfaz host:} Un puerto adicional conecta la malla al bus del procesador RISC-V (RV32IMAF) mediante un puente CSR/DMA que permite: (a) escritura de registros de configuración de cada celda, (b) transferencia de datos vía DMA entre memoria principal y celdas de memoria distribuida, y (c) lectura de resultados.
-\end{itemize}
-
-\subsubsection{Interfaz de Acoplamiento RISC-V}
-
-El acoplamiento con el procesador host RISC-V se realiza mediante:
-
-\begin{itemize}
-    \item \textbf{Registros CSR dedicados:} Un espacio de direcciones CSR permite al software RISC-V configurar individualmente cada celda del arreglo, seleccionar contextos activos e iniciar/detener la ejecución del CGRA.
-    \item \textbf{Motor DMA:} Controlador DMA de un canal que transfiere bloques de datos entre la memoria principal del SoC y las celdas de memoria distribuida del CGRA, liberando al procesador durante las transferencias.
-    \item \textbf{Señalización de estado:} Interrupciones y flags de estado que notifican al procesador RISC-V la finalización de operaciones en el CGRA, permitiendo ejecución concurrente host-acelerador.
-    \item \textbf{Extensión ISA mínima:} Instrucciones custom (encoding en el espacio custom-0 de RISC-V) para operaciones frecuentes como \texttt{cgra\_config}, \texttt{cgra\_start}, \texttt{cgra\_wait} y \texttt{cgra\_read}, reduciendo la latencia de control respecto al acceso CSR puro.
-\end{itemize}
-
-Esta interfaz aborda directamente el desafío C4 (latencia de configuración) identificado en las arquitecturas CGRA-RISC \cite{cgra_risc} y DVHetero \cite{dvhetero}, reduciendo el overhead mediante carga por DMA y configuración parcial multi-contexto.
-
-\subsubsection{Resumen de la Arquitectura de Segundo Nivel}
-
-La Tabla~\ref{tab:resumen_componentes} sintetiza los componentes principales de la arquitectura y sus parámetros clave de diseño.
+\subsubsection{Interfaz RISC-V}
+CSR dedicado (config. celda, contexto, start/stop); DMA 1 canal; interrupciones/flags; 4 instrucciones custom (cgra\_config/start/wait/read). Reduce latencia config. (desafío C4) \cite{cgra_risc, dvhetero}.
 
 \begin{table*}[htbp]
 \centering
-\caption{Resumen de componentes de la arquitectura de segundo nivel.}
+\caption{Resumen de componentes.}
 \label{tab:resumen_componentes}
 \small
-\begin{tabular}{@{}p{0.22\textwidth}p{0.30\textwidth}p{0.40\textwidth}@{}}
+\begin{tabular}{@{}p{0.22\textwidth}p{0.30\textwidth}p{0.42\textwidth}@{}}
 \toprule
-\textbf{Componente} & \textbf{Función principal} & \textbf{Parámetros clave} \\
+\textbf{Componente} & \textbf{Función} & \textbf{Parámetros clave} \\
 \midrule
-Celda de enrutamiento & Interconexión dinámica con buffering & FIFOs 4--8 entradas $\times$ 32\,b; crossbar $4 \times 4$; 4 contextos \\
-Celda de memoria & Almacenamiento local distribuido & SRAM dual-port 1--4\,KB; DMA local; latencia 1--2 ciclos \\
-Celda escalar & Cómputo entero multi-precisión & ALU int8/16/32; 16 registros; bucles HW; 4 contextos \\
-Celda vectorial & Cómputo SIMD float32 & VALU 4--8 lanes; 8 reg.\ vectoriales; MAC; 4 contextos \\
-Router NoC & Transporte de datos en malla & 32\,b enlaces; créditos; 1 ciclo/hop; arbitraje round-robin \\
-Interfaz RISC-V & Acoplamiento host-acelerador & CSR + DMA + ISA custom; RV32IMAF compatible \\
+Enrutamiento & Interconexión + buffering & FIFOs 4–8 $\times$ 32 b; crossbar $4\times4$; 4 contexto \\
+Memoria & SRAM distribuido & 1–4 KB dual-port; DMA; 1–2 ciclos \\
+Escalar & Entero multi-precisión & int8/16/32; 16 reg.; bucles HW; 4 contexto \\
+Vectorial & SIMD float32 & 4–8 lanes; 8 reg.; MAC; 4 contexto \\
+Router NoC & Transporte malla & 32 b; créditos; 1 ciclo/hop; round-robin \\
+RISC-V & Host-acelerador & CSR + DMA + ISA custom; RV32IMAF \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -380,7 +286,9 @@ Con el fin de asegurar la reproducibilidad estricta de las pruebas de diseño y 
 \caption{Herramientas de Desarrollo y Versiones del Entorno}
 \label{tab:herramientas}
 \centering
-\begin{tabular}{lll}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.38\linewidth}p{0.18\linewidth}p{0.42\linewidth}@{}}
 \toprule
 \textbf{Herramienta / Software} & \textbf{Versión} & \textbf{Propósito en el Experimento} \\
 \midrule
@@ -389,6 +297,7 @@ Xilinx Vivado Design Suite & 2025.2 & Síntesis lógica y análisis de \textit{t
 ModelSim / Questa Advanced & 2025.1 & Simulación funcional RTL ciclo a ciclo. \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{table}
 
 \section*{Declaración de uso de herramientas de IA}
