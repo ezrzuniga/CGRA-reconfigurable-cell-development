@@ -47,8 +47,6 @@ La importancia de utilizar este set de instrucciones es que este es un estándar
 haciendo que el diseño de hardware sea sencillo y una implementación más directa \cite{riscv}.
 
 
-
-
 \section{Antecedentes y Trabajo Relacionado}
 En los últimos años, las CGRA han ganado un protagonismo significativo como aceleradores de hardware debido a su capacidad para ofrecer un equilibrio excepcional entre la flexibilidad del software y el alto rendimiento del hardware de aplicación específica \cite{LeiboLiu,Podobas}. A diferencia de las arquitecturas de grano fino, las CGRAs operan a nivel de palabra o bloque, lo que reduce sustancialmente la sobrecarga de reconfiguración y enrutamiento, haciéndolas particularmente atractivas para aplicaciones eficientes en el borde (edge computing). El desarrollo e investigación de estas arquitecturas ha sido fuertemente impulsado por la adopción del repertorio de instrucciones (ISA) de código abierto RISC-V \cite{riscv}, cuya naturaleza extensible facilita la creación de Sistemas en Chip (SoC) heterogéneos altamente personalizados.
 
@@ -61,6 +59,15 @@ Para que este tipo de sistemas alcance su máximo potencial, el diseño interno 
 
 \section{Análisis de Soluciones Existentes (SOTA)} %Jose
 \label{sec:sota}
+
+Existen distintos tipos de CGRAs, tipos como el ADRES y el HyCUBE son de tipo homogéneo, mientras que el Plasticine posee dos tipos de PEs \cite{DelSozzo2024Exploration}. 
+
+
+
+
+
+
+
 
 El diseño de soluciones óptimas requiere un escrutinio riguroso de las alternativas vigentes en la literatura científica. En esta sección se evalúan las fortalezas y debilidades de los enfoques predominantes en el estado del arte (SOTA), delimitando sus escenarios de viabilidad técnica.
 
@@ -183,6 +190,7 @@ Docker Engine (Ubuntu Base) & 24.0.9 & Contenerización del flujo de compilació
 
 \section*{Declaración de uso de herramientas de IA}
 Para este trabajo se hizo uso de Inteligencia Artificial para la ayuda en la estructura de la introducción y el estado del arte, así como para una revisión gramatical y ortográfica del documento.
+
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
