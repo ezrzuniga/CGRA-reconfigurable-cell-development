@@ -309,7 +309,7 @@ Esta interfaz aborda directamente el desafío C4 (latencia de configuración) id
 
 La Tabla~\ref{tab:resumen_componentes} sintetiza los componentes principales de la arquitectura y sus parámetros clave de diseño.
 
-\begin{table}[htbp]
+\begin{table*}[htbp]
 \centering
 \caption{Resumen de componentes de la arquitectura de segundo nivel.}
 \label{tab:resumen_componentes}
@@ -326,31 +326,52 @@ Router NoC & Transporte de datos en malla & 32\,b enlaces; créditos; 1 ciclo/ho
 Interfaz RISC-V & Acoplamiento host-acelerador & CSR + DMA + ISA custom; RV32IMAF compatible \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 % =========================================================
 % NUEVA INTEGRACIÓN: PLAN DE EXPERIMENTO
 % =========================================================
 \section{Plan de Experimentación y Metodología}%Eddy
 \label{sec:experimento}
+\subsection{Test y estímulo}
 
-La validación cuantitativa de la arquitectura propuesta frente a los enfoques existentes se regirá por un plan experimental estructurado y replicable.
+Para probar un diseño electrónico se necesita un testbench, encargado de dirigir un estímulo hacia el diseño y de facilitar el monitoreo de lo que ocurre en el diseño bajo prueba (DUT). Como se ha hecho en otros diseños, y en los distintos frameworks de desarrollo para CGRA, resulta necesario contar con un algoritmo que la arquitectura sea capaz de ejecutar. Para esto se suele partir de los llamados kernels: algoritmos representativos, típicamente codificados en C (por ejemplo, FFT y GEMM), anotados con directivas de compilación sobre los loops, cuya estructura de flujo de datos puede mapearse sobre el arreglo de PEs de una CGRA. Este es, de hecho, el enfoque que sigue Morpher dentro del ecosistema OpenCGRA: a partir del kernel en C genera el grafo de flujo de datos (DFG) y el layout de memoria scratchpad, y produce los vectores de prueba que alimentan la etapa de simulación/emulación, con los que se verifica la correctitud funcional y se obtienen estimaciones de área y potencia \cite{Juneja}. El uso de FFT como kernel de referencia es además consistente con la literatura de CGRA orientada a procesamiento de señales, donde aparece de forma recurrente junto con rutinas como IDCT, FIR e IIR \cite{Podobas}.
 
-\subsection{Casos de Prueba y Variabilidad de Datos}
-Para comprobar la robustez y escalabilidad de la propuesta, los experimentos se dividirán según dos ejes de variabilidad:
+Vale la pena notar que incluso en frameworks consolidados como OpenCGRA, sus propios autores señalan que el simulador depende de testbenches escritos manualmente por el usuario y no automatiza la generación de datos de prueba ni las verificaciones de extremo a extremo \cite{Juneja}. Esto refuerza la pertinencia de plantear, desde un inicio, un flujo de pruebas estructurado y progresivo como el que se propone a continuación.
+
+Si bien un objetivo valioso es lograr ejecutar un algoritmo como FFT o GEMM compilado de principio a fin ---desde el programa en C hasta el bitstream de configuración y los datos de entrada de la CGRA---, dado el tiempo disponible para el desarrollo del proyecto, el primer objetivo apunta a pruebas algorítmicamente más sencillas. Se proponen los siguientes pasos:
+
 \begin{enumerate}
-    \item \textbf{Variación en el Tamaño de Datos:} Pruebas de carga incremental utilizando matrices y vectores de datos de dimensiones pequeñas ($16 \times 16$), medianas ($128 \times 128$) y grandes ($1024 \times 1024$).
-    \item \textbf{Diversidad en el Dominio de Datos:} Evaluación bajo conjuntos de datos con perfiles de dispersión y patrones de acceso aleatorios, estructurados y secuenciales dispersos, simulando comportamientos de diferentes aplicaciones reales.
+    \item \textbf{Una sola PE ejecutando $c = a + b$ (constante) o $c = a \times b$.} Esto valida la carga de la palabra de configuración (config word), la lectura de registros/entradas, la operación de la ALU y la escritura del resultado de salida. Es, literalmente, el ``hello world'' de la arquitectura.
+    \item \textbf{Cadenas de operaciones, en modo pipeline:} suma acumulada ($y = x_0 + x_1 + x_2 + \dots + x_n$) y potencias por cuadrados sucesivos ($x,\ x^2,\ x^4,\ x^8,\ \dots$).
+    \item \textbf{MAC simple ($acc \mathrel{+}= a \times b$):} es el bloque base de casi todo kernel real (FFT, GEMM, convoluciones), por lo que si esta prueba funciona correctamente, se gana confianza para escalar hacia diseños más complejos.
 \end{enumerate}
 
-\subsection{Métricas de Evaluación Técnica}
-El contraste con el estado del arte se cuantificará mediante las siguientes métricas de ingeniería de hardware y sistemas:
+Una vez superadas estas pruebas básicas, se puede avanzar hacia benchmarks típicos de la literatura de CGRA, como MachSuite y PolyBench \cite{PolyBenchC,MachSuite}, que junto con Wavelib y BEEBS conforman el conjunto de suites utilizado por Morpher para evaluar su flujo de compilación \cite{Juneja}. Estas suites proveen bibliotecas de kernels (incluyendo FFT y GEMM) que pueden mapearse sobre la CGRA mediante un flujo de compilación similar al descrito anteriormente.
+
+
+\subsection{Monitoreo}
+
+Dado que este proyecto se desarrollará en SystemC, se busca aprovechar las funcionalidades propias del lenguaje para implementar la medición de desempeño. Se propone implementar un monitor como un componente \texttt{SC\_MODULE} que observe, de manera no intrusiva, elementos del DUT como señales y contadores internos. Esta separación entre la lógica funcional y la lógica de medición sigue el principio de diseño modular propio de SystemC, en el que el monitor puede añadirse o removerse del testbench sin modificar el módulo bajo análisis.
+
+Se propone que el monitor calcule, como mínimo, las siguientes métricas:
+
 \begin{itemize}
-    \item \textbf{Consumo de Recursos:} Porcentaje de ocupación de elementos lógicos, registros y bloques de memoria en el entorno de evaluación.
-    \item \textbf{Latencia:} Número exacto de ciclos de reloj requeridos desde la entrada del estímulo hasta la estabilización de la respuesta de salida.
-    \item \textbf{Timing (Frecuencia Máxima):} Análisis de restricciones temporales enfocado en el peor camino crítico (\textit{Worst Negative Slack}, WNS) para derivar la frecuencia máxima de operación ($f_{max}$).
-    \item \textbf{Rendimiento de Carga (OP/s):} Cantidad de operaciones efectivas ejecutadas por segundo (Giga-Operaciones por Segundo, GOPS) bajo procesamiento continuo.
+    \item \textbf{Operaciones por segundo (OP/s):} cociente entre el número total de operaciones ejecutadas por el DUT y el tiempo total de ejecución.
+    \item \textbf{Latencia promedio:} registrando \texttt{sc\_time\_stamp()} al inicio y al final de cada operación individual, promediando sobre la ventana de muestreo.
+    \item \textbf{Tasa de utilización:} proporción de ciclos activos respecto al total de ciclos.
 \end{itemize}
+
+Estas métricas se imprimen a consola mediante \texttt{SC\_REPORT\_INFO}.
+
+Además, cuando el diseño alcance una etapa apta para síntesis en FPGA o ASIC, será posible medir métricas de potencia, área y temporización (\textit{timing}) con las herramientas EDA correspondientes. Esto aplica tanto para la AMD Kria KV260 como para la AMD Alveo U55C.
+
+
+\subsection{Experimentación arquitectónica}
+
+Ligado a la exploración del espacio de diseño, se plantea generar variaciones del diseño arquitectónico de la CGRA, modificando la cantidad y el tipo de PEs (\textit{processing elements}). Por ejemplo, cambios en la distribución de tipos de PE (más bancos de memoria, más ALUs de punto fijo, más ALUs de punto flotante), así como distintas dimensiones $n \times n$ del arreglo, orientadas a optimizar la ejecución de instrucciones vectoriales.
+
+Este tipo de exploración es consistente con la diversidad de arquitecturas CGRA reportada en la literatura, donde el desempeño depende fuertemente de la composición y disposición de los PEs \cite{Podobas}.
 
 \subsection{Herramientas y Entorno de Desarrollo}
 Con el fin de asegurar la reproducibilidad estricta de las pruebas de diseño y simulación, se define la infraestructura de herramientas de software con sus respectivas versiones en la Tabla~\ref{tab:herramientas}.
@@ -363,10 +384,9 @@ Con el fin de asegurar la reproducibilidad estricta de las pruebas de diseño y 
 \toprule
 \textbf{Herramienta / Software} & \textbf{Versión} & \textbf{Propósito en el Experimento} \\
 \midrule
-MATLAB / Simulink & R2026a & Modelado matemático y \textit{golden model}. \\
+SystemC & 3.0.1 & Modelado y simulación de la arquitectura CGRA. \\
 Xilinx Vivado Design Suite & 2025.2 & Síntesis lógica y análisis de \textit{timing}. \\
 ModelSim / Questa Advanced & 2025.1 & Simulación funcional RTL ciclo a ciclo. \\
-Docker Engine (Ubuntu Base) & 24.0.9 & Contenerización del flujo de compilación. \\
 \bottomrule
 \end{tabular}
 \end{table}
