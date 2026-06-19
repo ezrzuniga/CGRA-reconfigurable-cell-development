@@ -3,6 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[spanish]{babel}
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
 \usepackage{csquotes}
 \usepackage{url}
 \usepackage{graphicx}
@@ -69,10 +70,13 @@ Para que este tipo de sistemas alcance su máximo potencial, el diseño interno 
 
 En la actualidad, existen distintos tipos de CGRAs, donde estos pueden tener un arreglo de PEs homogéneos como es el caso de los CGRA HyCUBE y los DySER \cite{Blocks2022} o pueden ser de tipo hererogéneos como el Plasticine que posee dos tipos de unidad, los PCU y los PMU \cite{plasticine2017}. Otra característica importante a destacar es el tipo de precisión que estos dispositivos pueden soportar, donde muchos de estos están restringidos a solo procesar operaciones de enteros, siendo estos más de propósito general y otros donde si se añade la ventaja de punto flotante para procesos más especializados \cite{exploration_tradeoffs}. 
 
-El tipo de construcción de las CGRA ha tomado mucha importancia debido a los sistemas HPC \textit{High Performance Computing}, donde estos se ven altamente beneficiados de que los PEs sean de tipo heterogéneo, donde se tenga una mezcla de PEs basicos y complejos \cite{exploration_tradeoffs}. Esto es es altamente importante para funciones matemáticas debido a que las CGRAs tradicionales no lo manejan de manera óptima
+Los sistemas CGRA ya no se ven como un elemento aislado, estos se presentan en la actualidad como una parte heterogénea de un sistema de arquitectura \cite{dvhetero}.
+Además, los CGRA han tomado gran importancia en sistemas HPC \textit{High Performance Computing}, donde estos se ven altamente beneficiados de que los PEs sean de tipo heterogéneo, donde se tenga una mezcla de PEs basicos y complejos \cite{exploration_tradeoffs}. Esto es es altamente importante para funciones matemáticas debido a que las CGRAs tradicionales no lo manejan de manera óptima.
 
 
 
+En la tabla \ref{tab:comparativa_sota} se muestra una comparativa de tres tipos de CGRA, la construcción de estos dispositivos puede ser variada, 
+generando distintas aplicaciones y \textit{trade-offs} donde estos son usados de acuerdo a la aplicación. 
 
 
 
@@ -90,24 +94,31 @@ El tipo de construcción de las CGRA ha tomado mucha importancia debido a los si
 %
 %Para ilustrar de forma concisa estos compromisos, la Tabla~\ref{tab:comparativa_sota} resume los criterios de viabilidad tecnológica encontrados en la literatura.
 %
-%\begin{table}[htbp]
-%\caption{Matriz Comparativa de Soluciones en el Estado del Arte}
-%\label{tab:comparativa_sota}
-%\centering
-%% reduce font and use fixed-width columns to avoid overflow
-%\small
-%\begin{tabular}{l p{2.2cm} p{2.2cm} p{2.2cm}}
-%\toprule
-%\textbf{Solución} & \textbf{Fortalezas} & \textbf{Debilidades} & \textbf{Viabilidad} \\
-%\midrule
-%Propuesta A \cite{adres2004} & Baja latencia, optimización espacial. & Rigidez de hardware, alto tiempo de diseño. & Dominios fijos estables. \\
-%\addlinespace
-%Propuesta B \cite{hycube2017} & Alta flexibilidad, reconfiguración ágil. & Alto consumo de recursos, \textit{overhead}. & Entornos dinámicos no críticos. \\
-%\addlinespace
-%Propuesta C \cite{plasticine2017} & Procesamiento masivo por ciclo (OP/s). & Consumo energético restrictivo. & Infraestructura fija/servidores. \\
-%\bottomrule
-%\end{tabular}
-%\end{table}
+\begin{table}[htbp]
+\caption{Matriz comparativa de soluciones en el estado del arte}
+\label{tab:comparativa_sota}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}l p{1.9cm} p{1.9cm} p{1.9cm}@{}}
+  \toprule
+  \textbf{Solución} & \textbf{Fortalezas} & \textbf{Debilidades} & \textbf{Viabilidad} \\
+  \midrule
+  Propuesta A \cite{adres2004} & Baja latencia, optimización espacial. & Rigidez de hardware, alto tiempo de diseño. & Dominios fijos estables. \\
+  \addlinespace
+  Propuesta B \cite{hycube2017} & Alta flexibilidad, reconfiguración ágil. & Alto consumo de recursos, \textit{overhead}. & Entornos dinámicos no críticos. \\
+  \addlinespace
+  Propuesta C \cite{plasticine2017} & Procesamiento masivo por ciclo (OP/s). & Consumo energético restrictivo. & Infraestructura fija/servidores. \\
+  \bottomrule
+  \end{tabular}%
+}
+\end{table}
+
+El diseño de estos sistemas no solo es necesario a nivel de \textit{hardware} ahora, también es relevante tomar en cuenta su contraparte de \textit{software} \cite{plasticine2017}. Casos como el presentado en \cite{dvhetero} toman como prioridad la validación, el mapeo, el enrutamiento como problemas igual de importantes que la parte de \textit{hardware}
+
+
+
 %
 %\subsection{Lista de Desafíos Observados}
 %A partir del análisis sistemático del SOTA, se derivan los siguientes desafíos técnicos abiertos que justifican el desarrollo de una nueva alternativa:
