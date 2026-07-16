@@ -22,6 +22,8 @@ _build/
 build/
 latex-build/
 
+
+
 # Optional: ignore generated PDFs (uncomment to enable)
 # *.pdf
 
@@ -38,3 +40,6 @@ __pycache__/
 
 # Misc
 *.synctex
+
+pe_scalar/build/
+pe_scalar/CLAUDE.md
