@@ -14,8 +14,8 @@ template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 
 class PE_vector : public sc_core::sc_module {
 public:
     typedef PE_VectorData<DATA_W, VLEN> VectorData;
-    typedef PE_Instruction<DATA_W, VLEN> Instr;
-    typedef PE_InstrIn<DATA_W, VLEN>     InstrIn;
+    typedef PE_VecInstruction<DATA_W, VLEN> Instr;
+    typedef PE_VecInstrIn<DATA_W, VLEN>     InstrIn;
 
     sc_in<bool> clk;
     sc_in<bool> rst;

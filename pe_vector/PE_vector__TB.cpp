@@ -21,7 +21,7 @@ int sc_main(int argc, char* argv[]) {
     sc_signal<bool> enable;
     sc_signal<PE_VectorData<32, 4>> in_N, in_S, in_E, in_W;
     sc_signal<PE_VectorData<32, 4>> out_N, out_S, out_E, out_W;
-    sc_signal<PE_InstrIn<32, 4>> instr_in;
+    sc_signal<PE_VecInstrIn<32, 4>> instr_in;
 
     PE_vector<32, 4> pe("pe");
     pe.clk(clk);
@@ -57,7 +57,7 @@ int sc_main(int argc, char* argv[]) {
     in_S.write(PE_VectorData<32, 4>());
     in_E.write(PE_VectorData<32, 4>());
     in_W.write(PE_VectorData<32, 4>());
-    instr_in.write(PE_InstrIn<32, 4>());
+    instr_in.write(PE_VecInstrIn<32, 4>());
     sc_start(20, SC_NS);
 
     rst.write(false);
@@ -65,7 +65,7 @@ int sc_main(int argc, char* argv[]) {
     in_N.write(make_vector<32, 4>({3, 4, 5, 6}));
     in_S.write(make_vector<32, 4>({4, 5, 6, 7}));
 
-    PE_InstrIn<32, 4> load;
+    PE_VecInstrIn<32, 4> load;
     load.valid = true;
     load.addr = 0;
     load.instr.opcode = OP_ADD;

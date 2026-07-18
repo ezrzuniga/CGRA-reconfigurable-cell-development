@@ -2,11 +2,16 @@
 // ISA vectorial de la PE: misma semántica de instrucciones que el diseño
 // escalar, pero operando sobre vectores de lanes paralelos.
 
-#ifndef PE_ISA_H
-#define PE_ISA_H
+#ifndef PE_VECTOR_ISA_H
+#define PE_VECTOR_ISA_H
 
 #include <systemc.h>
 #include <array>
+
+// Mismos enums que pe_scalar/pe_isa.h (opcodes/src/dst identicos). Si esa cabecera
+// ya fue incluida en esta unidad de traduccion (p.ej. desde cgra_mesh/PE_Base.h, que
+// necesita ambos pe_isa.h a la vez), no se redeclaran para evitar un choque de tipos.
+#ifndef PE_ISA_H
 
 // Opcodes: aritmética/logica entera completa estilo RV32I (shifts y
 // comparaciones con/sin signo incluidas) mas MUL, ademas de NOP y MOV.
@@ -47,6 +52,8 @@ enum PE_Dst {
     DST_WEST  = 4,
     DST_ALL   = 5
 };
+
+#endif // PE_ISA_H
 
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VectorData {
@@ -103,8 +110,13 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const PE_VectorData<DATA_W, VLE
     }
 }
 
+// Nombre distinto de PE_Instruction/PE_InstrIn (pe_scalar/pe_isa.h) a proposito: son
+// estructuralmente identicos salvo el parametro VLEN (que ni siquiera se usa en el
+// cuerpo, imm sigue escalar), pero dos templates de clase con el mismo nombre y
+// distinta cantidad de parametros no pueden coexistir en la misma unidad de
+// traduccion — y cgra_mesh/PE_Base.h necesita incluir ambos pe_isa.h a la vez.
 template <int DATA_W = 32, int VLEN = 4>
-struct PE_Instruction {
+struct PE_VecInstruction {
     sc_uint<4> opcode;
     sc_uint<3> src_a;
     sc_uint<3> src_b;
@@ -114,25 +126,25 @@ struct PE_Instruction {
     sc_uint<5> reg_dst;
     sc_int<DATA_W> imm;
 
-    PE_Instruction()
+    PE_VecInstruction()
         : opcode(OP_NOP), src_a(SRC_REG), src_b(SRC_REG), dst(DST_REG),
           reg_a(0), reg_b(0), reg_dst(0), imm(0) {}
 
-    inline bool operator==(const PE_Instruction<DATA_W, VLEN>& o) const {
+    inline bool operator==(const PE_VecInstruction<DATA_W, VLEN>& o) const {
         return opcode == o.opcode && src_a == o.src_a && src_b == o.src_b &&
                dst == o.dst && reg_a == o.reg_a && reg_b == o.reg_b &&
                reg_dst == o.reg_dst && imm == o.imm;
     }
 };
 
-template <int DATA_W>
-inline ostream& operator<<(ostream& os, const PE_Instruction<DATA_W>& instr) {
+template <int DATA_W, int VLEN>
+inline ostream& operator<<(ostream& os, const PE_VecInstruction<DATA_W, VLEN>& instr) {
     os << "{op=" << instr.opcode << "}";
     return os;
 }
 
 template <int DATA_W, int VLEN>
-inline void sc_trace(sc_core::sc_trace_file* tf, const PE_Instruction<DATA_W, VLEN>& instr, const std::string& name) {
+inline void sc_trace(sc_core::sc_trace_file* tf, const PE_VecInstruction<DATA_W, VLEN>& instr, const std::string& name) {
     sc_trace(tf, instr.opcode,  name + ".opcode");
     sc_trace(tf, instr.src_a,   name + ".src_a");
     sc_trace(tf, instr.src_b,   name + ".src_b");
@@ -144,29 +156,29 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const PE_Instruction<DATA_W, VL
 }
 
 template <int DATA_W = 32, int VLEN = 4>
-struct PE_InstrIn {
+struct PE_VecInstrIn {
     bool valid;
     sc_uint<8> addr;
-    PE_Instruction<DATA_W, VLEN> instr;
+    PE_VecInstruction<DATA_W, VLEN> instr;
 
-    PE_InstrIn() : valid(false), addr(0), instr() {}
+    PE_VecInstrIn() : valid(false), addr(0), instr() {}
 
-    inline bool operator==(const PE_InstrIn<DATA_W, VLEN>& o) const {
+    inline bool operator==(const PE_VecInstrIn<DATA_W, VLEN>& o) const {
         return valid == o.valid && addr == o.addr && instr == o.instr;
     }
 };
 
 template <int DATA_W, int VLEN>
-inline ostream& operator<<(ostream& os, const PE_InstrIn<DATA_W, VLEN>& in) {
+inline ostream& operator<<(ostream& os, const PE_VecInstrIn<DATA_W, VLEN>& in) {
     os << "{valid=" << in.valid << ", addr=" << in.addr << ", instr=" << in.instr << "}";
     return os;
 }
 
 template <int DATA_W, int VLEN>
-inline void sc_trace(sc_core::sc_trace_file* tf, const PE_InstrIn<DATA_W, VLEN>& in, const std::string& name) {
+inline void sc_trace(sc_core::sc_trace_file* tf, const PE_VecInstrIn<DATA_W, VLEN>& in, const std::string& name) {
     sc_trace(tf, in.valid, name + ".valid");
     sc_trace(tf, in.addr,  name + ".addr");
     sc_trace(tf, in.instr, name + ".instr");
 }
 
-#endif // PE_ISA_H
+#endif // PE_VECTOR_ISA_H

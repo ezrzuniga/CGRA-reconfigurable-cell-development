@@ -45,3 +45,19 @@ target_include_directories(CGRA_Mesh_Pipeline__TB PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../pe_scalar"
 )
 target_link_libraries(CGRA_Mesh_Pipeline__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(CGRA_Mesh_Heterogeneous__TB CGRA_Mesh_Heterogeneous__TB.cpp)
+target_include_directories(CGRA_Mesh_Heterogeneous__TB PRIVATE
+  "${SYSTEMC_INCLUDE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe_scalar"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe_vector"
+)
+target_link_libraries(CGRA_Mesh_Heterogeneous__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(CGRA_Mesh_Pipeline_Heterogeneous__TB CGRA_Mesh_Pipeline_Heterogeneous__TB.cpp)
+target_include_directories(CGRA_Mesh_Pipeline_Heterogeneous__TB PRIVATE
+  "${SYSTEMC_INCLUDE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe_scalar"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe_vector"
+)
+target_link_libraries(CGRA_Mesh_Pipeline_Heterogeneous__TB PRIVATE "${SYSTEMC_LIBRARY}")
