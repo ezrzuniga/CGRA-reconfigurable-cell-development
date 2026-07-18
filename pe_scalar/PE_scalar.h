@@ -53,6 +53,7 @@ public:
         alu.enable(sig_alu_enable);
         alu.result(sig_alu_result);
         alu.valid(sig_alu_valid);
+        alu.valid_toggle(sig_alu_valid_toggle);
 
         SC_METHOD(load_program);
         sensitive << clk.pos();
@@ -63,8 +64,14 @@ public:
         SC_METHOD(issue);
         sensitive << clk.pos();
 
+        // Sensible solo a valid_toggle (no a sig_alu_valid/sig_alu_result
+        // directamente): dos instrucciones consecutivas pueden producir el mismo
+        // valor de ALU (p.ej. un acumulador que suma 0, o simplemente coincide),
+        // y sc_signal no genera evento cuando el valor escrito es igual al
+        // actual. valid_toggle se invierte siempre que compute() corre con
+        // enable=true, sin importar el valor, asi que no se pierde ningun ciclo.
         SC_METHOD(writeback);
-        sensitive << sig_alu_valid << sig_alu_result;
+        sensitive << sig_alu_valid_toggle;
     }
 
     // -----------------------------------------------------------------------
@@ -87,6 +94,7 @@ public:
         sc_trace(tf, sig_alu_result, p + ".alu_result");
         sc_trace(tf, sig_alu_enable, p + ".alu_enable");
         sc_trace(tf, sig_alu_valid,  p + ".alu_valid");
+        sc_trace(tf, sig_alu_valid_toggle, p + ".alu_valid_toggle");
     }
 
 private:
@@ -99,7 +107,7 @@ private:
     // señales internas hacia la ALU
     sc_signal<sc_uint<4>>     sig_alu_opcode;
     sc_signal<sc_int<DATA_W>> sig_alu_a, sig_alu_b, sig_alu_result;
-    sc_signal<bool>           sig_alu_enable, sig_alu_valid;
+    sc_signal<bool>           sig_alu_enable, sig_alu_valid, sig_alu_valid_toggle;
 
     // -----------------------------------------------------------------------
     // Carga de configuracion: escribe una instruccion en la memoria interna.

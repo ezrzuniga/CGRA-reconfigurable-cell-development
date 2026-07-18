@@ -18,7 +18,7 @@ struct TestCase {
 int sc_main(int argc, char* argv[]) {
     sc_signal<sc_uint<4>>  opcode;
     sc_signal<sc_int<32>>  operand_a, operand_b, result;
-    sc_signal<bool>        enable, valid;
+    sc_signal<bool>        enable, valid, valid_toggle;
 
     ALU_scalar<32> alu("alu");
     alu.opcode(opcode);
@@ -27,6 +27,7 @@ int sc_main(int argc, char* argv[]) {
     alu.enable(enable);
     alu.result(result);
     alu.valid(valid);
+    alu.valid_toggle(valid_toggle);
 
     enable.write(true);
 

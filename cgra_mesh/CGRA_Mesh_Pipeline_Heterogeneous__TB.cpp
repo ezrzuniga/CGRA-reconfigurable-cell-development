@@ -1,28 +1,77 @@
 // CGRA_Mesh_Pipeline_Heterogeneous__TB.cpp
-// Malla 3x3 heterogenea: fila 0 reproduce EXACTAMENTE el pipeline escalar de
-// CGRA_Mesh_Pipeline__TB.cpp (misma ISA, mismos operandos, mismo resultado g=4),
-// fila 1 agrega un segundo pipeline independiente con celdas vectoriales:
+// Malla 3x3 heterogenea: fila 0 reproduce el pipeline escalar de
+// CGRA_Mesh_Pipeline__TB.cpp (mismo resultado g=4), fila 1 corre un acumulador MAC
+// vectorial real (acc += a * k) en pe(1,0) -- primer programa multi-instruccion de
+// todo el repo, y primer uso de SRC_REG/DST_REG en cgra_mesh/:
 //   pe(0,0) escalar: c = a + b   (a = in_W[0], b = in_N[0])
 //   pe(0,1) escalar: e = c * d   (d = in_N[1])
 //   pe(0,2) escalar: g = e & f   (f = in_N[2])            -> out_E[0] = broadcast(4)
 //
-//   pe(1,0) vectorial: h = a * k1   (a = in_W[1], k1 = SRC_IMM)
-//   pe(1,1) vectorial: j = h + k2   (k2 = SRC_IMM)
-//   pe(1,2) vectorial: m = j & k3   (k3 = SRC_IMM, mascara) -> out_E[1] = {13,0,3,6}
-// La fila 1 no puede usar SRC_NORTH como la fila 0 (in_N/in_S solo son borde real en
-// la primera/ultima fila de la malla; en la fila 1 son enlaces internos hacia las
-// filas 0 y 2, que acoplarian los dos pipelines) — por eso el segundo operando de
-// cada etapa es un inmediato (SRC_IMM), la unica logica genuinamente vectorial que
-// tiene PE_vector (select_src difunde el inmediato escalar a las 4 lanes).
-// Fila 2 queda sin programar (NOP), fuera de alcance.
+//   pe(1,0) vectorial, programa ciclico de 3 instrucciones (INSTR_MEM_SIZE=3):
+//     addr0  OP_MUL  tmp = a * k        (a = in_W[1] constante, k = SRC_IMM)
+//     addr1  OP_ADD  acc = tmp + acc    (SRC_REG/DST_REG -- el registro se lee Y
+//                                        escribe en la misma instruccion, acumulando)
+//     addr2  OP_MOV  out_E = acc        (drena el acumulador a un puerto: un registro
+//                                        interno no es observable desde fuera de la
+//                                        PE hasta que una instruccion lo copia a un
+//                                        puerto)
+//   Cada 3 ciclos el acumulador crece en P = a*k. pe(1,0) es la columna oeste de la
+//   malla, asi que su DST_EAST cae en un enlace interno hacia pe(1,1), no en el borde
+//   out_E[1] -- pe(1,1)/pe(1,2) relevan el valor (MOV puro, SRC_WEST->DST_EAST, sin
+//   computo propio) para que llegue al borde este observable desde el testbench.
+//   Fila 2 queda sin programar (NOP), fuera de alcance -- alcance minimo a proposito,
+//   primer caso de registro interno en este repo.
+//
+// Bug real encontrado al implementar esto (corregido en pe_scalar/ y pe_vector/, ver
+// CLAUDE.md de cada carpeta): writeback() estaba escrito `sensitive << sig_alu_valid
+// << sig_alu_result;` -- sc_signal::write() no genera evento cuando el valor nuevo
+// coincide con el actual, asi que si dos instrucciones consecutivas producian el
+// mismo numero (exactamente el caso de "acc = tmp + acc" cuando acc todavia vale 0),
+// la escritura al registro se perdia en silencio. Se agrego un puerto
+// `valid_toggle` a ALU_scalar/ALU_vector que se invierte en cada compute() habilitado
+// sin importar el valor, y writeback() ahora es sensible solo a ese toggle -- ningun
+// test anterior lo disparaba porque ninguno reusaba un registro entre instrucciones.
+//
+// INSTR_MEM_SIZE pasa de 1 a 3 para TODA la malla (es un parametro de template unico,
+// compartido por todas las celdas). Las celdas de la fila 0 no tienen un segundo
+// registro que llenar, asi que se carga la MISMA instruccion en las 3 direcciones --
+// asi el resultado no depende de en que direccion este `pc` en cada ciclo, y el
+// comportamiento de la fila 0 quedar igual de determinista que con
+// INSTR_MEM_SIZE=1.
+//
+// Nota de diseno importante: ningun test anterior en cgra_mesh/ uso INSTR_MEM_SIZE>1,
+// asi que este es el primer lugar donde el orden relativo entre los SC_METHOD
+// pc_update() e issue() (ambos sensibles a clk.pos(), sin orden garantizado por la
+// norma SystemC) podria importar -- con INSTR_MEM_SIZE=1 nunca importaba porque pc
+// jamas cambiaba. Por eso el operando `a` se mantiene CONSTANTE durante toda la
+// corrida (no streaming) y la verificacion es por DELTA entre dos instantes separados
+// por un numero exacto de rotaciones (3*ROT ciclos), no por un valor absoluto
+// calculado a mano desde t=0: el delta es exactamente 3*P sin importar en que fase
+// absoluta cae cada instruccion, porque en estado estable pc rota con periodo 3 sin
+// deriva. Esto tambien evita depender del transitorio de carga de instrucciones
+// (durante el cual el acumulador puede sumar algo antes de que las 3 direcciones
+// esten completamente cargadas).
+//
+// La fila 1 sigue sin poder usar SRC_NORTH como la fila 0 (in_N/in_S solo son borde
+// real en la primera/ultima fila de la malla; en la fila 1 son enlaces internos hacia
+// las filas 0 y 2, que acoplarian los dos pipelines).
 
 #include <systemc.h>
 #include "CGRA_Mesh_Heterogeneous.h"
 
 static const int ROWS = 3;
 static const int COLS = 3;
-typedef CGRA_Mesh_Heterogeneous<ROWS, COLS, 32, 4, 8, 1> Mesh;
+typedef CGRA_Mesh_Heterogeneous<ROWS, COLS, 32, 4, 8, 3> Mesh;
 typedef Mesh::Link Link;
+
+static const int R_ACC = 0;
+static const int R_TMP = 1;
+
+static Link lane_delta(const Link& before, const Link& after) {
+    Link d;
+    for (int i = 0; i < 4; i++) d[i] = after[i] - before[i];
+    return d;
+}
 
 int sc_main(int argc, char* argv[]) {
     sc_clock clk("clk", 10, SC_NS);
@@ -84,58 +133,75 @@ int sc_main(int argc, char* argv[]) {
     add_c.src_a = SRC_WEST;
     add_c.src_b = SRC_NORTH;
     add_c.dst = DST_EAST;
-    mesh.load_instr(0, 0, 0, add_c);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(0, 0);
 
     Mesh::Instr mul_e;
     mul_e.opcode = OP_MUL;
     mul_e.src_a = SRC_WEST;
     mul_e.src_b = SRC_NORTH;
     mul_e.dst = DST_EAST;
-    mesh.load_instr(0, 1, 0, mul_e);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(0, 1);
 
     Mesh::Instr and_g;
     and_g.opcode = OP_AND;
     and_g.src_a = SRC_WEST;
     and_g.src_b = SRC_NORTH;
     and_g.dst = DST_EAST;
-    mesh.load_instr(0, 2, 0, and_g);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(0, 2);
 
-    // ---- Fila 1: pipeline vectorial nuevo, independiente -----------------
-    Mesh::Instr mul_h;
-    mul_h.opcode = OP_MUL;
-    mul_h.src_a = SRC_WEST;
-    mul_h.src_b = SRC_IMM;
-    mul_h.imm = 3;   // k1
-    mul_h.dst = DST_EAST;
-    mesh.load_instr(1, 0, 0, mul_h);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(1, 0);
+    // ---- Fila 1: acumulador MAC vectorial, pe(1,0) -----------------------
+    Mesh::Instr mac_mul;
+    mac_mul.opcode = OP_MUL;
+    mac_mul.src_a = SRC_WEST;
+    mac_mul.src_b = SRC_IMM;
+    mac_mul.imm = 5;          // k
+    mac_mul.dst = DST_REG;
+    mac_mul.reg_dst = R_TMP;
 
-    Mesh::Instr add_j;
-    add_j.opcode = OP_ADD;
-    add_j.src_a = SRC_WEST;
-    add_j.src_b = SRC_IMM;
-    add_j.imm = 10;  // k2
-    add_j.dst = DST_EAST;
-    mesh.load_instr(1, 1, 0, add_j);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(1, 1);
+    Mesh::Instr mac_add;
+    mac_add.opcode = OP_ADD;
+    mac_add.src_a = SRC_REG;
+    mac_add.reg_a = R_TMP;
+    mac_add.src_b = SRC_REG;
+    mac_add.reg_b = R_ACC;
+    mac_add.dst = DST_REG;
+    mac_add.reg_dst = R_ACC;   // acc = tmp + acc (acumula en su propio registro)
 
-    Mesh::Instr and_m;
-    and_m.opcode = OP_AND;
-    and_m.src_a = SRC_WEST;
-    and_m.src_b = SRC_IMM;
-    and_m.imm = 15;  // k3 (mascara 0xF)
-    and_m.dst = DST_EAST;
-    mesh.load_instr(1, 2, 0, and_m);
-    sc_start(10, SC_NS);
-    mesh.clear_instr(1, 2);
+    Mesh::Instr mac_mov;
+    mac_mov.opcode = OP_MOV;
+    mac_mov.src_a = SRC_REG;
+    mac_mov.reg_a = R_ACC;
+    mac_mov.dst = DST_EAST;    // drena el acumulador al puerto de salida
+
+    // pe(1,0) es la columna oeste de la malla: su DST_EAST cae en un enlace
+    // INTERNO hacia pe(1,1), no en el borde out_E[1] de la malla (solo la
+    // columna c==COLS-1 tiene out_E real). pe(1,1)/pe(1,2) relevan el valor
+    // (MOV puro, SRC_WEST->DST_EAST) para que el resultado del MAC llegue al
+    // borde este observable desde el testbench -- no agregan computo propio.
+    Mesh::Instr relay;
+    relay.opcode = OP_MOV;
+    relay.src_a = SRC_WEST;
+    relay.dst = DST_EAST;
+
+    // Carga por columna de direccion: cada batch programa la direccion `addr` de las
+    // 6 celdas activas a la vez (independientes entre si, un solo flanco de clk basta
+    // para que latcheen juntas). Fila 0 y el relevo de fila 1 repiten su unica
+    // instruccion real en las 3 direcciones; pe(1,0) recibe una instruccion distinta
+    // por direccion (el programa MAC). Fila 2 no se programa (queda NOP).
+    Mesh::Instr row0_instr[3] = {add_c, mul_e, and_g};
+    Mesh::Instr mac_instr[3]  = {mac_mul, mac_add, mac_mov};
+    for (int addr = 0; addr < 3; addr++) {
+        mesh.load_instr(0, 0, addr, row0_instr[0]);
+        mesh.load_instr(0, 1, addr, row0_instr[1]);
+        mesh.load_instr(0, 2, addr, row0_instr[2]);
+        mesh.load_instr(1, 0, addr, mac_instr[addr]);
+        mesh.load_instr(1, 1, addr, relay);
+        mesh.load_instr(1, 2, addr, relay);
+        sc_start(10, SC_NS);
+        mesh.clear_instr(0, 0);
+        mesh.clear_instr(0, 1);
+        mesh.clear_instr(0, 2);
+        mesh.clear_instr(1, 0);
+        mesh.clear_instr(1, 1);
+        mesh.clear_instr(1, 2);
+    }
 
     // Estimulo fila 0: a=5,b=7 -> c=12; d=3 -> e=36; f=15 -> g=36&15=4.
     // Escalar, difundido a las 4 lanes ya que alimenta celdas escalares.
@@ -144,10 +210,12 @@ int sc_main(int argc, char* argv[]) {
     in_N[1].write(Link({3, 3, 3, 3}));
     in_N[2].write(Link({15, 15, 15, 15}));
 
-    // Estimulo fila 1: a={1,2,3,4} (lanes no uniformes a proposito) ->
-    // h=a*3={3,6,9,12} -> j=h+10={13,16,19,22} -> m=j&15={13,0,3,6}.
+    // Estimulo fila 1: a={1,2,3,4} (lanes no uniformes), CONSTANTE durante toda la
+    // corrida -- cada rotacion del programa MAC suma P=a*k={5,10,15,20} al acumulador.
     in_W[1].write(Link({1, 2, 3, 4}));
 
+    // Deja asentar la fila 0 y el transitorio de carga de la fila 1 (60ns = 6
+    // ciclos, ya en estado estable de rotacion para el MAC).
     sc_start(60, SC_NS);
 
     bool ok = true;
@@ -162,15 +230,25 @@ int sc_main(int argc, char* argv[]) {
         cout << "PASS fila 0: pipeline escalar c=a+b, e=c*d, g=e&f produjo g=4 (broadcast) en out_E[0]" << endl;
     }
 
-    Link expected1({13, 0, 3, 6});
-    Link got1 = out_E[1].read();
-    cout << "out_E[1] = " << got1 << endl;
-    if (got1 != expected1) {
-        cout << "FAIL fila 1: esperaba " << expected1 << ", obtuve " << got1 << endl;
+    Link snapshot1 = out_E[1].read();
+    cout << "out_E[1] (snapshot 1, acumulador MAC) = " << snapshot1 << endl;
+
+    // 3 rotaciones mas del programa MAC (9 ciclos = 90ns): el delta debe ser
+    // exactamente 3*P, sin importar en que fase absoluta cayo cada instruccion.
+    sc_start(90, SC_NS);
+
+    Link snapshot2 = out_E[1].read();
+    cout << "out_E[1] (snapshot 2, +3 rotaciones) = " << snapshot2 << endl;
+
+    Link delta = lane_delta(snapshot1, snapshot2);
+    Link expected_delta({15, 30, 45, 60});  // 3 * (a * k) = 3 * {5,10,15,20}
+    cout << "delta acumulador (3 rotaciones) = " << delta << endl;
+    if (delta != expected_delta) {
+        cout << "FAIL fila 1: esperaba delta " << expected_delta << " tras 3 rotaciones, obtuve " << delta << endl;
         ok = false;
     } else {
-        cout << "PASS fila 1: pipeline vectorial h=a*k1, j=h+k2, m=j&k3 produjo "
-             << expected1 << " en out_E[1]" << endl;
+        cout << "PASS fila 1: acumulador MAC (acc += a*k via SRC_REG/DST_REG) crecio "
+             << expected_delta << " en 3 rotaciones del programa" << endl;
     }
 
     sc_close_vcd_trace_file(tf);

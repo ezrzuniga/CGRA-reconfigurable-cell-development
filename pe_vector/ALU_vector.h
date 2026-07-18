@@ -18,13 +18,21 @@ public:
 
     sc_out<PE_VectorData<DATA_W, VLEN>> result;
     sc_out<bool>                   valid;
+    // Se invierte cada vez que compute() produce un resultado habilitado, sin
+    // importar si el valor coincide con el anterior. sc_signal::write() no genera
+    // evento cuando el valor nuevo es igual al actual, asi que un consumidor
+    // sensible solo a result/valid puede perderse una escritura (p.ej. un
+    // acumulador donde dos resultados consecutivos coinciden). valid_toggle
+    // siempre cambia, por construccion, y sirve como disparador confiable.
+    sc_out<bool>                   valid_toggle;
 
     SC_HAS_PROCESS(ALU_vector);
 
     explicit ALU_vector(sc_core::sc_module_name name)
         : sc_module(name),
           opcode("opcode"), operand_a("operand_a"), operand_b("operand_b"),
-          enable("enable"), result("result"), valid("valid")
+          enable("enable"), result("result"), valid("valid"),
+          valid_toggle("valid_toggle")
     {
         SC_METHOD(compute);
         sensitive << opcode << operand_a << operand_b << enable;
@@ -63,6 +71,7 @@ private:
 
         result.write(r);
         valid.write(true);
+        valid_toggle.write(!valid_toggle.read());
     }
 };
 
