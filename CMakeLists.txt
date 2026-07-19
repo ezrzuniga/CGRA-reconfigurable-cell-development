@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(PE_vector)
+project(CgraReconfigurableCell)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,10 +32,5 @@ find_library(
   REQUIRED
 )
 
-add_executable(ALU_vector__TB ALU_vector__TB.cpp)
-target_include_directories(ALU_vector__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
-target_link_libraries(ALU_vector__TB PRIVATE "${SYSTEMC_LIBRARY}")
-
-add_executable(PE_vector__TB PE_vector__TB.cpp)
-target_include_directories(PE_vector__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
-target_link_libraries(PE_vector__TB PRIVATE "${SYSTEMC_LIBRARY}")
+add_subdirectory(pe)
+add_subdirectory(mesh)

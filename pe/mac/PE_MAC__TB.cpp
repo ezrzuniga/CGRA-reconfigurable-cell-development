@@ -5,7 +5,7 @@
 
 #include <systemc.h>
 #include "PE_MAC.h"
-#include "../pe_vector/pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4>
 static PE_VectorData<DATA_W, VLEN> make_vector(const std::array<sc_int<DATA_W>, VLEN>& lanes) {
@@ -62,7 +62,7 @@ int sc_main(int argc, char* argv[]) {
     // load(): carga una instruccion en addr 0 y deja pasar 1 ciclo extra de
     // margen para que instr_mem quede estable antes de medir nada (el orden
     // relativo entre load_program()/issue() en el mismo flanco no esta
-    // garantizado por SystemC, ver cgra_mesh/CLAUDE.md).
+    // garantizado por SystemC, ver mesh/CLAUDE.md).
     auto load = [&](PE_VecInstrIn<32, 4> instr) {
         instr_in.write(instr);
         sc_start(10, SC_NS);

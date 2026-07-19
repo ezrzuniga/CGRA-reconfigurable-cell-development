@@ -1,6 +1,6 @@
 // PE_MAC.h
 // Processing Element de multiply-accumulate vectorial de 1 ciclo. Misma
-// estructura que pe_vector/PE_vector.h (fetch/issue/writeback, banco de
+// estructura que pe/vector/PE_vector.h (fetch/issue/writeback, banco de
 // registros, puertos de malla), mas un acumulador interno `acc` (uno por
 // lane) que OP_MAC actualiza y expone en el mismo ciclo: acc = acc + a*b,
 // y el valor escrito a `dst` es el acumulador ya actualizado.
@@ -9,7 +9,7 @@
 // leerlo sin destruirlo o para precargarlo/limpiarlo), no solo por PC/rst:
 // necesario para que un PE pueda reiniciar su propia acumulacion (tiles de
 // GEMM, etapas de FFT) sin depender de `rst`, que es un solo dominio para
-// toda la malla (ver cgra_mesh/CLAUDE.md).
+// toda la malla (ver mesh/CLAUDE.md).
 //
 // A proposito, `rst` NO limpia `acc` -- mismo precedente que reg_file, que
 // tampoco se limpia con rst hoy en PE_scalar/PE_vector. Solo DST_ACC limpia
@@ -19,7 +19,7 @@
 #define PE_MAC_H
 
 #include <systemc.h>
-#include "../pe_vector/pe_isa.h"
+#include "../pe_isa.h"
 #include "ALU_MAC.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>

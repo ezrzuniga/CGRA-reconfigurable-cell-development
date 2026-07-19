@@ -1,29 +1,29 @@
-// PE_MAC_Cell.h
-// Envoltorio que expone el contrato uniforme de PE_Base sobre un PE_MAC interno
-// sin modificar. Copia casi literal de PE_Vector_Cell.h: los puertos de dato
-// bindean directo (el Link de PE_Base ya es PE_VectorData<DATA_W,VLEN>, el tipo
-// nativo de PE_MAC); solo instr_in necesita puente, porque PE_MAC espera
-// PE_VecInstrIn<DATA_W,VLEN> y PE_Base usa la forma canonica de 1 parametro
-// (igual a la de PE_scalar).
+// PE_Vector_Cell.h
+// Envoltorio que expone el contrato uniforme de PE_Base sobre un PE_vector interno
+// sin modificar. Los puertos de dato bindean directo (el Link de PE_Base ya es
+// PE_VectorData<DATA_W,VLEN>, el tipo nativo de PE_vector); solo instr_in necesita
+// puente, porque PE_vector espera PE_InstrIn<DATA_W,VLEN> y PE_Base usa la forma
+// canonica de 1 parametro (igual a la de PE_scalar) para que cargar un programa sea
+// identico sin importar el tipo de celda.
 
-#ifndef PE_MAC_CELL_H
-#define PE_MAC_CELL_H
+#ifndef PE_VECTOR_CELL_H
+#define PE_VECTOR_CELL_H
 
-#include "PE_Base.h"
-#include "../pe_mac/PE_MAC.h"
+#include "../PE_Base.h"
+#include "PE_vector.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
-class PE_MAC_Cell : public PE_Base<DATA_W, VLEN> {
+class PE_Vector_Cell : public PE_Base<DATA_W, VLEN> {
 public:
     typedef PE_Base<DATA_W, VLEN> Base;
-    typedef PE_MAC<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE> Inner;
+    typedef PE_vector<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE> Inner;
     typedef typename Inner::InstrIn InnerInstrIn;
 
     Inner inner;
 
-    SC_HAS_PROCESS(PE_MAC_Cell);
+    SC_HAS_PROCESS(PE_Vector_Cell);
 
-    explicit PE_MAC_Cell(sc_core::sc_module_name name)
+    explicit PE_Vector_Cell(sc_core::sc_module_name name)
         : Base(name), inner("inner")
     {
         inner.clk(this->clk);
@@ -65,4 +65,4 @@ private:
     }
 };
 
-#endif // PE_MAC_CELL_H
+#endif // PE_VECTOR_CELL_H

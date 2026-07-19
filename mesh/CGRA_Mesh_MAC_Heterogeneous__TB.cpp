@@ -18,7 +18,7 @@
 // (OP_MOV src_a=SRC_ACC dst=DST_EAST) sin resetear el resto de la malla,
 // verificando en paralelo que pe(2,0) (fila 2) sigue acumulando sin
 // interrupcion -- la prueba concreta de que el reset es por-PE, no global
-// como rst (ver pe_mac/CLAUDE.md).
+// como rst (ver pe/CLAUDE.md).
 
 #include <systemc.h>
 #include "CGRA_Mesh_Heterogeneous.h"
@@ -163,7 +163,7 @@ int sc_main(int argc, char* argv[]) {
 
     // ---- SRC_ACC/DST_ACC en pe(1,0), fila 2 debe seguir sin interrupcion --
     // load_cell() da 3 ciclos de margen (no 2 como en el TB standalone de
-    // pe_mac/): mesh.load_instr() escribe la senal instr_sig de la malla, que
+    // pe/mac/): mesh.load_instr() escribe la senal instr_sig de la malla, que
     // PE_MAC_Cell::bridge_instr_in() (un SC_METHOD async adicional) recien
     // traduce hacia el instr_in interno de PE_MAC -- un salto de mas
     // respecto al TB standalone (que bindea instr_in directo), asi que hace

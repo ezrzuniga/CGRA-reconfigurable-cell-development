@@ -1,10 +1,11 @@
-// ALU_vector__TB.cpp
-// Testbench dedicado a la ALU vectorial: corre un vector de prueba por cada
-// opcode y valida el resultado lane a lane.
+// ALU_MAC__TB.cpp
+// Testbench dedicado a la ALU de PE_MAC: mismos vectores de prueba que
+// ALU_vector__TB, mas un caso OP_MAC (debe dar el mismo resultado que
+// OP_MUL, porque el += vive en PE_MAC::writeback(), no en la ALU).
 
 #include <systemc.h>
-#include "ALU_vector.h"
-#include "pe_isa.h"
+#include "ALU_MAC.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4>
 struct VectorTestCase {
@@ -20,7 +21,7 @@ int sc_main(int argc, char* argv[]) {
     sc_signal<PE_VectorData<32, 4>> operand_a, operand_b, result;
     sc_signal<bool> enable, valid, valid_toggle;
 
-    ALU_vector<32, 4> alu("alu");
+    ALU_MAC<32, 4> alu("alu");
     alu.opcode(opcode);
     alu.operand_a(operand_a);
     alu.operand_b(operand_b);
@@ -42,26 +43,17 @@ int sc_main(int argc, char* argv[]) {
         {"OR",   OP_OR,
             {{0xF000, 0x1111, 0x8000, 0x0001}}, {{0x000F, 0xF0F0, 0x7FFF, 0xFFFE}},
             {{0xF00F, 0xF1F1, 0xFFFF, 0xFFFF}}},
-        {"XOR",  OP_XOR,
-            {{0xFF, 0xAAAA, 0x1234, 0xFFFF}}, {{0x0F, 0x5555, 0x0F0F, 0x00FF}},
-            {{0xF0, 0xFFFF, 0x1B3B, 0xFF00}}},
         {"MOV",  OP_MOV,
             {{42, 43, -1, 7}}, {{999, 1000, 1, 2}}, {{42, 43, -1, 7}}},
         {"SLL",  OP_SLL,
             {{1, 2, 4, 8}}, {{1, 2, 3, 4}}, {{2, 8, 32, 128}}},
         {"SLL_mask", OP_SLL,
             {{1, 1, 1, 1}}, {{33, 34, 35, 36}}, {{2, 4, 8, 16}}},
-        {"SRL",  OP_SRL,
-            {{-8, -16, 0x7FFFFFFF, -1}}, {{1, 2, 3, 4}},
-            {{2147483644, 2147483640, 1073741823, 1073741823}}},
-        {"SRA",  OP_SRA,
-            {{-8, -16, 0x7FFFFFFF, -1}}, {{1, 2, 3, 4}},
-            {{-4, -8, 1073741823, -1}}},
-        {"SLT",  OP_SLT,
-            {{-1, 0, 1, -2}}, {{1, -1, 2, -1}}, {{1, 0, 0, 1}}},
         {"SLTU", OP_SLTU,
             {{-1, 0, 1, -2}}, {{1, -1, 2, -1}}, {{0, 1, 1, 1}}},
         {"MUL",  OP_MUL,
+            {{65536, 65536, 2, -1}}, {{65536, 65536, 3, 1}}, {{0, 0, 6, -1}}},
+        {"MAC",  OP_MAC,
             {{65536, 65536, 2, -1}}, {{65536, 65536, 3, 1}}, {{0, 0, 6, -1}}},
     };
 

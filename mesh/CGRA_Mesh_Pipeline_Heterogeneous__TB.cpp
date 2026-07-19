@@ -2,7 +2,7 @@
 // Malla 3x3 heterogenea: fila 0 reproduce el pipeline escalar de
 // CGRA_Mesh_Pipeline__TB.cpp (mismo resultado g=4), fila 1 corre un acumulador MAC
 // vectorial real (acc += a * k) en pe(1,0) -- primer programa multi-instruccion de
-// todo el repo, y primer uso de SRC_REG/DST_REG en cgra_mesh/:
+// todo el repo, y primer uso de SRC_REG/DST_REG en mesh/:
 //   pe(0,0) escalar: c = a + b   (a = in_W[0], b = in_N[0])
 //   pe(0,1) escalar: e = c * d   (d = in_N[1])
 //   pe(0,2) escalar: g = e & f   (f = in_N[2])            -> out_E[0] = broadcast(4)
@@ -22,7 +22,7 @@
 //   Fila 2 queda sin programar (NOP), fuera de alcance -- alcance minimo a proposito,
 //   primer caso de registro interno en este repo.
 //
-// Bug real encontrado al implementar esto (corregido en pe_scalar/ y pe_vector/, ver
+// Bug real encontrado al implementar esto (corregido en pe/scalar/ y pe/vector/, ver
 // CLAUDE.md de cada carpeta): writeback() estaba escrito `sensitive << sig_alu_valid
 // << sig_alu_result;` -- sc_signal::write() no genera evento cuando el valor nuevo
 // coincide con el actual, asi que si dos instrucciones consecutivas producian el
@@ -39,7 +39,7 @@
 // comportamiento de la fila 0 quedar igual de determinista que con
 // INSTR_MEM_SIZE=1.
 //
-// Nota de diseno importante: ningun test anterior en cgra_mesh/ uso INSTR_MEM_SIZE>1,
+// Nota de diseno importante: ningun test anterior en mesh/ uso INSTR_MEM_SIZE>1,
 // asi que este es el primer lugar donde el orden relativo entre los SC_METHOD
 // pc_update() e issue() (ambos sensibles a clk.pos(), sin orden garantizado por la
 // norma SystemC) podria importar -- con INSTR_MEM_SIZE=1 nunca importaba porque pc

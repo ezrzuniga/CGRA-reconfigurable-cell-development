@@ -15,10 +15,10 @@
 #include <systemc.h>
 #include <string>
 #include <vector>
-#include "PE_Base.h"
-#include "PE_Scalar_Cell.h"
-#include "PE_Vector_Cell.h"
-#include "PE_MAC_Cell.h"
+#include "../pe/PE_Base.h"
+#include "../pe/scalar/PE_Scalar_Cell.h"
+#include "../pe/vector/PE_Vector_Cell.h"
+#include "../pe/mac/PE_MAC_Cell.h"
 
 template <int ROWS, int COLS, int DATA_W = 32, int VLEN = 4,
           int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>

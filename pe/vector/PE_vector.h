@@ -7,7 +7,7 @@
 #define PE_VECTOR_H
 
 #include <systemc.h>
-#include "pe_isa.h"
+#include "../pe_isa.h"
 #include "ALU_vector.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>

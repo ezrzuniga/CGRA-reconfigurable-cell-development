@@ -4,7 +4,7 @@
 
 #include <systemc.h>
 #include "PE_vector.h"
-#include "pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4>
 static PE_VectorData<DATA_W, VLEN> make_vector(const std::array<sc_int<DATA_W>, VLEN>& lanes) {

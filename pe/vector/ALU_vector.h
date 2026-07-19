@@ -6,7 +6,7 @@
 #define ALU_VECTOR_H
 
 #include <systemc.h>
-#include "pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4>
 class ALU_vector : public sc_core::sc_module {

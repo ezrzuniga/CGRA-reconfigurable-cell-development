@@ -1,6 +1,6 @@
 // CGRA_Mesh__TB.cpp
 // Smoke test de una malla 2x2 de PE_scalar: valida el wiring entre celdas (no
-// la carga de programas, ya cubierta por pe_scalar/PE_scalar__TB.cpp). Usa
+// la carga de programas, ya cubierta por pe/scalar/PE_scalar__TB.cpp). Usa
 // INSTR_MEM_SIZE=1 para que cada PE ejecute su unica instruccion en todos los
 // ciclos, y programa una ruta en L que atraviesa 3 de las 4 PEs ejercitando
 // ambos ejes de la malla:

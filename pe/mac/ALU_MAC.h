@@ -8,7 +8,7 @@
 #define ALU_MAC_H
 
 #include <systemc.h>
-#include "../pe_vector/pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4>
 class ALU_MAC : public sc_core::sc_module {

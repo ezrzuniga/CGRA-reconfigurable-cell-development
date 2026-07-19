@@ -14,8 +14,7 @@
 #define PE_BASE_H
 
 #include <systemc.h>
-#include "../pe_scalar/pe_isa.h"
-#include "../pe_vector/pe_isa.h"
+#include "pe_isa.h"
 
 enum class CellKind { SCALAR, VECTOR, MAC };
 

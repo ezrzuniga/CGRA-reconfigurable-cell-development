@@ -9,7 +9,7 @@
 #define PE_SCALAR_H
 
 #include <systemc.h>
-#include "pe_isa.h"
+#include "../pe_isa.h"
 #include "ALU_scalar.h"
 
 template <int DATA_W = 32, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>

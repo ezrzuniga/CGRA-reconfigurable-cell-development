@@ -8,8 +8,8 @@
 #ifndef PE_SCALAR_CELL_H
 #define PE_SCALAR_CELL_H
 
-#include "PE_Base.h"
-#include "../pe_scalar/PE_scalar.h"
+#include "../PE_Base.h"
+#include "PE_scalar.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
 class PE_Scalar_Cell : public PE_Base<DATA_W, VLEN> {

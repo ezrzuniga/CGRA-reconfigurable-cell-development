@@ -1,20 +1,19 @@
 // pe_isa.h
-// ISA vectorial de la PE: misma semántica de instrucciones que el diseño
-// escalar, pero operando sobre vectores de lanes paralelos.
+// ISA compartido por las 3 variantes de PE (scalar/vector/mac): opcodes,
+// formato de instruccion, y el tipo de dato vectorial. Inspirado en RISC-V
+// (mismos mnemonics: ADD/SUB/AND/OR/XOR) pero adaptado para que una
+// instruccion pueda operar directo sobre los 4 vecinos de malla de la PE
+// (Norte/Sur/Este/Oeste) ademas del banco de registros y un inmediato.
 
-#ifndef PE_VECTOR_ISA_H
-#define PE_VECTOR_ISA_H
+#ifndef PE_ISA_H
+#define PE_ISA_H
 
 #include <systemc.h>
 #include <array>
 
-// Mismos enums que pe_scalar/pe_isa.h (opcodes/src/dst identicos). Si esa cabecera
-// ya fue incluida en esta unidad de traduccion (p.ej. desde cgra_mesh/PE_Base.h, que
-// necesita ambos pe_isa.h a la vez), no se redeclaran para evitar un choque de tipos.
-#ifndef PE_ISA_H
-
-// Opcodes: aritmética/logica entera completa estilo RV32I (shifts y
-// comparaciones con/sin signo incluidas) mas MUL, ademas de NOP y MOV.
+// Opcodes: aritmetica/logica entera completa estilo RV32I (shifts y
+// comparaciones con/sin signo incluidas) mas MUL, ademas de NOP y MOV (pasa
+// un operando sin modificar, util para rutar datos).
 enum PE_Opcode {
     OP_NOP  = 0,
     OP_ADD  = 1,
@@ -23,13 +22,13 @@ enum PE_Opcode {
     OP_OR   = 4,
     OP_XOR  = 5,
     OP_MOV  = 6,
-    OP_SLL  = 7,
-    OP_SRL  = 8,
-    OP_SRA  = 9,
-    OP_SLT  = 10,
-    OP_SLTU = 11,
-    OP_MUL  = 12,
-    OP_MAC  = 13   // acc += a * b (acumulador interno del PE, ver pe_mac/)
+    OP_SLL  = 7,   // shift logico a la izquierda
+    OP_SRL  = 8,   // shift logico a la derecha (rellena con ceros)
+    OP_SRA  = 9,   // shift aritmetico a la derecha (preserva el signo)
+    OP_SLT  = 10,  // 1 si a < b con signo, si no 0
+    OP_SLTU = 11,  // 1 si a < b sin signo, si no 0
+    OP_MUL  = 12,  // bits bajos de a * b
+    OP_MAC  = 13   // acc += a * b (acumulador interno del PE, ver pe/mac/)
 };
 
 // Origen de un operando: registro interno, uno de los 4 vecinos de malla de
@@ -58,8 +57,78 @@ enum PE_Dst {
     DST_ACC   = 6
 };
 
-#endif // PE_ISA_H
+// Instruccion escalar de la PE. DATA_W es el ancho de dato (por defecto 32 bits).
+template <int DATA_W = 32>
+struct PE_Instruction {
+    sc_uint<4> opcode;
+    sc_uint<3> src_a;
+    sc_uint<3> src_b;
+    sc_uint<3> dst;
+    sc_uint<5> reg_a;
+    sc_uint<5> reg_b;
+    sc_uint<5> reg_dst;
+    sc_int<DATA_W> imm;
 
+    PE_Instruction()
+        : opcode(OP_NOP), src_a(SRC_REG), src_b(SRC_REG), dst(DST_REG),
+          reg_a(0), reg_b(0), reg_dst(0), imm(0) {}
+
+    inline bool operator==(const PE_Instruction<DATA_W>& o) const {
+        return opcode == o.opcode && src_a == o.src_a && src_b == o.src_b &&
+               dst == o.dst && reg_a == o.reg_a && reg_b == o.reg_b &&
+               reg_dst == o.reg_dst && imm == o.imm;
+    }
+};
+
+template <int DATA_W>
+inline ostream& operator<<(ostream& os, const PE_Instruction<DATA_W>& instr) {
+    os << "{op=" << instr.opcode << "}";
+    return os;
+}
+
+template <int DATA_W>
+inline void sc_trace(sc_core::sc_trace_file* tf, const PE_Instruction<DATA_W>& instr, const std::string& name) {
+    sc_trace(tf, instr.opcode,  name + ".opcode");
+    sc_trace(tf, instr.src_a,   name + ".src_a");
+    sc_trace(tf, instr.src_b,   name + ".src_b");
+    sc_trace(tf, instr.dst,     name + ".dst");
+    sc_trace(tf, instr.reg_a,   name + ".reg_a");
+    sc_trace(tf, instr.reg_b,   name + ".reg_b");
+    sc_trace(tf, instr.reg_dst, name + ".reg_dst");
+    sc_trace(tf, instr.imm,     name + ".imm");
+}
+
+// Bundle para el unico puerto de carga de programa (instr_in): permite
+// escribir una instruccion en cualquier direccion de la memoria interna.
+template <int DATA_W = 32>
+struct PE_InstrIn {
+    bool valid;
+    sc_uint<8> addr;
+    PE_Instruction<DATA_W> instr;
+
+    PE_InstrIn() : valid(false), addr(0), instr() {}
+
+    inline bool operator==(const PE_InstrIn<DATA_W>& o) const {
+        return valid == o.valid && addr == o.addr && instr == o.instr;
+    }
+};
+
+template <int DATA_W>
+inline ostream& operator<<(ostream& os, const PE_InstrIn<DATA_W>& in) {
+    os << "{valid=" << in.valid << ", addr=" << in.addr << ", instr=" << in.instr << "}";
+    return os;
+}
+
+template <int DATA_W>
+inline void sc_trace(sc_core::sc_trace_file* tf, const PE_InstrIn<DATA_W>& in, const std::string& name) {
+    sc_trace(tf, in.valid, name + ".valid");
+    sc_trace(tf, in.addr,  name + ".addr");
+    sc_trace(tf, in.instr, name + ".instr");
+}
+
+// Dato vectorial: VLEN lanes independientes de sc_int<DATA_W>. Usado como
+// wire unico de la malla heterogenea (el escalar es un caso degenerado del
+// vector, ver pe/CLAUDE.md) y como tipo de dato nativo de PE_vector/PE_MAC.
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VectorData {
     std::array<sc_int<DATA_W>, VLEN> lane;
@@ -115,11 +184,11 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const PE_VectorData<DATA_W, VLE
     }
 }
 
-// Nombre distinto de PE_Instruction/PE_InstrIn (pe_scalar/pe_isa.h) a proposito: son
-// estructuralmente identicos salvo el parametro VLEN (que ni siquiera se usa en el
-// cuerpo, imm sigue escalar), pero dos templates de clase con el mismo nombre y
-// distinta cantidad de parametros no pueden coexistir en la misma unidad de
-// traduccion — y cgra_mesh/PE_Base.h necesita incluir ambos pe_isa.h a la vez.
+// Instruccion vectorial. Nombre distinto de PE_Instruction/PE_InstrIn a
+// proposito: son estructuralmente identicos salvo el parametro VLEN (que ni
+// siquiera se usa en el cuerpo, imm sigue escalar), pero dos templates de
+// clase con el mismo nombre y distinta cantidad de parametros no pueden
+// coexistir en la misma unidad de traduccion.
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VecInstruction {
     sc_uint<4> opcode;
@@ -186,4 +255,4 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const PE_VecInstrIn<DATA_W, VLE
     sc_trace(tf, in.instr, name + ".instr");
 }
 
-#endif // PE_VECTOR_ISA_H
+#endif // PE_ISA_H

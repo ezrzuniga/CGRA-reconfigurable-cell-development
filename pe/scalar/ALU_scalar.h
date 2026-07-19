@@ -7,7 +7,7 @@
 #define ALU_SCALAR_H
 
 #include <systemc.h>
-#include "pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32>
 class ALU_scalar : public sc_core::sc_module {
