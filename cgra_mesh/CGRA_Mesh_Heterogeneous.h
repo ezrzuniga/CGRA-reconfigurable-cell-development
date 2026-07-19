@@ -18,6 +18,7 @@
 #include "PE_Base.h"
 #include "PE_Scalar_Cell.h"
 #include "PE_Vector_Cell.h"
+#include "PE_MAC_Cell.h"
 
 template <int ROWS, int COLS, int DATA_W = 32, int VLEN = 4,
           int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
@@ -71,6 +72,9 @@ public:
             std::string name = "pe_" + std::to_string(r) + "_" + std::to_string(c);
             if (layout[idx] == CellKind::VECTOR) {
                 return new PE_Vector_Cell<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>(name.c_str());
+            }
+            if (layout[idx] == CellKind::MAC) {
+                return new PE_MAC_Cell<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>(name.c_str());
             }
             return new PE_Scalar_Cell<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>(name.c_str());
         });

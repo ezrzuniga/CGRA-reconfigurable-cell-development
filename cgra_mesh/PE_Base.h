@@ -17,7 +17,7 @@
 #include "../pe_scalar/pe_isa.h"
 #include "../pe_vector/pe_isa.h"
 
-enum class CellKind { SCALAR, VECTOR };
+enum class CellKind { SCALAR, VECTOR, MAC };
 
 template <int DATA_W = 32, int VLEN = 4>
 class PE_Base : public sc_core::sc_module {

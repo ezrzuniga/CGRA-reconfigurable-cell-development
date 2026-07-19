@@ -28,29 +28,34 @@ enum PE_Opcode {
     OP_SRA  = 9,
     OP_SLT  = 10,
     OP_SLTU = 11,
-    OP_MUL  = 12
+    OP_MUL  = 12,
+    OP_MAC  = 13   // acc += a * b (acumulador interno del PE, ver pe_mac/)
 };
 
 // Origen de un operando: registro interno, uno de los 4 vecinos de malla de
-// la PE, o inmediato embebido en la instruccion.
+// la PE, inmediato embebido en la instruccion, o el acumulador interno
+// (SRC_ACC, solo tiene efecto en PE_MAC).
 enum PE_Src {
     SRC_REG   = 0,
     SRC_NORTH = 1,
     SRC_SOUTH = 2,
     SRC_EAST  = 3,
     SRC_WEST  = 4,
-    SRC_IMM   = 5
+    SRC_IMM   = 5,
+    SRC_ACC   = 6
 };
 
-// Destino del resultado: registro interno, un vecino de malla especifico, o
-// difusion (ALL) a los 4 vecinos a la vez.
+// Destino del resultado: registro interno, un vecino de malla especifico,
+// difusion (ALL) a los 4 vecinos a la vez, o el acumulador interno
+// (DST_ACC, solo tiene efecto en PE_MAC).
 enum PE_Dst {
     DST_REG   = 0,
     DST_NORTH = 1,
     DST_SOUTH = 2,
     DST_EAST  = 3,
     DST_WEST  = 4,
-    DST_ALL   = 5
+    DST_ALL   = 5,
+    DST_ACC   = 6
 };
 
 #endif // PE_ISA_H
