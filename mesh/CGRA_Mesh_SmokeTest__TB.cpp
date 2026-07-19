@@ -31,6 +31,8 @@ int sc_main(int argc, char* argv[]) {
     sc_signal<Link> in_W[ROWS], out_W[ROWS];
     sc_signal<Link> in_E[ROWS], out_E[ROWS];
 
+    // layout es plano y row-major (indice = r*COLS+c); su tamano debe calzar
+    // exacto con ROWS*COLS (ver mesh/README.md, seccion "Definir un layout").
     std::vector<CellKind> layout = {
         CellKind::SCALAR,  // fila 0
         CellKind::VECTOR,  // fila 1
@@ -105,6 +107,8 @@ int sc_main(int argc, char* argv[]) {
     mac_acc.imm = 10;  // k
     mac_acc.dst = DST_EAST;
 
+    // load_instr necesita un flanco de clk para latchear; addr=0 en las tres
+    // porque esta malla usa INSTR_MEM_SIZE=1 (ver mesh/README.md).
     mesh.load_instr(0, 0, 0, add_c);
     mesh.load_instr(1, 0, 0, mul_e);
     mesh.load_instr(2, 0, 0, mac_acc);
