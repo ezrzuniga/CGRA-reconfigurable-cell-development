@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CGRA Memory Cell Project Status</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: #111c2f;
+      --card: #16253c;
+      --green: #22c55e;
+      --blue: #38bdf8;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #2e3f57;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, var(--bg), #020617);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .wrap {
+      max-width: 1300px;
+      margin: 0 auto;
+      background: rgba(17, 28, 47, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.35);
+    }
+
+    h1, h2 { margin-top: 0; }
+    h2 { font-size: 20px; margin-bottom: 8px; }
+    p { line-height: 1.55; color: var(--muted); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .done { background: rgba(34,197,94,0.16); color: var(--green); }
+    .partial { background: rgba(245,158,11,0.16); color: var(--orange); }
+    .planned { background: rgba(56,189,248,0.16); color: var(--blue); }
+
+    .module-list { display: grid; gap: 10px; margin-top: 10px; }
+    .module {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .module strong { color: #fff; }
+    .tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th { color: #fff; }
+    td:first-child { color: #fff; }
+
+    .compare {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .compare-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+    }
+
+    .compare-item strong { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CGRA Memory Cell Project Status</h1>
+    <p>This page summarizes the current implementation status of the memory-cell subsystem and compares it with the architecture shown in the reference image.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="status done">Implemented</div>
+        <h2>Available modules</h2>
+        <div class="module-list">
+          <div class="module">
+            <strong>PE Memory Cell</strong>
+            <div class="tags">
+              <span class="tag">CSR interface</span>
+              <span class="tag">NoC target socket</span>
+              <span class="tag">NoC initiator socket</span>
+              <span class="tag">DMA controller</span>
+            </div>
+          </div>
+          <div class="module">
+            <strong>SRAM Dual-Port</strong>
+            <div class="tags">
+              <span class="tag">2 ports</span>
+              <span class="tag">TLM read/write</span>
+              <span class="tag">word-level storage</span>
+            </div>
+          </div>
+          <div class="module">
+            <strong>Local DMA</strong>
+            <div class="tags">
+              <span class="tag">direct transfer</span>
+              <span class="tag">stride transfer</span>
+              <span class="tag">busy/done flags</span>
+            </div>
+          </div>
+          <div class="module">
+            <strong>Access Controller</strong>
+            <div class="tags">
+              <span class="tag">address generation</span>
+              <span class="tag">direct/stride modes</span>
+            </div>
+          </div>
+          <div class="module">
+            <strong>Simple NoC Interconnect</strong>
+            <div class="tags">
+              <span class="tag">tile-to-tile routing</span>
+              <span class="tag">TLM forwarding</span>
+              <span class="tag">2-tile demo</span>
+            </div>
+          </div>
+          <div class="module">
+            <strong>Tests</strong>
+            <div class="tags">
+              <span class="tag">unit test</span>
+              <span class="tag">interconnect test</span>
+              <span class="tag">CTest integration</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="status partial">Partially aligned</div>
+        <h2>Current status vs reference image</h2>
+        <table>
+          <tr><th>Reference block</th><th>Status</th><th>Notes</th></tr>
+          <tr>
+            <td>RISC-V / host interface</td>
+            <td>Partially implemented</td>
+            <td>CSR-style host access exists, but no full bridge to a real CPU yet.</td>
+          </tr>
+          <tr>
+            <td>Memory tile</td>
+            <td>Implemented</td>
+            <td>Core SRAM + DMA + NoC sockets are present and tested.</td>
+          </tr>
+          <tr>
+            <td>Router / interconnect</td>
+            <td>Implemented as a simple prototype</td>
+            <td>Works for basic tile-to-tile forwarding, not yet a full mesh router.</td>
+          </tr>
+          <tr>
+            <td>Scalar / vector processing tiles</td>
+            <td>Available in repo, not yet integrated with memory tile</td>
+            <td>PE scalar/vector modules exist independently.</td>
+          </tr>
+          <tr>
+            <td>4-context configuration</td>
+            <td>Implemented at memory-cell level</td>
+            <td>The memory cell supports multiple context registers.</td>
+          </tr>
+          <tr>
+            <td>Full 2x2 CGRA mesh</td>
+            <td>Planned</td>
+            <td>Current work is a functional prototype, not the full tiled array.</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="status planned">Next step</div>
+      <h2>How this maps to the image</h2>
+      <div class="compare">
+        <div class="compare-item">
+          <strong>Image block: Memory Cell</strong><br/>
+          This is already represented by the implemented PE memory cell, SRAM bank, DMA engine, and NoC sockets.
+        </div>
+        <div class="compare-item">
+          <strong>Image block: Routing Cell / NoC</strong><br/>
+          The simple interconnect is a first step toward the routing cell shown in the reference. It is functional but not yet a full router with credit-based flow control.
+        </div>
+        <div class="compare-item">
+          <strong>Image block: Scalar / Vector Cells</strong><br/>
+          These exist in the repository as standalone PE modules, but they are not yet connected to the memory tile in a unified top-level simulation.
+        </div>
+        <div class="compare-item">
+          <strong>Image block: RISC-V Host / Bridge</strong><br/>
+          The host-style CSR access is implemented through testbenches; a full CPU bridge is still pending.
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
