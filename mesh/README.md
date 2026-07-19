@@ -93,3 +93,18 @@ ciclo de reloj → `clear_instr` de todas. Un caso especial: reprogramar una cel
 `PE_MAC` **después de que ya está corriendo** (no en la carga inicial) necesita ~3
 ciclos de margen en vez de 1, porque `PE_MAC_Cell` tiene un puente asíncrono adicional
 (`bridge_instr_in()`) entre `load_instr` y la memoria de instrucciones real de esa PE.
+
+## Calcular los valores "esperado" de los tests
+
+Los pipelines de 3 etapas de `CGRA_Mesh_ComplexTest__TB.cpp` (`SUB`/`OR`/`XOR`
+encadenados, con operandos negativos) son fáciles de calcular mal a mano — un bit
+mal en un `AND`/`XOR` no se nota a simple vista. `tools/expected_values.py` es la
+fuente de verdad: reproduce, sección por sección, los mismos literales que hoy están
+escritos en los dos testbenches, con la misma semántica de 32 bits con signo que
+`sc_int<32>` (complemento a 2, wraparound silencioso). Se corre así:
+```
+python3 mesh/tools/expected_values.py
+```
+Si se agrega un caso nuevo a cualquiera de los dos tests, agregar primero la llamada
+correspondiente en el script y correrlo para obtener el literal — no calcular el
+resultado de una cadena de opcodes a mano y confiar en que está bien.
