@@ -128,7 +128,7 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const PE_InstrIn<DATA_W>& in, c
 
 // Dato vectorial: VLEN lanes independientes de sc_int<DATA_W>. Usado como
 // wire unico de la malla heterogenea (el escalar es un caso degenerado del
-// vector, ver pe/CLAUDE.md) y como tipo de dato nativo de PE_vector/PE_MAC.
+// vector) y como tipo de dato nativo de PE_vector/PE_MAC.
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VectorData {
     std::array<sc_int<DATA_W>, VLEN> lane;

@@ -62,7 +62,7 @@ int sc_main(int argc, char* argv[]) {
     // load(): carga una instruccion en addr 0 y deja pasar 1 ciclo extra de
     // margen para que instr_mem quede estable antes de medir nada (el orden
     // relativo entre load_program()/issue() en el mismo flanco no esta
-    // garantizado por SystemC, ver mesh/CLAUDE.md).
+    // garantizado por SystemC).
     auto load = [&](PE_VecInstrIn<32, 4> instr) {
         instr_in.write(instr);
         sc_start(10, SC_NS);

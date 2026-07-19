@@ -47,5 +47,3 @@ gtkwave pe_scalar_wave.vcd
   `PE_Vector_Cell.h` y sus testbenches.
 - `mac/` — PE de multiply-accumulate vectorial de 1 ciclo: `ALU_MAC.h`, `PE_MAC.h`,
   `PE_MAC_Cell.h` y sus testbenches.
-
-Más detalle de arquitectura y decisiones de diseño en `CLAUDE.md`.

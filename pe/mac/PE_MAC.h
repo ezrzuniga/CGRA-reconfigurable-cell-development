@@ -9,7 +9,7 @@
 // leerlo sin destruirlo o para precargarlo/limpiarlo), no solo por PC/rst:
 // necesario para que un PE pueda reiniciar su propia acumulacion (tiles de
 // GEMM, etapas de FFT) sin depender de `rst`, que es un solo dominio para
-// toda la malla (ver mesh/CLAUDE.md).
+// toda la malla.
 //
 // A proposito, `rst` NO limpia `acc` -- mismo precedente que reg_file, que
 // tampoco se limpia con rst hoy en PE_scalar/PE_vector. Solo DST_ACC limpia
