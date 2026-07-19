@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1290" font-family="sans-serif">
+<rect x="0" y="0" width="1420" height="1290" fill="#ffffff"/>
+<defs>
+  <marker id="arrowActive" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#ea580c"/>
+  </marker>
+  <marker id="arrowActiveVec" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#7c3aed"/>
+  </marker>
+  <marker id="arrowActiveMac" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#0e7490"/>
+  </marker>
+  <marker id="arrowIdle" markerWidth="8" markerHeight="8" refX="6" refY="2.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L6,2.5 L0,5.0 Z" fill="#9ca3af"/>
+  </marker>
+</defs>
+
+<text x="710.0" y="30" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#1f2937">CGRA Mesh 3x3 -- Complex Test: pipeline de 3 etapas por fila, un tipo de PE por fila</text>
+<text x="710.0" y="54" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="400" fill="#6b7280">CGRA_Mesh_Heterogeneous&lt;3,3,32,4,8,1&gt;  |  CGRA_Mesh_ComplexTest__TB.cpp  |  3 pipelines ADD-&gt;MUL-&gt;AND independientes, encadenados horizontalmente</text>
+
+<!-- Fila 0: PE_scalar -->
+<rect x="265.0" y="155.0" width="170" height="190" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="350.0" y="190.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (0,0) / pe_0_0</text>
+<text x="350.0" y="208.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#2563eb">PE_Scalar_Cell</text>
+<text x="350.0" y="237.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_ADD</text>
+<text x="350.0" y="259.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">c = a + b</text>
+<text x="350.0" y="283.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#2563eb">src_a=WEST, src_b=NORTH</text>
+<text x="350.0" y="303.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">dst=EAST</text>
+
+<rect x="565.0" y="155.0" width="170" height="190" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="650.0" y="190.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (0,1) / pe_0_1</text>
+<text x="650.0" y="208.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#2563eb">PE_Scalar_Cell</text>
+<text x="650.0" y="237.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_MUL</text>
+<text x="650.0" y="259.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">e = c * d</text>
+<text x="650.0" y="283.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#2563eb">src_a=WEST, src_b=NORTH</text>
+<text x="650.0" y="303.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">dst=EAST</text>
+
+<rect x="865.0" y="155.0" width="170" height="190" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="950.0" y="190.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (0,2) / pe_0_2</text>
+<text x="950.0" y="208.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#2563eb">PE_Scalar_Cell</text>
+<text x="950.0" y="237.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_AND</text>
+<text x="950.0" y="259.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">g = e &amp; f</text>
+<text x="950.0" y="283.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#2563eb">src_a=WEST, src_b=NORTH</text>
+<text x="950.0" y="303.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">dst=EAST (borde real)</text>
+
+<!-- Fila 1: PE_vector -->
+<rect x="265.0" y="445.0" width="170" height="190" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="350.0" y="480.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (1,0) / pe_1_0</text>
+<text x="350.0" y="498.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#7c3aed">PE_Vector_Cell &#183; VLEN=4</text>
+<text x="350.0" y="527.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_ADD</text>
+<text x="350.0" y="549.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">c = a + 7</text>
+<text x="350.0" y="573.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">src_a=WEST, src_b=IMM(7)</text>
+<text x="350.0" y="591.0" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="400" fill="#6b7280">dst=EAST</text>
+<text x="350.0" y="613.0" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="700" fill="#7c3aed">no SRC_NORTH: acoplaria filas</text>
+
+<rect x="565.0" y="445.0" width="170" height="190" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="650.0" y="480.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (1,1) / pe_1_1</text>
+<text x="650.0" y="498.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#7c3aed">PE_Vector_Cell &#183; VLEN=4</text>
+<text x="650.0" y="527.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_MUL</text>
+<text x="650.0" y="549.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">e = c * 3</text>
+<text x="650.0" y="573.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">src_a=WEST, src_b=IMM(3)</text>
+<text x="650.0" y="593.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">dst=EAST</text>
+
+<rect x="865.0" y="445.0" width="170" height="190" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="950.0" y="480.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (1,2) / pe_1_2</text>
+<text x="950.0" y="498.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#7c3aed">PE_Vector_Cell &#183; VLEN=4</text>
+<text x="950.0" y="527.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_AND</text>
+<text x="950.0" y="549.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">g = e &amp; 15</text>
+<text x="950.0" y="573.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">src_a=WEST, src_b=IMM(15)</text>
+<text x="950.0" y="593.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">dst=EAST (borde real)</text>
+
+<!-- Fila 2: PE_MAC -->
+<rect x="265.0" y="735.0" width="170" height="190" rx="10" fill="#cffafe" stroke="#0e7490" stroke-width="2.5"/>
+<text x="350.0" y="770.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (2,0) / pe_2_0</text>
+<text x="350.0" y="788.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#0e7490">PE_MAC_Cell &#183; VLEN=4</text>
+<text x="350.0" y="817.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">OP_MAC</text>
+<text x="350.0" y="839.0" text-anchor="middle" font-family="monospace" font-size="16" font-weight="400" fill="#1f2937">acc += a * 2</text>
+<text x="350.0" y="863.0" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#0e7490">src_a=WEST, src_b=IMM(2)</text>
+<text x="350.0" y="883.0" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="400" fill="#6b7280">dst=EAST, 1 ciclo/acumulacion</text>
+
+<rect x="565.0" y="735.0" width="170" height="190" rx="10" fill="#cffafe" stroke="#0e7490" stroke-width="2.5"/>
+<text x="650.0" y="770.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (2,1) / pe_2_1</text>
+<text x="650.0" y="788.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#0e7490">PE_MAC_Cell &#183; VLEN=4</text>
+<text x="650.0" y="817.0" text-anchor="middle" font-family="monospace" font-size="15" font-weight="400" fill="#1f2937">OP_MOV</text>
+<text x="650.0" y="839.0" text-anchor="middle" font-family="monospace" font-size="15" font-weight="400" fill="#1f2937">out_E = in_W</text>
+<text x="650.0" y="861.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">relevo, sin computo propio</text>
+
+<rect x="865.0" y="735.0" width="170" height="190" rx="10" fill="#cffafe" stroke="#0e7490" stroke-width="2.5"/>
+<text x="950.0" y="770.0" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#1f2937">PE (2,2) / pe_2_2</text>
+<text x="950.0" y="788.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#0e7490">PE_MAC_Cell &#183; VLEN=4</text>
+<text x="950.0" y="817.0" text-anchor="middle" font-family="monospace" font-size="15" font-weight="400" fill="#1f2937">OP_MOV</text>
+<text x="950.0" y="839.0" text-anchor="middle" font-family="monospace" font-size="15" font-weight="400" fill="#1f2937">out_E = in_W</text>
+<text x="950.0" y="861.0" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="400" fill="#6b7280">relevo, sin computo propio</text>
+
+<!-- Enlaces horizontales activos, fila 0 -->
+<line x1="435.0" y1="194.0" x2="565.0" y2="194.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="565.0" y1="226.0" x2="435.0" y2="226.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="500.0" y="188.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">c=12</text>
+<text x="500.0" y="242.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+<line x1="735.0" y1="194.0" x2="865.0" y2="194.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="865.0" y1="226.0" x2="735.0" y2="226.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="800.0" y="188.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">e=36</text>
+<text x="800.0" y="242.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+
+<!-- Enlaces horizontales activos, fila 1 -->
+<line x1="435.0" y1="484.0" x2="565.0" y2="484.0" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowActiveVec)"/>
+<line x1="565.0" y1="516.0" x2="435.0" y2="516.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="500.0" y="478.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#7c3aed">c</text>
+<text x="500.0" y="532.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+<line x1="735.0" y1="484.0" x2="865.0" y2="484.0" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowActiveVec)"/>
+<line x1="865.0" y1="516.0" x2="735.0" y2="516.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="800.0" y="478.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#7c3aed">e</text>
+<text x="800.0" y="532.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+
+<!-- Enlaces horizontales activos, fila 2 -->
+<line x1="435.0" y1="774.0" x2="565.0" y2="774.0" stroke="#0e7490" stroke-width="3" marker-end="url(#arrowActiveMac)"/>
+<line x1="565.0" y1="806.0" x2="435.0" y2="806.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="500.0" y="768.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#0e7490">acc</text>
+<text x="500.0" y="822.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+<line x1="735.0" y1="774.0" x2="865.0" y2="774.0" stroke="#0e7490" stroke-width="3" marker-end="url(#arrowActiveMac)"/>
+<line x1="865.0" y1="806.0" x2="735.0" y2="806.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="800.0" y="768.0" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#0e7490">acc</text>
+<text x="800.0" y="822.0" text-anchor="middle" font-family="monospace" font-size="10" font-weight="400" fill="#6b7280">sin uso</text>
+
+<!-- Enlaces verticales internos entre filas (sin uso, 3 pipelines independientes) -->
+<line x1="334.0" y1="345.0" x2="334.0" y2="445.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="366.0" y1="445.0" x2="366.0" y2="345.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="334.0" y1="635.0" x2="334.0" y2="735.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="366.0" y1="735.0" x2="366.0" y2="635.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="634.0" y1="345.0" x2="634.0" y2="445.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="666.0" y1="445.0" x2="666.0" y2="345.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="634.0" y1="635.0" x2="634.0" y2="735.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="666.0" y1="735.0" x2="666.0" y2="635.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="934.0" y1="345.0" x2="934.0" y2="445.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="966.0" y1="445.0" x2="966.0" y2="345.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="934.0" y1="635.0" x2="934.0" y2="735.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="966.0" y1="735.0" x2="966.0" y2="635.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+
+<!-- Borde real in_N (solo fila 0) -->
+<line x1="334.0" y1="104" x2="334.0" y2="155.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="366.0" y1="155.0" x2="366.0" y2="104" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="334.0" y="78" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_N_0</text>
+<text x="334.0" y="96" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">b=7</text>
+<text x="396.0" y="88" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_N_0</text>
+
+<line x1="634.0" y1="104" x2="634.0" y2="155.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="666.0" y1="155.0" x2="666.0" y2="104" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="634.0" y="78" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_N_1</text>
+<text x="634.0" y="96" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">d=3</text>
+<text x="696.0" y="88" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_N_1</text>
+
+<line x1="934.0" y1="104" x2="934.0" y2="155.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="966.0" y1="155.0" x2="966.0" y2="104" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="934.0" y="78" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_N_2</text>
+<text x="934.0" y="96" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">f=15</text>
+<text x="996.0" y="88" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_N_2</text>
+
+<!-- Borde real in_S (solo fila 2, sin usar en este programa) -->
+<line x1="334.0" y1="925.0" x2="334.0" y2="995.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="366.0" y1="995.0" x2="366.0" y2="925.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="334.0" y="1015.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_S_0</text>
+<text x="366.0" y="1031.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_S_0</text>
+
+<line x1="634.0" y1="925.0" x2="634.0" y2="995.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="666.0" y1="995.0" x2="666.0" y2="925.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="634.0" y="1015.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_S_1</text>
+<text x="666.0" y="1031.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_S_1</text>
+
+<line x1="934.0" y1="925.0" x2="934.0" y2="995.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<line x1="966.0" y1="995.0" x2="966.0" y2="925.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="934.0" y="1015.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_S_2</text>
+<text x="966.0" y="1031.0" text-anchor="middle" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_S_2</text>
+
+<!-- Borde real in_W (los 3, columna 0) -->
+<line x1="140" y1="194.0" x2="265.0" y2="194.0" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<line x1="265.0" y1="226.0" x2="140" y2="226.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="130" y="178.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_W_0</text>
+<text x="130" y="192.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">a=5</text>
+<text x="130" y="244.0" text-anchor="end" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_W_0</text>
+
+<line x1="140" y1="484.0" x2="265.0" y2="484.0" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowActiveVec)"/>
+<line x1="265.0" y1="516.0" x2="140" y2="516.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="130" y="468.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_W_1</text>
+<text x="130" y="482.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#7c3aed">a={5,9,13,17}</text>
+<text x="130" y="534.0" text-anchor="end" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_W_1</text>
+
+<line x1="140" y1="774.0" x2="265.0" y2="774.0" stroke="#0e7490" stroke-width="3" marker-end="url(#arrowActiveMac)"/>
+<line x1="265.0" y1="806.0" x2="140" y2="806.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="130" y="758.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#1f2937">in_W_2</text>
+<text x="130" y="772.0" text-anchor="end" font-family="monospace" font-size="13" font-weight="700" fill="#0e7490">a={1,1,1,1}</text>
+<text x="130" y="824.0" text-anchor="end" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">out_W_2</text>
+
+<!-- Borde real out_E (los 3, columna 2) -->
+<line x1="1035.0" y1="194.0" x2="1160.0" y2="194.0" stroke="#ea580c" stroke-width="4" marker-end="url(#arrowActive)"/>
+<line x1="1160.0" y1="226.0" x2="1035.0" y2="226.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="1170.0" y="178.0" text-anchor="start" font-family="monospace" font-size="14" font-weight="700" fill="#1f2937">out_E_0</text>
+<text x="1170.0" y="194.0" text-anchor="start" font-family="monospace" font-size="13" font-weight="700" fill="#ea580c">g = 4 (final)</text>
+<text x="1170.0" y="244.0" text-anchor="start" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_E_0</text>
+
+<line x1="1035.0" y1="484.0" x2="1160.0" y2="484.0" stroke="#7c3aed" stroke-width="4" marker-end="url(#arrowActiveVec)"/>
+<line x1="1160.0" y1="516.0" x2="1035.0" y2="516.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="1170.0" y="468.0" text-anchor="start" font-family="monospace" font-size="14" font-weight="700" fill="#1f2937">out_E_1</text>
+<text x="1170.0" y="484.0" text-anchor="start" font-family="monospace" font-size="13" font-weight="700" fill="#7c3aed">g = {4,0,12,8} (final)</text>
+<text x="1170.0" y="534.0" text-anchor="start" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_E_1</text>
+
+<line x1="1035.0" y1="774.0" x2="1160.0" y2="774.0" stroke="#0e7490" stroke-width="4" marker-end="url(#arrowActiveMac)"/>
+<line x1="1160.0" y1="806.0" x2="1035.0" y2="806.0" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="1170.0" y="758.0" text-anchor="start" font-family="sans-serif" font-size="14" font-weight="700" fill="#1f2937">out_E_2</text>
+<text x="1170.0" y="774.0" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="700" fill="#0e7490">acc += a*2 CADA CICLO</text>
+<text x="1170.0" y="790.0" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="700" fill="#0e7490">delta(1 ciclo)={2,2,2,2} OK</text>
+<text x="1170.0" y="824.0" text-anchor="start" font-family="monospace" font-size="11" font-weight="400" fill="#6b7280">in_E_2</text>
+
+<!-- Callout: por que la fila 1 usa SRC_IMM en vez de SRC_NORTH -->
+<rect x="1170" y="560" width="240" height="170" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="1290" y="588" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#1f2937">Fila 1 (interior): por que</text>
+<text x="1290" y="606" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="400" fill="#1f2937">SRC_IMM y no SRC_NORTH</text>
+<text x="1290" y="624" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="400" fill="#1f2937">in_N/in_S de la fila 1 son</text>
+<text x="1290" y="642" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="400" fill="#1f2937">enlaces internos hacia 0/2</text>
+<text x="1290" y="664" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">-&gt; acoplaria los 3</text>
+<text x="1290" y="682" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">pipelines entre si</text>
+
+<!-- Leyenda -->
+<rect x="60" y="1106" width="24" height="17" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="92" y="1119" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">PE_Scalar_Cell (fila 0)</text>
+<rect x="460" y="1106" width="24" height="17" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="492" y="1119" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">PE_Vector_Cell (fila 1)</text>
+<rect x="860" y="1106" width="24" height="17" rx="4" fill="#cffafe" stroke="#0e7490" stroke-width="2.5"/>
+<text x="892" y="1119" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">PE_MAC_Cell (fila 2, incl. relevos)</text>
+
+<line x1="60" y1="1160" x2="94" y2="1160" stroke="#ea580c" stroke-width="3" marker-end="url(#arrowActive)"/>
+<text x="102" y="1165" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">dataflow real (fila 0, escalar)</text>
+<line x1="460" y1="1160" x2="494" y2="1160" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowActiveVec)"/>
+<text x="502" y="1165" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">dataflow real (fila 1, vectorial)</text>
+<line x1="860" y1="1160" x2="894" y2="1160" stroke="#0e7490" stroke-width="3" marker-end="url(#arrowActiveMac)"/>
+<text x="902" y="1165" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">dataflow real (fila 2, MAC + relevo)</text>
+
+<line x1="60" y1="1200" x2="94" y2="1200" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowIdle)"/>
+<text x="102" y="1205" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">enlace cableado sin uso (interno entre filas, o borde no programado)</text>
+<rect x="800" y="1192" width="24" height="17" rx="4" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4,3"/>
+<text x="832" y="1205" text-anchor="start" font-family="sans-serif" font-size="13" font-weight="400" fill="#1f2937">nota de diseno (fila interior)</text>
+
+</svg>

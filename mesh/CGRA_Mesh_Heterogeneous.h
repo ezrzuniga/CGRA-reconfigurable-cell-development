@@ -1,13 +1,10 @@
 // CGRA_Mesh_Heterogeneous.h
-// Hermana heterogenea de CGRA_Mesh.h: mismo wiring estructural (in_N/S/E/W,
-// out_N/S/E/W entre vecinas con sc_signal, sin procesos propios), pero cada celda
-// puede ser PE_Scalar_Cell o PE_Vector_Cell segun un layout dado en la construccion.
-// El wire comun de la malla es PE_Base::Link (PE_VectorData<DATA_W,VLEN>); las
-// celdas escalares hacen de puente (broadcast/lane 0) puertas adentro de
-// PE_Scalar_Cell, esta malla no sabe nada de esa conversion.
-//
-// CGRA_Mesh.h queda intacta a proposito (ver CLAUDE.md): esta es una malla nueva,
-// no un reemplazo.
+// Fabric estructural de la CGRA: wiring puro (in_N/S/E/W, out_N/S/E/W entre vecinas
+// con sc_signal, sin procesos propios), donde cada celda puede ser PE_Scalar_Cell,
+// PE_Vector_Cell o PE_MAC_Cell segun un layout dado en la construccion. El wire comun
+// de la malla es PE_Base::Link (PE_VectorData<DATA_W,VLEN>); las celdas escalares
+// hacen de puente (broadcast/lane 0) puertas adentro de PE_Scalar_Cell, esta malla no
+// sabe nada de esa conversion.
 
 #ifndef CGRA_MESH_HETEROGENEOUS_H
 #define CGRA_MESH_HETEROGENEOUS_H
