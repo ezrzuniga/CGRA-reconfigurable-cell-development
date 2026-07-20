@@ -34,3 +34,4 @@ find_library(
 
 add_subdirectory(pe)
 add_subdirectory(mesh)
+add_subdirectory(mesh_wrapper)
