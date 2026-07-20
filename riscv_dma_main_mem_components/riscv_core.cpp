@@ -1,4 +1,5 @@
 #include "riscv_core.h"
+#include <dummy_cgra.h>
 
 #include <iostream>
 
@@ -36,11 +37,18 @@ void RiscvCore::run()
     wait(10, SC_NS);
     std::cout << "\nStarting RISC-V software...\n";
     // Flow execution
-    load_input_data();
-    configure_cgra();
-    start_cgra();
-    wait_for_completion();
-    read_results();
+
+    wait(10, SC_NS);
+
+    test_vector_add();
+
+    wait(50, SC_NS);
+
+    test_fir();
+
+    wait(50, SC_NS);
+
+    test_fft();
 
     std::cout << "\nRISC-V program finished.\n";
 }
@@ -200,7 +208,7 @@ void RiscvCore::read_results()
     sc_time delay = SC_ZERO_TIME;
     tlm_generic_payload trans;
 
-    std::vector<uint8_t> output_data(data_size);
+    output_data.resize(data_size);
 
     trans.set_command(TLM_READ_COMMAND);
     trans.set_address(output_addr);
@@ -227,4 +235,133 @@ void RiscvCore::read_results()
     }
 
     std::cout<< "\n============================\n";
+}
+
+void RiscvCore::test_vector_add()
+{
+    std::cout << "\n=========================================\n";
+    std::cout << "       Running VECTOR ADD TEST\n";
+    std::cout << "=========================================\n";
+
+    //--------------------------------------------------
+    // Configure the CGRA kernel.
+    //--------------------------------------------------
+
+    cgra_config = VECTOR_ADD;
+
+    //--------------------------------------------------
+    // Main Memory addresses.
+    //--------------------------------------------------
+
+    input_addr  = 0x1000;
+    output_addr = 0x2000;
+
+    //--------------------------------------------------
+    // Input vector.
+    //--------------------------------------------------
+
+    input_data =
+    {
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+    };
+
+    //--------------------------------------------------
+    // Number of bytes to transfer.
+    //--------------------------------------------------
+
+    data_size = input_data.size();
+
+    //--------------------------------------------------
+    // Golden reference.
+    //--------------------------------------------------
+
+    golden_reference =
+    {
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16
+    };
+
+    //--------------------------------------------------
+    // Execute the complete CGRA flow.
+    //--------------------------------------------------
+    load_input_data();
+    configure_cgra();
+    start_cgra();
+    wait_for_completion();
+    read_results();
+
+    std::cout << "\nVECTOR ADD TEST FINISHED.\n";
+}
+
+void RiscvCore::test_fir()
+{
+    std::cout << "\n=============================\n";
+    std::cout << "Running FIR FILTER TEST\n";
+    std::cout << "=============================\n";
+
+
+    cgra_config = FIR_FILTER;
+
+    input_addr  = 0x1000;
+    output_addr = 0x2000;
+    data_size   = 8;
+
+
+    //--------------------------------------------------
+    // Input vector.
+    //--------------------------------------------------
+    input_data.resize(data_size);
+    input_data =
+    {
+        1,2,3,4,5,6,7,8
+    };
+
+
+    //--------------------------------------------------
+    // Golden reference.
+    //--------------------------------------------------
+
+    golden_reference.resize(data_size);
+    golden_reference =
+    {
+        1,
+        4,
+        8,
+        12,
+        16,
+        20,
+        24,
+        28
+    };
+
+
+    load_input_data();
+    configure_cgra();
+    start_cgra();
+    wait_for_completion();
+    read_results();
+}
+
+void RiscvCore::test_fft()
+{
+    cgra_config = FFT_8_POINTS;
+
+    load_input_data();
+    configure_cgra();
+    start_cgra();
+    wait_for_completion();
+    read_results();
 }
