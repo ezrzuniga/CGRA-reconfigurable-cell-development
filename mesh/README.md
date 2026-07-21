@@ -22,10 +22,11 @@ Los binarios de esta carpeta quedan en `build/mesh/`.
 
 ## Ejecutar
 ```
+./CGRA_Mesh_1x1_Test__TB     # malla 1x1, una sola PE_vector con una instruccion de suma
 ./CGRA_Mesh_SmokeTest__TB    # malla 3x1, un PE de cada tipo
 ./CGRA_Mesh_ComplexTest__TB  # malla 3x3, 3 pipelines de 3 etapas (uno por tipo de PE)
 ```
-Ambos generan un `.vcd` con el estado interno de la malla, visible con `gtkwave`.
+Los tres generan un `.vcd` con el estado interno de la malla, visible con `gtkwave`.
 
 ## Definir un layout
 
@@ -84,11 +85,11 @@ Una `PE_Instruction<DATA_W>` (definida en `../pe/pe_isa.h`) tiene estos campos:
 
 `addr` (el segundo argumento de `load_instr`) es la posición dentro de la memoria de
 instrucciones de esa celda (`INSTR_MEM_SIZE` en el template de la malla, default 16).
-Los dos tests de esta carpeta instancian la malla con `INSTR_MEM_SIZE=1` — un programa
+Los tres tests de esta carpeta instancian la malla con `INSTR_MEM_SIZE=1` — un programa
 de una sola instrucción por celda — por eso siempre usan `addr=0`; con un
 `INSTR_MEM_SIZE` mayor podés cargar varias instrucciones por celda en distintas `addr`.
 
-Patrón de margen usado en ambos tests: cargar todas las instrucciones → `sc_start` de 1
+Patrón de margen usado en los tres tests: cargar todas las instrucciones → `sc_start` de 1
 ciclo de reloj → `clear_instr` de todas. Un caso especial: reprogramar una celda
 `PE_MAC` **después de que ya está corriendo** (no en la carga inicial) necesita ~3
 ciclos de margen en vez de 1, porque `PE_MAC_Cell` tiene un puente asíncrono adicional

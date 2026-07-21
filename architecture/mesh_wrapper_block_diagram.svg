@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" font-family="sans-serif">
+<rect x="0" y="0" width="1000" height="780" fill="#ffffff"/>
+<defs>
+  <marker id="arrowDarkEnd" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+  </marker>
+  <marker id="arrowDarkStart" markerWidth="10" markerHeight="10" refX="2" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M8,0 L0,3 L8,6 Z" fill="#334155"/>
+  </marker>
+  <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#6d28d9"/>
+  </marker>
+  <marker id="arrowDashed" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L7,2.5 L0,5 Z" fill="#6b7280"/>
+  </marker>
+  <marker id="arrowGray" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L7,2.5 L0,5 Z" fill="#475569"/>
+  </marker>
+</defs>
+
+<text x="500" y="28" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2937">mesh_wrapper -- jerarquia de modulos y conexiones</text>
+<text x="500" y="48" text-anchor="middle" font-size="12" fill="#6b7280">MeshWrapper_CSRDMA_Sim__TB.cpp  |  CGRA_Mesh_Heterogeneous&lt;1,1,32,4,8,1&gt; con una unica PE_Vector_Cell</text>
+
+<!-- ============ FakeCsrDma (testbench) ============ -->
+<rect x="30" y="90" width="180" height="90" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="2"/>
+<text x="120" y="128" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2937">FakeCsrDma</text>
+<text x="120" y="146" text-anchor="middle" font-size="11" fill="#6b7280">(imita CSR_DMA)</text>
+<text x="120" y="164" text-anchor="middle" font-family="monospace" font-size="11" fill="#334155">cgra_socket</text>
+
+<!-- TLM arrow: FakeCsrDma <-> b_transport handlers -->
+<line x1="215" y1="125" x2="625" y2="125" stroke="#334155" stroke-width="2.5" marker-start="url(#arrowDarkStart)" marker-end="url(#arrowDarkEnd)"/>
+<text x="420" y="112" text-anchor="middle" font-size="12" font-weight="700" fill="#1f2937">TLM &#183; target_socket</text>
+<text x="420" y="145" text-anchor="middle" font-family="monospace" font-size="10" fill="#6b7280">CONFIG &#183; START &#183; STATUS &#183; DONE &#183; IN &#183; OUT</text>
+
+<!-- ============ MeshWrapper (outer) ============ -->
+<rect x="350" y="70" width="620" height="650" rx="16" fill="#f0fdfa" stroke="#0d9488" stroke-width="2.5"/>
+<text x="372" y="97" font-size="17" font-weight="700" fill="#0f766e">MeshWrapper</text>
+<text x="372" y="114" font-size="11" fill="#0f766e">TLM &#8644; senales planas &#183; self-clocked</text>
+
+<!-- b_transport handlers box -->
+<rect x="630" y="95" width="220" height="60" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+<text x="740" y="120" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">b_transport</text>
+<text x="740" y="137" text-anchor="middle" font-size="10" fill="#0f766e">handlers</text>
+
+<!-- reset_thread / clk_rst_enable box -->
+<rect x="390" y="190" width="210" height="55" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+<text x="495" y="213" text-anchor="middle" font-size="12" font-weight="700" fill="#334155">reset_thread</text>
+<text x="495" y="231" text-anchor="middle" font-size="10.5" fill="#64748b">clk_ / rst_ / enable_</text>
+
+<!-- control -> Mesh -->
+<line x1="495" y1="245" x2="495" y2="260" stroke="#475569" stroke-width="2" marker-end="url(#arrowGray)"/>
+<text x="600" y="255" text-anchor="start" font-size="10" fill="#475569">clk &#183; rst &#183; enable</text>
+
+<!-- ============ Mesh ============ -->
+<rect x="390" y="260" width="550" height="440" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="665" y="286" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">Mesh : CGRA_Mesh_Heterogeneous&lt;1,1,32,4,8,1&gt;</text>
+
+<!-- pe_0_0 -->
+<rect x="415" y="305" width="500" height="370" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="665" y="331" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">pe_0_0 : PE_Vector_Cell</text>
+
+<!-- inner -->
+<rect x="440" y="350" width="450" height="270" rx="10" fill="#c4b5fd" stroke="#6d28d9" stroke-width="2"/>
+<text x="665" y="376" text-anchor="middle" font-size="12" font-weight="700" fill="#4c1d95">inner : PE_vector&lt;32,4,8,1&gt;</text>
+
+<!-- alu -->
+<rect x="470" y="530" width="390" height="70" rx="8" fill="#a78bfa" stroke="#5b21b6" stroke-width="2.5"/>
+<text x="665" y="560" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">alu : ALU_vector</text>
+<text x="665" y="578" text-anchor="middle" font-size="11" fill="#ede9fe">OP_ADD &#183; c = a + b &#183; 4 lanes</text>
+
+<!-- instr_in: handlers -> pe_0_0 boundary (bridged), stops at inner's top edge -->
+<line x1="650" y1="155" x2="650" y2="350" stroke="#6b7280" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowDashed)"/>
+<circle cx="650" cy="305" r="5" fill="#ffffff" stroke="#6b7280" stroke-width="2"/>
+<text x="600" y="260" text-anchor="end" font-size="10.5" font-weight="700" fill="#4b5563">CONFIG &#8594; load_instr</text>
+<text x="600" y="274" text-anchor="end" font-size="9.5" fill="#6b7280">instr_in (bridge)</text>
+
+<!-- in_W / in_N: handlers -> alu top edge (direct bind, no bridge) -->
+<line x1="735" y1="155" x2="735" y2="530" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+<text x="745" y="230" text-anchor="start" font-size="10.5" font-weight="700" fill="#5b21b6">in_W (A)</text>
+<text x="745" y="244" text-anchor="start" font-size="10.5" font-weight="700" fill="#5b21b6">in_N (B)</text>
+
+<!-- out_E: alu right edge -> MeshWrapper boundary -->
+<line x1="860" y1="565" x2="965" y2="565" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+<text x="912" y="552" text-anchor="middle" font-size="10.5" font-weight="700" fill="#5b21b6">out_E</text>
+<text x="912" y="600" text-anchor="middle" font-size="9.5" fill="#6b7280">&#8594; result_ &#8594;</text>
+<text x="912" y="613" text-anchor="middle" font-size="9.5" fill="#6b7280">OUTPUT_DATA_BUFFER</text>
+
+<!-- ============ Legend ============ -->
+<rect x="40" y="726" width="20" height="16" rx="3" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+<text x="66" y="738" font-size="12" fill="#1f2937">mesh_wrapper (nuevo)</text>
+
+<rect x="230" y="726" width="20" height="16" rx="3" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="256" y="738" font-size="12" fill="#1f2937">pe/ + mesh/ (IP existente)</text>
+
+<rect x="450" y="726" width="20" height="16" rx="3" fill="#f1f5f9" stroke="#475569" stroke-width="2"/>
+<text x="476" y="738" font-size="12" fill="#1f2937">testbench / control interno</text>
+
+<line x1="660" y1="734" x2="694" y2="734" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+<text x="702" y="738" font-size="12" fill="#1f2937">dataflow (bind directo)</text>
+
+<line x1="840" y1="734" x2="874" y2="734" stroke="#6b7280" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowDashed)"/>
+<text x="882" y="738" font-size="12" fill="#1f2937">instr_in</text>
+
+</svg>

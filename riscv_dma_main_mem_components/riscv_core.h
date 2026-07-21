@@ -35,6 +35,15 @@ public:
 
 private:
 
+    // Input data to be processed by the CGRA
+    std::vector<uint8_t> input_data;
+
+    // Stores the results produced by the CGRA
+    std::vector<uint8_t> output_data;
+
+    // Stores the expected results for the current test
+    std::vector<uint8_t> golden_reference;
+
     //---------------------------------------------------
     // Software program
     //---------------------------------------------------
@@ -55,6 +64,11 @@ private:
     void wait_for_completion();
 
     void read_results();
+
+    // Test functions for each kernel
+    void test_vector_add();
+    void test_fir();
+    void test_fft();
 
 
     //---------------------------------------------------
