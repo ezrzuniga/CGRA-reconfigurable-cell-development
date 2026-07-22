@@ -1,0 +1,328 @@
+% IEEE-formatted preliminary article (conference)
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{csquotes}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{adjustbox}
+\usepackage{rotating}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, arrows.meta, calc, patterns, decorations.pathreplacing}
+
+\title{Development of a Reconfigurable CGRA Cell}
+\author{\IEEEauthorblockN{Duarte Sanchez David, Jimenez Ulate Eddy, Ruiz Rivera Jeffrey, Esquivel Arias Fabian Zúñiga Ramírez Jose Eduardo}
+\IEEEauthorblockA{{davidduarte28, e.jimenez.10, yr1ruiz, fabiesqui22, je.zuniga}@estudiantec.cr}
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+% Loosen line breaking to avoid overfull boxes in two-column layout
+\sloppy
+
+%\begin{abstract}
+%-This document is a preliminary IEEE-format draft that includes title, authors, introduction, and state of the art. Here should go a 150--250 word abstract describing objectives, methodology, and expected results.
+%\end{abstract}
+
+\section{Introduction}
+%The introduction should motivate the problem, explain its importance, and define the objectives of the work. Include context, research questions, and main contributions.
+
+
+Reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
+different user needs, and scientific progress, so hardware cannot adapt at the same pace as software \cite{LeiboLiu}. Special-purpose systems
+can suffer from rapid obsolescence, and if the price of hardware development and production is high, it becomes economically unviable \cite{LeiboLiu}.
+
+Currently, architectures such as FPGAs (\textit{Field Programmable Gate Arrays}) have been widely adopted in diverse applications due to their flexibility and customization capability, gaining traction in High-Performance Computing (HPC).
+However, FPGAs present certain limitations such as slow configuration times, long compilation times, and, although somewhat relative, low operating frequencies \cite{Podobas}.
+
+ Due to the above, there has been growing interest in HPC in using architectures such as CGRAs (\textit{Coarse-Grained Reconfigurable Arrays}), which offer an intermediate solution between FPGAs and general-purpose processors (GPPs).
+CGRAs are hardware architectures that, conceptually, allow silicon to be malleable and their functionality to be dynamically reconfigured \cite{Podobas}.
+CGRAs have the advantage of being one to two orders of magnitude more efficient than FPGAs and more than 2 to 3 orders of magnitude more efficient than GPPs \cite{LeiboLiu}.
+
+The development of a reconfigurable CGRA cell is of great importance not only for its relevance in HPC, but also for its adoption in \textit{Machine-learning} applications, image processing, and computer vision,
+communications, and other areas \cite{GuoweiZhu}. Therefore, the objective of this work is to develop a heterogeneous CGRA, tentatively featuring data-routing cells,
+cells with distributed memory banks, scalar processing cells, and vector processing cells, capable of executing programs using the RISC-V instruction set, with the ability to execute 8, 16, and 32-bit logic.
+
+The importance of using this instruction set is that it is an open standard, facilitating its adoption since it requires no license payments. This is an instruction set based on simplicity,
+making hardware design simpler and its implementation more direct \cite{riscv}.
+
+
+\section{Background and Related Work}
+In recent years, CGRAs have gained significant prominence as hardware accelerators due to their ability to offer an exceptional balance between software flexibility and the high performance of application-specific hardware \cite{LeiboLiu,Podobas}. Unlike fine-grained architectures, CGRAs operate at the word or block level, which substantially reduces reconfiguration and routing overhead, making them particularly attractive for efficient edge-computing applications. The development and research of these architectures has been strongly driven by the adoption of the open-source RISC-V instruction set architecture (ISA) \cite{riscv}, whose extensible nature facilitates the creation of highly customized heterogeneous Systems on Chip (SoCs).
+
+Recent research has demonstrated the advantages of tightly integrating RISC-V cores with CGRA arrays to overcome the traditional Von Neumann bottleneck. For example, \cite{granja} explore the integration of a CGRA accelerator coupled to a high-performance RISC-V CVA6 core focused on cloud-edge ecosystems, while \cite{GuoweiZhu} propose DVHetero, a comprehensive framework for the design and validation of heterogeneous SoCs based on this combination.
+
+At the level of practical implementation, these architectures materialize in cutting-edge open-source efforts; repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level, while projects such as OpenEdgeCGRA (ESL-EPFL) provide complete open-hardware platforms. In the latter, the architecture is composed of a configurable two-dimensional mesh of Processing Elements (PEs), or reconfigurable cells, that interact in a toroidal fashion and share registers to maximize instruction-level parallelism with minimal memory overhead. Another notable project is OpenCGRA, developed by PNNL (\textit{Pacific Northwest National Laboratory}), which generates reconfigurable processors in a parameterizable way, allowing the hardware to be designed via code — including mesh size, cell type, and how cells communicate with each other — after which functionality is tested using Python and Verilator, and finally the design is exported to a standard hardware description code (HDL) such as Verilog.
+
+For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
+
+
+\section{Analysis of Existing Solutions (SOTA)} %Jose
+\label{sec:sota}
+
+Currently, there are different types of CGRAs, which can have an array of homogeneous PEs, as is the case with the HyCUBE and DySER CGRAs \cite{Blocks2022}, or they can be heterogeneous, such as Plasticine, which has two types of units, PCUs and PMUs \cite{plasticine2017}. Another important characteristic to highlight is the type of precision these devices can support, where many of them are restricted to processing only integer operations, making them more general-purpose, while others do add the advantage of floating point for more specialized processes \cite{exploration_tradeoffs}.
+
+CGRA systems are no longer seen as an isolated element; today they are presented as a heterogeneous part of an architecture system \cite{dvhetero}.
+Furthermore, CGRAs have become highly important in HPC (\textit{High Performance Computing}) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
+
+
+
+Table \ref{tab:comparativa_sota} shows a comparison of three types of CGRA; the construction of these devices can vary,
+generating different applications and \textit{trade-offs} where they are used according to the application.
+
+
+
+
+%The design of optimal solutions requires rigorous scrutiny of the alternatives available in the scientific literature. This section evaluates the strengths and weaknesses of the predominant approaches in the state of the art (SOTA), delimiting their technical feasibility scenarios.
+%
+%\subsection{Comparative Study of Current Proposals}
+%Current solutions present fundamental trade-offs between flexibility, efficiency, and implementation cost:
+%
+%\begin{itemize}
+%    \item \textbf{General-Purpose Processor (GPP) Based Approach:} Stands out for its high programming flexibility and mature development toolchains. However, it presents critical weaknesses in real-time environments due to limited determinism and inefficient power consumption under massive data loads. It is only viable in scenarios where power and latency constraints are secondary.
+%    \item \textbf{Dedicated Accelerator (ASIC) Based Approach:} Offers maximum performance per unit area and minimal power consumption. However, its absolute rigidity prevents reconfiguration in response to algorithmic updates, in addition to incurring development costs that are unviable for low-volume production.
+%    \item \textbf{Programmable Logic (FPGAs / Reconfigurable Architectures) Based Approach:} Represents a balanced middle ground. It allows bit-level optimization and massive parallelism. Its main disadvantage lies in high design complexity, long compilation times, and complex shared-memory management.
+%\end{itemize}
+%
+%To concisely illustrate these trade-offs, Table~\ref{tab:comparativa_sota} summarizes the technological feasibility criteria found in the literature.
+%
+\begin{table}[htbp]
+\caption{Comparative matrix of state-of-the-art solutions}
+\label{tab:comparativa_sota}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}l p{1.9cm} p{1.9cm} p{1.9cm}@{}}
+  \toprule
+  \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} \\
+  \midrule
+  Proposal A \cite{adres2004} & Low latency, spatial optimization. & Hardware rigidity, high design time. & Fixed, stable domains. \\
+  \addlinespace
+  Proposal B \cite{hycube2017} & High flexibility, agile reconfiguration. & High resource consumption, \textit{overhead}. & Non-critical dynamic environments. \\
+  \addlinespace
+  Proposal C \cite{plasticine2017} & Massive per-cycle processing (OP/s). & Restrictive power consumption. & Fixed infrastructure/servers. \\
+  \bottomrule
+  \end{tabular}%
+}
+\end{table}
+
+The design of these systems is no longer only necessary at the \textit{hardware} level; it is also relevant to take their \textit{software} counterpart into account \cite{plasticine2017}. Cases such as the one presented in \cite{dvhetero} prioritize validation, mapping, and routing as problems just as important as the \textit{hardware} side.
+
+
+
+%
+%\subsection{List of Observed Challenges}
+%From the systematic analysis of the SOTA, the following open technical challenges emerge, justifying the development of a new alternative:
+%\begin{enumerate}
+%    \item[\textbf{D1.}] \textbf{Structural Rigidity:} Inability of current accelerators to adapt to dynamic variations in the data domain without severely compromising \textit{timing}.
+%    \item[\textbf{D2.}] \textbf{Embedded Resource Efficiency:} Degradation of processing performance per unit area or cell when data sizes are scaled up.
+%    \item[\textbf{D3.}] \textbf{Temporal Determinism:} Interconnect latency bottlenecks that prevent guaranteeing strict real-time constraints.
+%\end{enumerate}
+%
+% =========================================================
+% NEW INTEGRATION: SECOND-LEVEL SOLUTION PROPOSAL
+% =========================================================
+\section{Proposed Solution and Second-Level Architecture}
+
+\subsection{General Description and Scope}
+This work presents a \textbf{heterogeneous reconfigurable cell} for CGRA, overcoming homogeneous architectures with under-utilization under heterogeneous workloads \cite{adres2004, hycube2017}. It introduces \textbf{four specialized cell types} in a single \textit{fabric}:
+\begin{enumerate}
+    \item \textbf{Routing:} FIFOs for dynamic, non-blocking flow.
+    \item \textbf{Distributed memory:} Local SRAM banks (1–4 KB) eliminate bottlenecks.
+    \item \textbf{Scalar processing:} Multi-precision ALU (int8/16/32) + hardware loops.
+    \item \textbf{Vector processing:} float32 SIMD (4–8 lanes) for 4–8 simultaneous elements.
+\end{enumerate}
+
+Table~\ref{tab:desafios_soluciones} maps SOTA challenges to solutions.
+
+\begin{table}[htbp]
+\centering
+\caption{SOTA challenges and proposed solutions.}
+\label{tab:desafios_soluciones}
+\normalsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.07\textwidth}p{0.33\textwidth}p{0.55\textwidth}@{}}
+	\textbf{ID} & \textbf{Challenge} & \textbf{Solution} \\
+\midrule
+C1 & Homogeneous PEs $\to$ under-utilization & 4 specialized cells (routing, mem., scalar, vector) \\
+C2 & Routing overhead $>30\%$ area & Dedicated routing cells with FIFOs \\
+C3 & Centralized memory $\to$ bottlenecks & Local distributed SRAM (1--4 KB) \\
+C4 & RISC-V config. latency & CSR + DMA; per-context partial config. \\
+C5 & Simultaneous multi-precision & Scalar ALU int8/16/32; float32 VALU \\
+C9 & NoC $\to$ bottleneck & 2D mesh, 32 b links, credit-based FIFOs \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Architectural Novelty}
+Unprecedented combination: (a) routing as a primary cell with FIFOs, (b) per-cell distributed memory, (c) integer-float multi-precision in differentiated cells, (d) native RISC-V coupling (RV32IMAF) via CSR + DMA. None of the reviewed architectures (ADRES, HyCUBE, Plasticine, etc.) integrate these 4 features simultaneously.
+
+\subsubsection{Scope and Deliverables}
+\begin{itemize}
+    \item \textbf{RTL (VHDL):} 4 cells + basic NoC router.
+    \item \textbf{Integration:} $2\times2$ array with mesh NoC.
+    \item \textbf{Verification:} Exhaustive testbench + randomized programs \cite{verification_cgra}.
+    \item \textbf{FPGA synthesis:} Subject to availability (resources + $F_{\max}$).
+    \item \textbf{Benchmarks:} Matrix multiplication, FFT, vector reduction.
+\end{itemize}
+
+Metrics in Table~\ref{tab:metricas_hls}.
+
+\begin{table}[htbp]
+\centering
+\caption{Evaluation metrics (HLS + FPGA flow).}
+\label{tab:metricas_hls}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.35\linewidth}p{0.20\linewidth}p{0.45\linewidth}@{}}
+\toprule
+\textbf{Metric} & \textbf{Unit} & \textbf{Tool} \\
+\midrule
+FPGA resources & LUT/FF/DSP/BRAM & Vitis HLS / Vivado 2023.1 \\
+$F_{\max}$ & MHz & Vivado Timing \\
+Latency & cycles & C/RTL Co-simulation (HLS) \\
+Throughput & OP/s, GFlop/s & Analytical analysis ($F_{\max}$ + latency) \\
+Power & mW & Vivado Power \\
+SW speedup & $\times$ & SystemC vs. RISC-V (C++) \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsection{Second-Level Architecture: Components}
+$2\times2$ mesh topology with NoC (credit-based control). Fig.~\ref{fig:diagrama_2nivel_png} shows the diagram.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\columnwidth]{images/lvl2_diagram.png}
+    \caption{Second-level architecture diagram generated with artificial intelligence.}
+    \label{fig:diagrama_2nivel_png}
+\end{figure}
+\subsubsection{Routing Cell}
+First-class citizen (not static multiplexers): 4–8-entry FIFOs $\times$ 32 b per port; $4\times4$ crossbar (1 cycle, multicast); credit-based control; 4 contexts (1-cycle switch). Routing overhead $<15\%$ area (vs. $\sim30\%$ in HyCUBE \cite{hycube2017}).
+
+\subsubsection{Distributed Memory Cell}
+1–4 KB dual-port SRAM (FPGA BRAM); controller (direct/indirect/stride); NoC interface (1–2 cycles); local DMA (host-free block transfers). Eliminates centralized contention.
+
+\subsubsection{Scalar Cell}
+int8/16/32 ALU (4 int8 SIMD ops/cycle); 16 $\times$ 32 b registers; HW loops (counter + predication); 4 contexts; 32 b credit-based NoC interface.
+
+\subsubsection{Vector Cell}
+4–8-lane float32 SIMD VALU (add, MAC, reduce); 8 vector registers (128/256 b); strided load/store; 4 contexts; 128 b NoC (burst mode). Will consume $\sim3\times$ DSP, delivering $\sim4\times$ float32 throughput \cite{exploration_tradeoffs}.
+
+\subsubsection{NoC Router}
+2D mesh, 32 b links; credits + 4-flit FIFO; round-robin arbitration; 1 cycle/hop; CSR/DMA host port (cell config., DMA transfers, result readout).
+
+\subsubsection{RISC-V Interface}
+Dedicated CSR (cell config., context, start/stop); 1-channel DMA; interrupts/flags; 4 custom instructions (cgra\_config/start/wait/read). Reduces config. latency (challenge C4) \cite{cgra_risc, dvhetero}.
+
+\begin{table*}[htbp]
+\centering
+\caption{Component summary.}
+\label{tab:resumen_componentes}
+\small
+\begin{tabular}{@{}p{0.22\textwidth}p{0.30\textwidth}p{0.42\textwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Function} & \textbf{Key parameters} \\
+\midrule
+Routing & Interconnect + buffering & FIFOs 4–8 $\times$ 32 b; $4\times4$ crossbar; 4 contexts \\
+Memory & Distributed SRAM & 1–4 KB dual-port; DMA; 1–2 cycles \\
+Scalar & Multi-precision integer & int8/16/32; 16 reg.; HW loops; 4 contexts \\
+Vector & float32 SIMD & 4–8 lanes; 8 reg.; MAC; 4 contexts \\
+NoC Router & Mesh transport & 32 b; credits; 1 cycle/hop; round-robin \\
+RISC-V & Host-accelerator & CSR + DMA + custom ISA; RV32IMAF \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% =========================================================
+% NEW INTEGRATION: EXPERIMENTAL PLAN
+% =========================================================
+\section{Experimental Plan and Methodology}%Eddy
+\label{sec:experimento}
+\subsection{Testing and Stimulus}
+
+To test an electronic design, a testbench is needed, in charge of driving a stimulus into the design and facilitating monitoring of what happens in the design under test (DUT). As has been done in other designs, and in the various CGRA development frameworks, it becomes necessary to have an algorithm that the architecture is capable of executing. For this, one typically starts from so-called kernels: representative algorithms, typically coded in C (for example, FFT and GEMM), annotated with compiler directives on their loops, whose data-flow structure can be mapped onto a CGRA's PE array. This is, in fact, the approach followed by Morpher within the OpenCGRA ecosystem: starting from the C kernel, it generates the data-flow graph (DFG) and the scratchpad memory layout, and produces the test vectors that feed the simulation/emulation stage, which are used to verify functional correctness and obtain area and power estimates \cite{Juneja}. The use of FFT as a reference kernel is also consistent with the CGRA literature oriented toward signal processing, where it recurrently appears alongside routines such as IDCT, FIR, and IIR \cite{Podobas}.
+
+It is worth noting that even in well-established frameworks such as OpenCGRA, the authors themselves point out that the simulator relies on testbenches manually written by the user and does not automate test-data generation or end-to-end verification \cite{Juneja}. This reinforces the relevance of proposing, from the outset, a structured and progressive testing flow such as the one proposed below.
+
+While a valuable goal is to achieve end-to-end execution of an algorithm such as FFT or GEMM compiled from start to finish ---from the C program to the configuration bitstream and the CGRA's input data---, given the time available for the project's development, the first objective targets algorithmically simpler tests. The following steps are proposed:
+
+\begin{enumerate}
+    \item \textbf{A single PE executing $c = a + b$ (constant) or $c = a \times b$.} This validates loading of the configuration word (config word), reading of registers/inputs, the ALU operation, and writing of the output result. It is, literally, the architecture's ``hello world.''
+    \item \textbf{Chains of operations, in pipeline mode:} accumulated sum ($y = x_0 + x_1 + x_2 + \dots + x_n$) and successive-squaring powers ($x,\ x^2,\ x^4,\ x^8,\ \dots$).
+    \item \textbf{Simple MAC ($acc \mathrel{+}= a \times b$):} this is the base block of almost every real kernel (FFT, GEMM, convolutions), so if this test works correctly, confidence is gained to scale toward more complex designs.
+\end{enumerate}
+
+Once these basic tests are passed, progress can be made toward typical benchmarks from the CGRA literature, such as MachSuite and PolyBench \cite{PolyBenchC,MachSuite}, which together with Wavelib and BEEBS make up the set of suites used by Morpher to evaluate its compilation flow \cite{Juneja}. These suites provide kernel libraries (including FFT and GEMM) that can be mapped onto the CGRA through a compilation flow similar to the one described above.
+
+
+\subsection{Monitoring}
+
+Since this project will be developed in SystemC, the aim is to leverage the language's own features to implement performance measurement. It is proposed to implement a monitor as an \texttt{SC\_MODULE} component that observes, non-intrusively, DUT elements such as signals and internal counters. This separation between functional logic and measurement logic follows SystemC's own modular design principle, in which the monitor can be added to or removed from the testbench without modifying the module under analysis.
+
+It is proposed that the monitor compute, at minimum, the following metrics:
+
+\begin{itemize}
+    \item \textbf{Operations per second (OP/s):} ratio between the total number of operations executed by the DUT and the total execution time.
+    \item \textbf{Average latency:} recording \texttt{sc\_time\_stamp()} at the start and end of each individual operation, averaged over the sampling window.
+    \item \textbf{Utilization rate:} proportion of active cycles relative to the total number of cycles.
+\end{itemize}
+
+These metrics are printed to the console via \texttt{SC\_REPORT\_INFO}.
+
+Additionally, once the design reaches a stage suitable for FPGA or ASIC synthesis, it will be possible to measure power, area, and \textit{timing} metrics using the corresponding EDA tools. This applies both to the AMD Kria KV260 and the AMD Alveo U55C.
+
+
+\subsection{Architectural Exploration}
+
+Tied to design-space exploration, the plan is to generate variations of the CGRA's architectural design by modifying the number and type of PEs (\textit{processing elements}). For example, changes in the distribution of PE types (more memory banks, more fixed-point ALUs, more floating-point ALUs), as well as different $n \times n$ array dimensions, aimed at optimizing the execution of vector instructions.
+
+This type of exploration is consistent with the diversity of CGRA architectures reported in the literature, where performance depends heavily on the composition and arrangement of the PEs \cite{Podobas}.
+
+\subsection{Development Tools and Environment}
+In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in Table~\ref{tab:herramientas}.
+
+\begin{table}[htbp]
+\caption{Development Tools and Environment Versions}
+\label{tab:herramientas}
+\centering
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.38\linewidth}p{0.18\linewidth}p{0.42\linewidth}@{}}
+\toprule
+\textbf{Tool / Software} & \textbf{Version} & \textbf{Purpose in the Experiment} \\
+\midrule
+SystemC & 3.0.1 & Modeling and simulation of the CGRA architecture. \\
+Xilinx Vivado Design Suite & 2025.2 & Logic synthesis and \textit{timing} analysis. \\
+ModelSim / Questa Advanced & 2025.1 & Cycle-accurate RTL functional simulation. \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\section*{AI Tool Usage Declaration}
+For this work, Artificial Intelligence was used to help structure the introduction and state of the art, as well as for a grammar and spelling review of the document.
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
+
+
+
+%https://github.com/ECASLab/risc-v-cgra/tree/main
+
+%https://github.com/esl-epfl/OpenEdgeCGRA/tree/main
+
+%https://github.com/pnnl/OpenCGRA
