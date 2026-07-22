@@ -30,7 +30,7 @@ Top::Top(sc_module_name name)
     // DMA <----> Main Memory
     dma.memory_socket.bind(memory.socket);
 
-    // DMA <----> Dummy CGRA
-    dma.cgra_socket.bind(cgra.socket);
+    // DMA <----> MeshWrapper
+    dma.cgra_socket.bind(cgra.target_socket);
 
 }

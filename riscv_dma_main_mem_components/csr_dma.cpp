@@ -1,4 +1,5 @@
 #include "csr_dma.h"
+#include "dummy_cgra.h"
 
 #include <cstring>
 #include <iostream>
@@ -139,7 +140,9 @@ void CSR_DMA::read_from_memory() {
     tlm_generic_payload trans;
 
 
-    input_buffer.resize(data_size);
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD) ? 32 : data_size;
+
+    input_buffer.resize(input_bytes);
 
     trans.set_command(TLM_READ_COMMAND);
 
@@ -147,9 +150,9 @@ void CSR_DMA::read_from_memory() {
 
     trans.set_data_ptr(input_buffer.data());
 
-    trans.set_data_length(data_size);
+    trans.set_data_length(input_bytes);
 
-    trans.set_streaming_width(data_size);
+    trans.set_streaming_width(input_bytes);
 
     memory_socket->b_transport(trans, delay);
 
@@ -199,15 +202,17 @@ void CSR_DMA::send_input_data_to_cgra(){
     tlm_generic_payload trans;
 
 
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD) ? 32 : data_size;
+
     trans.set_command(TLM_WRITE_COMMAND);
 
     trans.set_address(0x10);
 
     trans.set_data_ptr(input_buffer.data());
 
-    trans.set_data_length(data_size);
+    trans.set_data_length(input_bytes);
 
-    trans.set_streaming_width(data_size);
+    trans.set_streaming_width(input_bytes);
 
     cgra_socket->b_transport(trans, delay);
 
@@ -281,7 +286,9 @@ void CSR_DMA::receive_output_data_from_cgra()
 
     tlm_generic_payload trans;
 
-    output_buffer.resize(data_size);
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+
+    output_buffer.resize(output_bytes);
 
     trans.set_command(TLM_READ_COMMAND);
 
@@ -289,9 +296,9 @@ void CSR_DMA::receive_output_data_from_cgra()
 
     trans.set_data_ptr(output_buffer.data());
 
-    trans.set_data_length(data_size);
+    trans.set_data_length(output_bytes);
 
-    trans.set_streaming_width(data_size);
+    trans.set_streaming_width(output_bytes);
 
     cgra_socket->b_transport(trans, delay);
 
@@ -311,15 +318,17 @@ void CSR_DMA::write_results() {
     tlm_generic_payload trans;
 
 
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+
     trans.set_command(TLM_WRITE_COMMAND);
 
     trans.set_address(output_addr);
 
     trans.set_data_ptr(output_buffer.data());
 
-    trans.set_data_length(data_size);
+    trans.set_data_length(output_bytes);
 
-    trans.set_streaming_width(data_size);
+    trans.set_streaming_width(output_bytes);
 
     memory_socket->b_transport(trans, delay);
 

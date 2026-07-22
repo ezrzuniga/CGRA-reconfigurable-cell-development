@@ -9,7 +9,7 @@
 #include "riscv_core.h"
 
 // Verification module
-#include "dummy_cgra.h"
+#include "mesh_wrapper.h"
 
 SC_MODULE(Top)
 {
@@ -22,7 +22,7 @@ public:
     MainMemory memory;
     CSR_DMA dma;
     RiscvCore cpu;
-    DummyCGRA cgra;
+    MeshWrapper cgra;
 
 
     //--------------------------------------------------

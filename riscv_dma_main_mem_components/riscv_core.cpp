@@ -1,6 +1,8 @@
 #include "riscv_core.h"
-#include <dummy_cgra.h>
+#include "cgra_kernel.h"
+#include "../mesh_wrapper/mesh_wrapper.h"
 
+#include <cstring>
 #include <iostream>
 
 using namespace sc_core;
@@ -44,12 +46,6 @@ void RiscvCore::run()
 
     wait(50, SC_NS);
 
-    test_fir();
-
-    wait(50, SC_NS);
-
-    test_fft();
-
     std::cout << "\nRISC-V program finished.\n";
 }
 
@@ -65,12 +61,7 @@ void RiscvCore::load_input_data()
     //--------------------------------------------------
     // input data.
     //--------------------------------------------------
-    std::vector<uint8_t> input_data(data_size);
-    // Collect input data
-    for(uint32_t i = 0; i < data_size; ++i)
-    {
-        input_data[i] = static_cast<uint8_t>(i);
-    }
+    input_data.resize(data_size);
 
     trans.set_command(TLM_WRITE_COMMAND);
     trans.set_address(input_addr);
@@ -88,6 +79,24 @@ void RiscvCore::load_input_data()
     }
 
     std::cout << "Input data loaded into Main Memory.\n";
+}
+
+static void print_vector_lanes(const std::vector<uint8_t>& bytes, const char* label)
+{
+    if (bytes.size() != 32) {
+        return;
+    }
+
+    const int32_t* lanes = reinterpret_cast<const int32_t*>(bytes.data());
+    std::cout << label << " [";
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        std::cout << lanes[i];
+        if (i + 1 < 4) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]\n";
 }
 
 //======================================================
@@ -208,13 +217,15 @@ void RiscvCore::read_results()
     sc_time delay = SC_ZERO_TIME;
     tlm_generic_payload trans;
 
-    output_data.resize(data_size);
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+
+    output_data.resize(output_bytes);
 
     trans.set_command(TLM_READ_COMMAND);
     trans.set_address(output_addr);
     trans.set_data_ptr(output_data.data());
-    trans.set_data_length(data_size);
-    trans.set_streaming_width(data_size);
+    trans.set_data_length(output_bytes);
+    trans.set_streaming_width(output_bytes);
 
     memory_socket->b_transport(trans, delay);
 
@@ -229,12 +240,37 @@ void RiscvCore::read_results()
     // Display the results.
     //--------------------------------------------------
     std::cout << "\n===== CGRA OUTPUT DATA =====\n";
-    for(uint32_t i = 0; i < data_size; ++i)
+
+    if (cgra_config == VECTOR_ADD)
     {
-        std::cout<< static_cast<uint32_t>(output_data[i])<< " ";
+        const int32_t* lanes = reinterpret_cast<const int32_t*>(output_data.data());
+        const uint32_t lane_count = output_bytes / sizeof(int32_t);
+
+        for (uint32_t i = 0; i < lane_count; ++i)
+        {
+            std::cout << lanes[i] << " ";
+        }
+
+        std::cout << "\n";
+        std::cout << "CGRA output lanes: [";
+        for (uint32_t i = 0; i < lane_count; ++i)
+        {
+            std::cout << lanes[i];
+            if (i + 1 < lane_count) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << "]\n";
+    }
+    else
+    {
+        for (uint32_t i = 0; i < output_bytes; ++i)
+        {
+            std::cout << static_cast<uint32_t>(output_data[i]) << " ";
+        }
     }
 
-    std::cout<< "\n============================\n";
+    std::cout << "============================\n";
 }
 
 void RiscvCore::test_vector_add()
@@ -257,20 +293,20 @@ void RiscvCore::test_vector_add()
     output_addr = 0x2000;
 
     //--------------------------------------------------
-    // Input vector.
+    // Input vector encoded as two 4-lane int32 vectors.
     //--------------------------------------------------
 
-    input_data =
-    {
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-    };
+    const int32_t a[4] = {1, 2, 3, 4};
+    const int32_t b[4] = {5, 6, 7, 8};
+    const int32_t expected[4] = {6, 8, 10, 12};
+
+    input_data.resize(32);
+    std::memcpy(input_data.data(), a, sizeof(a));
+    std::memcpy(input_data.data() + sizeof(a), b, sizeof(b));
+
+    std::cout << "RISC-V -> bridge input (A, B):\n";
+    print_vector_lanes(input_data, "  A");
+    print_vector_lanes(std::vector<uint8_t>(input_data.begin() + 16, input_data.end()), "  B");
 
     //--------------------------------------------------
     // Number of bytes to transfer.
@@ -282,17 +318,8 @@ void RiscvCore::test_vector_add()
     // Golden reference.
     //--------------------------------------------------
 
-    golden_reference =
-    {
-        2,
-        4,
-        6,
-        8,
-        10,
-        12,
-        14,
-        16
-    };
+    golden_reference.resize(sizeof(expected));
+    std::memcpy(golden_reference.data(), expected, sizeof(expected));
 
     //--------------------------------------------------
     // Execute the complete CGRA flow.
@@ -303,7 +330,19 @@ void RiscvCore::test_vector_add()
     wait_for_completion();
     read_results();
 
-    std::cout << "\nVECTOR ADD TEST FINISHED.\n";
+    const int32_t* got = reinterpret_cast<const int32_t*>(output_data.data());
+    const int32_t* expected_vec = expected;
+    bool pass = true;
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        if (got[i] != expected_vec[i])
+        {
+            pass = false;
+            break;
+        }
+    }
+
+    std::cout << (pass ? "VECTOR ADD TEST PASSED.\n" : "VECTOR ADD TEST FAILED.\n");
 }
 
 void RiscvCore::test_fir()
