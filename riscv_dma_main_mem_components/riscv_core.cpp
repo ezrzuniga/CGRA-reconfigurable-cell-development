@@ -83,16 +83,21 @@ void RiscvCore::load_input_data()
 
 static void print_vector_lanes(const std::vector<uint8_t>& bytes, const char* label)
 {
-    if (bytes.size() != 32) {
+    // Accept both 32 bytes (full input with A and B) and 16 bytes (single vector)
+    if (bytes.size() != 32 && bytes.size() != 16) {
         return;
     }
 
+    // For 32 bytes, print only the first 4 lanes (16 bytes = 4 * int32)
+    // For 16 bytes, print all 4 lanes
+    std::size_t lanes_to_print = 4;
+    
     const int32_t* lanes = reinterpret_cast<const int32_t*>(bytes.data());
     std::cout << label << " [";
-    for (std::size_t i = 0; i < 4; ++i)
+    for (std::size_t i = 0; i < lanes_to_print; ++i)
     {
         std::cout << lanes[i];
-        if (i + 1 < 4) {
+        if (i + 1 < lanes_to_print) {
             std::cout << ", ";
         }
     }
