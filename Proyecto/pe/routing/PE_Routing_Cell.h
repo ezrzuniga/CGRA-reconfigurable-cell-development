@@ -106,6 +106,16 @@ private:
         return sc_uint<4>((imm.to_uint() >> shift) & 0xF);
     }
 
+    // OJO: dispara con CUALQUIER cambio de instr_in, incluido mesh.clear_instr()
+    // (valid=false, addr=0 por default-construction de InstrIn). Si ctx_sel
+    // siguiera ciegamente in.addr en ese caso, cada clear_instr() revertiria el
+    // contexto activo a 0 -- silenciosamente deshaciendo cualquier ctx_sel>0 que
+    // ya estuviera activo, mucho despues de que el propio load() haya devuelto el
+    // control (bug real encontrado depurando MeshWrapper::run_sum_reduction_dataflow:
+    // el ctx1 de un relay se revertia a ctx0 en el clear_instr() de la MISMA
+    // fase que lo activaba, antes de que la celda destino llegara a leerlo).
+    // Por eso ctx_sel solo seposiciona en una carga realmente valida; en un
+    // clear_instr() se deja tal cual, conservando el ultimo contexto cargado.
     void bridge_instr_in() {
         typename Base::InstrIn in = this->instr_in.read();
 
@@ -121,8 +131,10 @@ private:
         cfg_in.config.sel_LE = nibble(in.instr.imm, 6);
         cfg_in.config.sel_LW = nibble(in.instr.imm, 7);
 
-        config_in_sig.write(cfg_in);
-        ctx_sel_sig.write(cfg_in.ctx);
+        if (cfg_in.valid) {
+            config_in_sig.write(cfg_in);
+            ctx_sel_sig.write(cfg_in.ctx);
+        }
     }
 };
 

@@ -23,7 +23,8 @@ MeshWrapper::MeshWrapper(sc_module_name name)
           CellKind::ROUTING, CellKind::MEMORY,   // fila 0: (0,0) (0,1)
           CellKind::SCALAR,  CellKind::VECTOR,   // fila 1: (1,0) (1,1)
       }),
-      config_(0), start_(0), status_(0), done_(0), programmed_(false)
+      config_(0), start_(0), status_(0), done_(0), programmed_(false),
+      sum_reduction_seed_(0)
 {
     mesh_.clk(clk_);
     mesh_.rst(rst_);
@@ -169,6 +170,16 @@ void MeshWrapper::handle_config_write(uint32_t value)
             vector_instr.dst = DST_EAST;
             break;
 
+        case PROGRAM_SUM_REDUCTION:
+            // total = seed + sum(v[0..6]). Escalar se reprograma varias veces
+            // durante START (run_sum_reduction_dataflow) -- lo que se cargue aqui
+            // para Escalar no importa, queda pisado de inmediato. Vectorial solo
+            // reenvia (MOV) lo que le llegue de Escalar hacia su borde este real.
+            vector_instr.opcode = OP_MOV;
+            vector_instr.src_a = SRC_WEST;
+            vector_instr.dst = DST_EAST;
+            break;
+
         default:
             ok = false;
             break;
@@ -205,6 +216,8 @@ void MeshWrapper::handle_start_write(uint32_t value)
 
     if (config_ == PROGRAM_FULL_PIPELINE) {
         run_full_pipeline_dataflow();
+    } else if (config_ == PROGRAM_SUM_REDUCTION) {
+        run_sum_reduction_dataflow();
     } else {
         // PROGRAM_VECTOR_ADD: solo Vectorial, bind directo sin bridge (ver
         // PE_Vector_Cell.h) -- mismo margen de 2 ciclos ya validado en
@@ -278,19 +291,163 @@ void MeshWrapper::run_full_pipeline_dataflow()
     wait(2 * CLK_PERIOD_NS, SC_NS);
 }
 
-// INPUT_DATA_BUFFER (0x10, W): 32 bytes = operando a (4 lanes int32) concatenado
-// con operando b (4 lanes int32). a siempre va al borde sur real de Vectorial
-// (in_S_[1]) -- el unico camino que preserva fidelidad por-lane real en ambos
-// programas (ver handle_config_write). b se escribe en los DOS posibles caminos
-// de entrada -- borde este real de Vectorial (in_E_[1], usado por
-// PROGRAM_VECTOR_ADD) y borde norte real de Enrutamiento (in_N_[0], usado por
-// PROGRAM_FULL_PIPELINE) -- para que handle_input_write no dependa de que
-// programa esta activo; cada programa solo lee el borde que realmente usa.
+// Reduccion por suma: total = seed + sum(sum_reduction_vec_[0..6]). El seed viaja
+// Enrutamiento->Memoria->Enrutamiento->Escalar exactamente igual que "b" en
+// run_full_pipeline_dataflow (mismas 4 fases, mismos margenes ya validados);
+// despues Escalar se reprograma una vez por cada elemento (mas dos veces mas, para
+// sembrar reg0 con el seed y para reenviar el total a Vectorial).
+//
+// Importante (encontrado depurando esta funcion, ver historia de commits): cada
+// mesh_.load_instr(...) que este codigo hace ya ejecuta en el MISMO flanco de clk
+// en el que se carga (load_program() e issue() corren en el mismo flanco de
+// clk.pos(), y en la practica load_program() gana esa carrera) -- por eso el resto
+// de este archivo (CONFIG, fases 1-4) siempre usa exactamente 1 wait(CLK_PERIOD_NS)
+// tras cada load_instr antes de la siguiente accion. Un segundo flanco de margen
+// (el patron "load + wait + clear + wait" que llegaron a tener versiones
+// anteriores de esta funcion) hace que la MISMA instruccion se ejecute DOS veces
+// -- inofensivo para instrucciones idempotentes (rutear, poner un campo de
+// contexto), pero fatal para un acumulador: cada elemento terminaba sumandose 2
+// veces. La fase 6 de abajo evita el problema de raiz: en vez de dejar una unica
+// instruccion residente y cambiar el dato de entrada por fuera (que ademas exige
+// que el dato este listo exactamente en el ciclo correcto), carga una instruccion
+// NUEVA por cada elemento con el valor ya empaquetado en el campo imm -- mismo
+// patron de "load + exactamente 1 ciclo" que ya se usa en todos lados, repetido 7
+// veces, sin depender de sincronizar un puerto externo con el ciclo de la ALU.
+void MeshWrapper::run_sum_reduction_dataflow()
+{
+    // Fase 1: Enrutamiento ctx0 relay N(real, seed) -> E (hacia Memoria).
+    mesh_.load_instr(0, 0, 0, make_routing_config_instr<32>(RC_NONE, RC_NONE, RC_FROM_N, RC_NONE));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(0, 0);
+
+    // Fase 2: Memoria ctx0 (NoC->SRAM): captura el seed en sram[0].
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_DIR, 1));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_MODE, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_COUNT, 1));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_SRC_ADDR, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_DST_ADDR, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 0, make_memory_field_instr<32>(MEM_FIELD_START, 1));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(0, 1);
+
+    for (int i = 0; i < 10 && !memory_cell().dma_done(); i++) {
+        wait(CLK_PERIOD_NS, SC_NS);
+    }
+
+    // Fase 3: Memoria ctx1 (SRAM->NoC): reenvia sram[0] de vuelta hacia Enrutamiento.
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_DIR, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_MODE, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_COUNT, 1));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_SRC_ADDR, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_DST_ADDR, 0));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.load_instr(0, 1, 1, make_memory_field_instr<32>(MEM_FIELD_START, 1));
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(0, 1);
+
+    for (int i = 0; i < 10 && !memory_cell().dma_done(); i++) {
+        wait(CLK_PERIOD_NS, SC_NS);
+    }
+
+    // Fase 4: Enrutamiento ctx1 relay E(desde Memoria) -> S (hacia Escalar). A
+    // diferencia de la fase 6 (acumulador, ver comentario de cabecera), rutear no
+    // es autorreferente -- darle margen extra para que la senal se asiente por la
+    // malla (Enrutamiento -> Escalar) es inofensivo, no duplica ninguna suma.
+    mesh_.load_instr(0, 0, 1, make_routing_config_instr<32>(RC_NONE, RC_FROM_E, RC_NONE, RC_NONE));
+    wait(2 * CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(0, 0);
+
+    // Fase 5: Escalar reg0 = seed (0 + norte, ya disponible via Enrutamiento). Por
+    // la misma razon que la fase 4, un margen extra aqui es seguro: load_seed no
+    // acumula, solo sobreescribe reg0 con el mismo seed cada vez que se ejecute.
+    Instr load_seed;
+    load_seed.opcode = OP_ADD;
+    load_seed.src_a = SRC_IMM;
+    load_seed.imm = 0;
+    load_seed.src_b = SRC_NORTH;
+    load_seed.dst = DST_REG;
+    load_seed.reg_dst = 0;
+    mesh_.load_instr(1, 0, 0, load_seed);
+    wait(2 * CLK_PERIOD_NS, SC_NS);
+
+    // Fase 6: Escalar acumula los 7 elementos del vector: una instruccion NUEVA
+    // por elemento (reg0 = reg0 + imm(v[i])), cada una ejecutada exactamente un
+    // ciclo antes de pasar a la siguiente.
+    for (int i = 0; i < SUM_REDUCTION_VECTOR_LEN; ++i) {
+        Instr add_elem;
+        add_elem.opcode = OP_ADD;
+        add_elem.src_a = SRC_REG;
+        add_elem.reg_a = 0;
+        add_elem.src_b = SRC_IMM;
+        add_elem.imm = sum_reduction_vec_[i];
+        add_elem.dst = DST_REG;
+        add_elem.reg_dst = 0;
+        mesh_.load_instr(1, 0, 0, add_elem);
+        wait(CLK_PERIOD_NS, SC_NS);
+    }
+
+    // Fase 7: Escalar reenvia el total (reg0 + 0) hacia Vectorial (enlace interno).
+    Instr emit;
+    emit.opcode = OP_ADD;
+    emit.src_a = SRC_REG;
+    emit.reg_a = 0;
+    emit.src_b = SRC_IMM;
+    emit.imm = 0;
+    emit.dst = DST_EAST;
+    mesh_.load_instr(1, 0, 0, emit);
+    wait(CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(1, 0);
+
+    // Vectorial ya programado desde CONFIG (MOV oeste->este); margen de
+    // asentamiento igual al ya validado para la cadena Escalar->Vectorial.
+    wait(2 * CLK_PERIOD_NS, SC_NS);
+}
+
+// INPUT_DATA_BUFFER (0x10, W): 32 bytes, interpretados segun el programa activo
+// (config_, ya establecido por la escritura de CONFIG que precede a esta segun el
+// protocolo -- ver CSR_DMA::dma_controller()):
+//  - PROGRAM_VECTOR_ADD / PROGRAM_FULL_PIPELINE: operando a (4 lanes int32)
+//    concatenado con operando b (4 lanes int32). a siempre va al borde sur real de
+//    Vectorial (in_S_[1]) -- el unico camino que preserva fidelidad por-lane real
+//    en ambos programas (ver handle_config_write). b se escribe en los DOS
+//    posibles caminos de entrada -- borde este real de Vectorial (in_E_[1], usado
+//    por PROGRAM_VECTOR_ADD) y borde norte real de Enrutamiento (in_N_[0], usado
+//    por PROGRAM_FULL_PIPELINE) -- cada programa solo lee el borde que usa.
+//  - PROGRAM_SUM_REDUCTION: 8 enteros de 32 bits, no 2 vectores de 4 lanes.
+//    word[0] = seed, word[1..7] = los 7 elementos a sumar. Se guardan en
+//    sum_reduction_seed_/sum_reduction_vec_ para reproducirlos uno por ciclo
+//    recien en START (run_sum_reduction_dataflow) -- no hay borde donde
+//    "escribir" 7 valores distintos de una sola vez.
 void MeshWrapper::handle_input_write(const unsigned char* data, unsigned int len)
 {
     if (len != 32) {
         SC_REPORT_ERROR("MeshWrapper",
-            "INPUT_DATA_BUFFER: se esperaban 32 bytes (2 operandos x 4 lanes x 4 bytes)");
+            "INPUT_DATA_BUFFER: se esperaban 32 bytes");
+        return;
+    }
+
+    if (config_ == PROGRAM_SUM_REDUCTION) {
+        int32_t words[8];
+        std::memcpy(words, data, sizeof(words));
+        sum_reduction_seed_ = words[0];
+        for (int i = 0; i < SUM_REDUCTION_VECTOR_LEN; ++i) {
+            sum_reduction_vec_[i] = words[i + 1];
+        }
+        // El seed sale por el mismo borde que "b" en PROGRAM_FULL_PIPELINE --
+        // run_sum_reduction_dataflow reusa exactamente la misma ruta Enrutamiento
+        // -> Memoria -> Enrutamiento -> Escalar.
+        Link seed_link;
+        for (int lane = 0; lane < 4; ++lane) seed_link[lane] = sum_reduction_seed_;
+        in_N_[0].write(seed_link);
         return;
     }
 

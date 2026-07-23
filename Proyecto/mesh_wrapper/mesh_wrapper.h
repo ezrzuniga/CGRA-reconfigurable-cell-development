@@ -40,8 +40,24 @@ enum MeshProgram {
     // de vuelta hacia el sur (hacia Escalar); a entra directo por el borde oeste
     // real de Escalar. Escalar suma, Vectorial multiplica por 2 y expone el
     // resultado en su borde este real. Ver MeshWrapper::handle_start_write.
-    PROGRAM_FULL_PIPELINE = 3
+    PROGRAM_FULL_PIPELINE = 3,
+
+    // Reduccion por suma: total = seed + sum(v[0..6]), tambien recorriendo las 4
+    // celdas. INPUT_DATA_BUFFER (32 bytes) se reinterpreta como 8 enteros de 32
+    // bits: word[0]=seed (viaja Enrutamiento->Memoria->Enrutamiento->Escalar,
+    // igual que "b" en PROGRAM_FULL_PIPELINE) y word[1..7]=los 7 elementos del
+    // vector a sumar (streameados uno por ciclo por el borde oeste real de
+    // Escalar, acumulados con reg0 += west -- mismo patron que
+    // pe/mac/PE_MAC_SumReduction__TB.cpp pero con el banco de registros de
+    // Escalar en vez del acumulador dedicado de PE_MAC, que no existe en este
+    // layout). Escalar reenvia el total a Vectorial, que lo expone en su borde
+    // este real. Ver MeshWrapper::run_sum_reduction_dataflow.
+    PROGRAM_SUM_REDUCTION = 4
 };
+
+// Cantidad de elementos del vector a reducir en PROGRAM_SUM_REDUCTION (7, no 8:
+// el primer word de INPUT_DATA_BUFFER es el seed, no un elemento del vector).
+static const int SUM_REDUCTION_VECTOR_LEN = 7;
 
 SC_MODULE(MeshWrapper) {
 public:
@@ -97,6 +113,12 @@ private:
     bool     programmed_;
     Link     result_;
 
+    // Elementos crudos de PROGRAM_SUM_REDUCTION, guardados en handle_input_write
+    // (llega como un unico bloque TLM de 32 bytes) para reproducirlos uno por
+    // ciclo despues, en run_sum_reduction_dataflow (disparado recien por START).
+    int32_t sum_reduction_seed_;
+    int32_t sum_reduction_vec_[SUM_REDUCTION_VECTOR_LEN];
+
     void reset_thread();
 
     void handle_config_write(uint32_t value);
@@ -107,6 +129,12 @@ private:
     // Fases de PROGRAM_FULL_PIPELINE (ver .cpp): b viaja Enrutamiento->Memoria->
     // Enrutamiento->Escalar antes de que Escalar/Vectorial calculen el resultado.
     void run_full_pipeline_dataflow();
+
+    // Fases de PROGRAM_SUM_REDUCTION (ver .cpp): el seed viaja Enrutamiento->
+    // Memoria->Enrutamiento->Escalar (reg0=seed), despues Escalar acumula los 7
+    // elementos de sum_reduction_vec_ uno por ciclo (reg0+=west) y reenvia el
+    // total a Vectorial.
+    void run_sum_reduction_dataflow();
 
     PE_Memory_Mesh_Cell<32, 4>& memory_cell();
 };

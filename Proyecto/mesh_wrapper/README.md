@@ -40,12 +40,31 @@ El binario queda en `build/mesh_wrapper/`.
 
 ## Ejecutar
 ```
-./MeshWrapper_CSRDMA_Sim__TB
+./MeshWrapper_CSRDMA_Sim__TB     # PROGRAM_VECTOR_ADD + PROGRAM_FULL_PIPELINE
+./MeshWrapper_SumReduction__TB   # PROGRAM_SUM_REDUCTION (reducción por suma)
 ```
-Genera `mesh_wrapper_csr_dma_sim_wave.vcd` en el directorio desde el que se ejecuta,
-con las señales de control/borde del mesh interno más el estado de la PE
-(`wrapper.trace(tf)` reenvía a `mesh_.trace(tf)`). Se puede inspeccionar con
-`gtkwave mesh_wrapper_csr_dma_sim_wave.vcd`.
+Ambos generan un `.vcd` en el directorio desde el que se ejecutan, con las señales
+de control/borde del mesh interno más el estado de la PE (`wrapper.trace(tf)`
+reenvía a `mesh_.trace(tf)`). Se puede inspeccionar con
+`gtkwave mesh_wrapper_csr_dma_sim_wave.vcd` /
+`gtkwave mesh_wrapper_sum_reduction_wave.vcd`.
+
+### Por qué una instrucción nueva por elemento (no un puerto que cambia con la instrucción fija)
+
+`run_sum_reduction_dataflow` (`mesh_wrapper.cpp`) NO deja una única instrucción
+`reg0 = reg0 + oeste` residente en Escalar y va cambiando el dato en su borde oeste
+cada ciclo. Se probó esa forma primero y falló: `mesh.load_instr(...)` activa la
+instrucción nueva en el MISMO flanco de `clk` en que se carga (no en el siguiente,
+como sugeriría el patrón "load + wait + clear" que se usa en el resto de este
+archivo para cargas *idempotentes*, ej. contextos de Enrutamiento/Memoria). Un
+acumulador residente vuelve a sumar lo que haya en el puerto en **cada ciclo que
+esa instrucción siga cargada** — cualquier margen extra "por seguridad" repite la
+suma del último valor, y calcular el margen mínimo exacto para que cada elemento se
+sume una sola vez es frágil y depende de detalles de scheduling de SystemC. La
+solución robusta: cargar una instrucción **nueva** por cada elemento, con el valor
+ya empaquetado en el campo `imm` (`reg0 = reg0 + imm(v[i])`), reusando el mismo
+patrón de "load + exactamente 1 ciclo" que ya es seguro en todos lados porque cada
+carga sustituye a la anterior antes de que alcance a re-ejecutarse.
 
 ## Mapa de registros
 
@@ -79,6 +98,7 @@ tal cual como `CONFIG` (ver `csr_dma.cpp::send_configuration()`).
 |-------|--------------------------|----------|----------------------|
 | `0`   | `PROGRAM_VECTOR_ADD`     | `c = a + b`, elementwise real (4 lanes independientes) | Solo Vectorial (`(1,1)`), usando sus dos bordes reales (S=a, E=b) — Enrutamiento/Memoria/Escalar inactivas. Mismo resultado que la versión `<1,1>` original. |
 | `3`   | `PROGRAM_FULL_PIPELINE`  | `e = a + b*2` | Las 4: `b` entra por el borde norte real de Enrutamiento, viaja por Memoria (round-trip NoC) y Enrutamiento otra vez hasta el borde norte (interno) de Escalar; Escalar calcula `b*2`; Vectorial suma su borde sur real (`a`) con `b*2` (borde oeste, interno) y expone el resultado en su borde este real. |
+| `4`   | `PROGRAM_SUM_REDUCTION`  | Reducción por suma: `total = seed + sum(v[0..6])` | Las 4: `INPUT_DATA_BUFFER` (32 bytes) se reinterpreta como 8 enteros de 32 bits — `word[0]` es el seed (mismo camino Enrutamiento→Memoria→Enrutamiento→Escalar que "b" en `PROGRAM_FULL_PIPELINE`) y `word[1..7]` son los 7 elementos a sumar. Escalar acumula: primero siembra `reg0 = seed`, después carga una instrucción **nueva por cada elemento** (`reg0 = reg0 + imm(v[i])`, un ciclo cada una — ver "Por qué una instrucción por elemento" abajo) y por último reenvía `reg0` a Vectorial, que lo expone en su borde este real. |
 
 Cualquier otro valor genera `SC_REPORT_ERROR` (la transacción sigue respondiendo
 `TLM_OK_RESPONSE`, el catálogo simplemente no encontró un programa para ese índice).
@@ -209,6 +229,16 @@ Puntos clave:
   `../memory/PE_Memory_Mesh_Cell.h`. Por eso el operando que atraviesa Memoria en
   `PROGRAM_FULL_PIPELINE` (`b`) tiene que ser uniforme entre lanes: ni Memoria ni
   Escalar preservan 4 lanes independientes, solo lane 0.
+- **Bug real corregido en `PE_Routing_Cell::bridge_instr_in`** (`../pe/routing/PE_Routing_Cell.h`):
+  ese método corre con cualquier cambio de `instr_in`, incluido `mesh.clear_instr()`
+  (que escribe `valid=false, addr=0` por default-construction de `InstrIn`). La
+  versión original seguía `in.addr` ciegamente para decidir `ctx_sel` incluso en
+  ese caso, así que **cada `clear_instr()` revertía el contexto activo a 0** —
+  invisible mientras solo se usara el contexto 0, pero rompía en silencio
+  cualquier relay que dependiera de un `ctx_sel` distinto de 0 (como la fase 4 de
+  `PROGRAM_SUM_REDUCTION`/`PROGRAM_FULL_PIPELINE`, que activa `ctx1` y lo necesita
+  vivo bastante después de que su propio `clear_instr()` ya se ejecutó). Corregido
+  para que `ctx_sel` solo seposicione en una carga realmente válida.
 - **`CSR_DMA::done` y kernels encadenados**: ejecutar dos kernels seguidos en la misma
   simulación (como hace `RiscvCore::run()` con `test_vector_add()` +
   `test_full_pipeline()`) expuso una condición de carrera preexistente en
