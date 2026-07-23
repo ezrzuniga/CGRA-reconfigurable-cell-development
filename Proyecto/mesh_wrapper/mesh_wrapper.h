@@ -1,9 +1,12 @@
 // mesh_wrapper.h
-// Puente TLM-2.0 <-> senales planas sobre una CGRA_Mesh_Heterogeneous<1,1> de una
-// sola PE_vector. Expone un unico tlm_utils::simple_target_socket con el mismo mapa
+// Puente TLM-2.0 <-> senales planas sobre una CGRA_Mesh_Heterogeneous<2,2> real,
+// layout {Enrutamiento, Memoria, Escalar, Vectorial} -- el mismo arreglo del
+// diagrama de nivel 2 (ver Entrega_Avance_2/images/lvl2_diagram.png y
+// mesh/CGRA_Mesh_2x2_Heterogeneous_Test__TB.cpp, cuya mecanica de programacion
+// esta clase reusa 1:1 pero orquestada desde el protocolo CSR en vez de un
+// testbench). Expone un unico tlm_utils::simple_target_socket con el mismo mapa
 // de registros que riscv_dma_main_mem_components/csr_dma.cpp ya asume del lado
-// "cgra_socket" (ver README.md, seccion "Mapa de registros"), y traduce cada
-// transaccion en mesh.load_instr(...)/pokes sobre los puertos de borde del mesh real.
+// "cgra_socket" (ver README.md, seccion "Mapa de registros").
 //
 // clk/rst/enable del mesh son enteramente internos: MeshWrapper genera su propio
 // sc_clock y se resetea una unica vez al arrancar la simulacion. Nadie fuera de este
@@ -18,12 +21,26 @@
 #include <cstdint>
 
 #include "../mesh/CGRA_Mesh_Heterogeneous.h"
+#include "../pe/routing/PE_Routing_Cell.h"
+#include "../memory/PE_Memory_Mesh_Cell.h"
 
-// Catalogo de programas cargables via el registro CONFIG (0x00). Hoy solo hay una
-// entrada; agregar una nueva implica: (1) un valor de enum aqui, (2) una rama nueva
-// en MeshWrapper::build_instruction, (3) actualizar la tabla del README.
+// Catalogo de programas cargables via el registro CONFIG (0x00). El valor
+// numerico de cada entrada coincide a proposito con el CGRA_KERNEL homonimo de
+// riscv_dma_main_mem_components/cgra_kernel.h -- CONFIG no es un bitstream
+// arbitrario, CSR_DMA reenvia cgra_config tal cual (ver csr_dma.cpp).
 enum MeshProgram {
-    PROGRAM_VECTOR_ADD = 0   // opcode=OP_ADD, src_a=SRC_WEST, src_b=SRC_NORTH, dst=DST_EAST
+    // c = a + b, vía Celda Escalar + Celda Vectorial (Enrutamiento/Memoria
+    // inactivas). Mismo resultado que la version <1,1> original -- preservado
+    // para no romper el golden reference de RiscvCore::test_vector_add().
+    PROGRAM_VECTOR_ADD = 0,
+
+    // e = (a + b) * 2, recorriendo las 4 celdas del diagrama de nivel 2: b entra
+    // por el borde norte real de Enrutamiento, se relevа hacia Memoria (NoC,
+    // dir=NoC->SRAM), Memoria lo reenvia (dir=SRAM->NoC), Enrutamiento lo relay-ea
+    // de vuelta hacia el sur (hacia Escalar); a entra directo por el borde oeste
+    // real de Escalar. Escalar suma, Vectorial multiplica por 2 y expone el
+    // resultado en su borde este real. Ver MeshWrapper::handle_start_write.
+    PROGRAM_FULL_PIPELINE = 3
 };
 
 SC_MODULE(MeshWrapper) {
@@ -39,14 +56,24 @@ public:
     void trace(sc_core::sc_trace_file* tf) const;
 
 private:
-    // INSTR_MEM_SIZE=1 (no 16): el PC de la PE es un contador libre que siempre
-    // incrementa (no hay saltos/branch en el ISA), asi que "pc % INSTR_MEM_SIZE" solo
-    // vale 0 todo el tiempo si INSTR_MEM_SIZE=1 -- mismo motivo por el que
-    // mesh/CGRA_Mesh_SmokeTest__TB.cpp/ComplexTest__TB.cpp usan siempre addr=0 con
-    // INSTR_MEM_SIZE=1 (ver mesh/README.md, seccion "Programar las PEs").
-    typedef CGRA_Mesh_Heterogeneous<1, 1, 32, 4, 8, 1> Mesh;
+    // INSTR_MEM_SIZE=1: el PC de cada PE es un contador libre que siempre
+    // incrementa (no hay saltos/branch en el ISA), asi que "pc % INSTR_MEM_SIZE"
+    // solo vale 0 todo el tiempo si INSTR_MEM_SIZE=1 -- mismo motivo documentado en
+    // mesh/README.md, seccion "Programar las PEs".
+    typedef CGRA_Mesh_Heterogeneous<2, 2, 32, 4, 8, 1> Mesh;
     typedef Mesh::Link  Link;
     typedef Mesh::Instr Instr;
+
+    static const int ROWS = 2;
+    static const int COLS = 2;
+
+    // Layout row-major (index = row*COLS+col), identico al del diagrama de nivel 2:
+    //   (0,0) Enrutamiento   (0,1) Memoria
+    //   (1,0) Escalar        (1,1) Vectorial
+    // Bordes reales de esta malla 2x2 (ver mesh/CGRA_Mesh_2x2_Heterogeneous_Test__TB.cpp
+    // para el detalle de la adyacencia):
+    //   Enrutamiento (0,0): N, W       Memoria (0,1): N, E
+    //   Escalar      (1,0): S, W      Vectorial (1,1): S, E
 
     // ---- Reloj/control propios, no expuestos como puertos ------------------
     sc_core::sc_clock       clk_;
@@ -55,10 +82,12 @@ private:
     sc_core::sc_event        reset_done_event_;
     bool                     reset_done_;
 
-    // ---- Malla y sus bordes (ROWS=COLS=1 -> los 4 bordes son reales) --------
+    // ---- Malla y sus bordes --------------------------------------------------
     Mesh mesh_;
-    sc_core::sc_signal<Link> in_N_, in_S_, in_W_, in_E_;
-    sc_core::sc_signal<Link> out_N_, out_S_, out_W_, out_E_;
+    sc_core::sc_signal<Link> in_N_[COLS], out_N_[COLS];
+    sc_core::sc_signal<Link> in_S_[COLS], out_S_[COLS];
+    sc_core::sc_signal<Link> in_W_[ROWS], out_W_[ROWS];
+    sc_core::sc_signal<Link> in_E_[ROWS], out_E_[ROWS];
 
     // ---- Registros CSR expuestos por target_socket --------------------------
     uint32_t config_;
@@ -75,7 +104,11 @@ private:
     void handle_input_write(const unsigned char* data, unsigned int len);
     void handle_output_read(unsigned char* data, unsigned int len);
 
-    Instr build_instruction(uint32_t prog_value, bool& ok);
+    // Fases de PROGRAM_FULL_PIPELINE (ver .cpp): b viaja Enrutamiento->Memoria->
+    // Enrutamiento->Escalar antes de que Escalar/Vectorial calculen el resultado.
+    void run_full_pipeline_dataflow();
+
+    PE_Memory_Mesh_Cell<32, 4>& memory_cell();
 };
 
 #endif // MESH_WRAPPER_H

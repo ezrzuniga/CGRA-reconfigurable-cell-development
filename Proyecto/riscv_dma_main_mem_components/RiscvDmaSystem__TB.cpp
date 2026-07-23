@@ -54,6 +54,7 @@ int sc_main(int argc, char* argv[]) {
 
     sc_start(5, SC_US);
 
-    cout << "PASS: RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper vector-add smoke test.\n";
+    cout << "PASS: RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper end-to-end smoke test "
+            "(vector-add + full 2x2 heterogeneous pipeline).\n";
     return 0;
 }

@@ -148,6 +148,10 @@ void FakeCsrDma::run() {
     run_add_round("Ronda 1 (post-recuperacion): c = a + b",
                   {1, 2, 3, 4}, {10, 20, 30, 40}, {11, 22, 33, 44});
 
+    test_section("CONFIG: programar PROGRAM_FULL_PIPELINE (Enrutamiento+Memoria+Escalar+Vectorial)");
+    write_word(0x00, PROGRAM_FULL_PIPELINE);
+    run_add_round("Full pipeline: e = a + b*2", {2, 4, 6, 8}, {1, 1, 1, 1}, {4, 6, 8, 10});
+
     std::cout << (all_ok_ ? "\nPASS: mesh_wrapper protocolo CONFIG/START/DONE.\n"
                            : "\nFAIL: mesh_wrapper protocolo CONFIG/START/DONE.\n");
 }
@@ -169,9 +173,11 @@ int sc_main(int argc, char* argv[]) {
     wrapper.trace(tf);
 
     // Margen explicito: todo el trabajo ocurre dentro del SC_THREAD de FakeCsrDma
-    // (termina solo al completar run()); 500 ns es holgado frente a las ~12
-    // transacciones x ~20-30ns que hace el protocolo completo de este test.
-    sc_start(500, SC_NS);
+    // (termina solo al completar run()). PROGRAM_FULL_PIPELINE por si solo hace
+    // ~15 transacciones internas de mesh_.load_instr (10ns cada una) mas las
+    // esperas de polling del DMA local de Memoria, asi que 3000 ns queda holgado
+    // frente al protocolo completo de este test (rondas VECTOR_ADD + full pipeline).
+    sc_start(3000, SC_NS);
 
     sc_close_vcd_trace_file(tf);
 

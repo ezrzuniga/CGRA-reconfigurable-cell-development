@@ -36,24 +36,16 @@ typedef CGRA_Mesh_Heterogeneous<ROWS, COLS, 32, 4, 8, 1> Mesh;
 typedef Mesh::Link Link;
 typedef Mesh::Instr Instr;
 
-// Empaqueta los 8 selectores de un RC_Config en el campo imm (32 bits) de una
-// Instr, mismo orden que PE_Routing_Cell::bridge_instr_in espera (N,S,E,W,LN,LS,LE,LW,
-// nibble mas significativo primero).
+// Helpers de empaquetado de instrucciones para Enrutamiento/Memoria: ver
+// make_routing_config_instr (pe/routing/PE_Routing_Cell.h) y make_memory_field_instr
+// (memory/PE_Memory_Mesh_Cell.h) -- compartidos con mesh_wrapper.cpp para no
+// reimplementar el mismo empaquetado dos veces.
 static Instr routing_instr(sc_uint<4> sel_N, sc_uint<4> sel_S, sc_uint<4> sel_E, sc_uint<4> sel_W) {
-    Instr instr;
-    uint32_t imm = (sel_N.to_uint() << 28) | (sel_S.to_uint() << 24) |
-                   (sel_E.to_uint() << 20) | (sel_W.to_uint() << 16);
-    instr.imm = static_cast<int32_t>(imm);
-    return instr;
+    return make_routing_config_instr<32>(sel_N, sel_S, sel_E, sel_W);
 }
 
-// Instr de configuracion de un campo del contexto de PE_Memory_Mesh_Cell
-// (ver memory/PE_Memory_Mesh_Cell.h, MemCellField).
 static Instr memory_field_instr(int field, int32_t value) {
-    Instr instr;
-    instr.reg_dst = field;
-    instr.imm = value;
-    return instr;
+    return make_memory_field_instr<32>(field, value);
 }
 
 int sc_main(int argc, char* argv[]) {

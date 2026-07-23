@@ -46,6 +46,10 @@ void RiscvCore::run()
 
     wait(50, SC_NS);
 
+    test_full_pipeline();
+
+    wait(50, SC_NS);
+
     std::cout << "\nRISC-V program finished.\n";
 }
 
@@ -222,7 +226,7 @@ void RiscvCore::read_results()
     sc_time delay = SC_ZERO_TIME;
     tlm_generic_payload trans;
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
 
     output_data.resize(output_bytes);
 
@@ -246,7 +250,7 @@ void RiscvCore::read_results()
     //--------------------------------------------------
     std::cout << "\n===== CGRA OUTPUT DATA =====\n";
 
-    if (cgra_config == VECTOR_ADD)
+    if (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE)
     {
         const int32_t* lanes = reinterpret_cast<const int32_t*>(output_data.data());
         const uint32_t lane_count = output_bytes / sizeof(int32_t);
@@ -348,6 +352,88 @@ void RiscvCore::test_vector_add()
     }
 
     std::cout << (pass ? "VECTOR ADD TEST PASSED.\n" : "VECTOR ADD TEST FAILED.\n");
+}
+
+// Ejercita el arreglo CGRA 2x2 completo (Enrutamiento, Memoria, Escalar,
+// Vectorial -- ver mesh_wrapper/mesh_wrapper.h, PROGRAM_FULL_PIPELINE) desde el
+// mismo flujo de software que test_vector_add(), pero con b viajando por
+// Enrutamiento+Memoria antes de llegar a Escalar, y Vectorial aplicando un
+// multiplicador real (no solo un passthrough): e = (a + b) * 2.
+void RiscvCore::test_full_pipeline()
+{
+    std::cout << "\n=========================================\n";
+    std::cout << "       Running FULL PIPELINE TEST\n";
+    std::cout << "  (Enrutamiento -> Memoria -> Escalar -> Vectorial)\n";
+    std::cout << "=========================================\n";
+
+    //--------------------------------------------------
+    // Configure the CGRA kernel.
+    //--------------------------------------------------
+
+    cgra_config = FULL_PIPELINE;
+
+    //--------------------------------------------------
+    // Main Memory addresses.
+    //--------------------------------------------------
+
+    input_addr  = 0x1000;
+    output_addr = 0x2000;
+
+    //--------------------------------------------------
+    // Input vector encoded as two 4-lane int32 vectors.
+    //--------------------------------------------------
+
+    // b debe ser uniforme entre lanes (un escalar de verdad): viaja por
+    // Enrutamiento->Memoria->Escalar, que solo transportan lane 0 (ver
+    // mesh_wrapper/mesh_wrapper.cpp, handle_config_write). a si puede variar
+    // libremente por lane: llega directo al borde real de Vectorial.
+    const int32_t a[4] = {2, 4, 6, 8};
+    const int32_t b[4] = {1, 1, 1, 1};
+    const int32_t expected[4] = {4, 6, 8, 10};  // a + b*2
+
+    input_data.resize(32);
+    std::memcpy(input_data.data(), a, sizeof(a));
+    std::memcpy(input_data.data() + sizeof(a), b, sizeof(b));
+
+    std::cout << "RISC-V -> bridge input (A, B):\n";
+    print_vector_lanes(input_data, "  A");
+    print_vector_lanes(std::vector<uint8_t>(input_data.begin() + 16, input_data.end()), "  B");
+
+    //--------------------------------------------------
+    // Number of bytes to transfer.
+    //--------------------------------------------------
+
+    data_size = input_data.size();
+
+    //--------------------------------------------------
+    // Golden reference.
+    //--------------------------------------------------
+
+    golden_reference.resize(sizeof(expected));
+    std::memcpy(golden_reference.data(), expected, sizeof(expected));
+
+    //--------------------------------------------------
+    // Execute the complete CGRA flow.
+    //--------------------------------------------------
+    load_input_data();
+    configure_cgra();
+    start_cgra();
+    wait_for_completion();
+    read_results();
+
+    const int32_t* got = reinterpret_cast<const int32_t*>(output_data.data());
+    const int32_t* expected_vec = expected;
+    bool pass = true;
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        if (got[i] != expected_vec[i])
+        {
+            pass = false;
+            break;
+        }
+    }
+
+    std::cout << (pass ? "FULL PIPELINE TEST PASSED.\n" : "FULL PIPELINE TEST FAILED.\n");
 }
 
 void RiscvCore::test_fir()

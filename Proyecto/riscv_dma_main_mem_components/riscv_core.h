@@ -67,6 +67,7 @@ private:
 
     // Test functions for each kernel
     void test_vector_add();
+    void test_full_pipeline();
     void test_fir();
     void test_fft();
 

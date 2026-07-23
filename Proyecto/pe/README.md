@@ -29,6 +29,7 @@ Los binarios de esta carpeta quedan en `build/pe/`.
 ./PE_vector__TB    # smoke test de la PE vectorial
 ./ALU_MAC__TB      # vectores de prueba de la ALU MAC
 ./PE_MAC__TB       # smoke test de la PE MAC (multiply-accumulate de 1 ciclo)
+./PE_MAC_SumReduction__TB  # reduccion por suma: acumula un vector completo streameado por in_W
 ```
 Los smoke tests de PE generan además `pe_scalar_wave.vcd`/`pe_vector_wave.vcd`/
 `pe_mac_wave.vcd` con el estado interno de la simulación, visibles con:

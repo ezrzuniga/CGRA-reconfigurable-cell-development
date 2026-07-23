@@ -20,7 +20,8 @@ enum CGRA_KERNEL
 {
     VECTOR_ADD = 0,
     FIR_FILTER = 1,
-    FFT_8_POINTS = 2
+    FFT_8_POINTS = 2,
+    FULL_PIPELINE = 3
 };
 
 

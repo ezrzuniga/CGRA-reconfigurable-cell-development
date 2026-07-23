@@ -51,6 +51,18 @@ enum MemCellField {
     MEM_FIELD_START    = 31
 };
 
+// Construye la PE_Instruction<DATA_W> que, pasada a mesh.load_instr(row,col,ctx,...),
+// escribe `value` en el campo `field` (ver MemCellField) del contexto `ctx` de una
+// PE_Memory_Mesh_Cell. Helper compartido para que cualquier orquestador (testbenches,
+// MeshWrapper) programe una celda de memoria sin reimplementar el mapeo de campos.
+template <int DATA_W = 32>
+inline PE_Instruction<DATA_W> make_memory_field_instr(int field, int32_t value) {
+    PE_Instruction<DATA_W> instr;
+    instr.reg_dst = field;
+    instr.imm = value;
+    return instr;
+}
+
 template <int DATA_W = 32, int VLEN = 4, int SIZE_BYTES = 2048>
 class PE_Memory_Mesh_Cell : public PE_Base<DATA_W, VLEN> {
 public:

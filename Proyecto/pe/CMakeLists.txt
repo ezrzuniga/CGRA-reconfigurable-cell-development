@@ -22,4 +22,8 @@ add_executable(PE_MAC__TB mac/PE_MAC__TB.cpp)
 target_include_directories(PE_MAC__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
 target_link_libraries(PE_MAC__TB PRIVATE "${SYSTEMC_LIBRARY}")
 
+add_executable(PE_MAC_SumReduction__TB mac/PE_MAC_SumReduction__TB.cpp)
+target_include_directories(PE_MAC_SumReduction__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
+target_link_libraries(PE_MAC_SumReduction__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
 add_subdirectory(routing)

@@ -32,6 +32,27 @@
 #include "../PE_Base.h"
 #include "Routing_Cell.h"
 
+// Empaqueta los 8 selectores de un RC_Config en el campo imm (32 bits) de una
+// PE_Instruction<DATA_W>, mismo orden que PE_Routing_Cell::bridge_instr_in espera
+// (N,S,E,W,LN,LS,LE,LW, nibble mas significativo primero). Helper compartido para
+// que cualquier orquestador (testbenches, MeshWrapper) programe una celda de
+// enrutamiento sin reimplementar el empaquetado.
+template <int DATA_W = 32>
+inline PE_Instruction<DATA_W> make_routing_config_instr(sc_uint<4> sel_N, sc_uint<4> sel_S,
+                                                          sc_uint<4> sel_E, sc_uint<4> sel_W,
+                                                          sc_uint<4> sel_LN = RC_NONE,
+                                                          sc_uint<4> sel_LS = RC_NONE,
+                                                          sc_uint<4> sel_LE = RC_NONE,
+                                                          sc_uint<4> sel_LW = RC_NONE) {
+    PE_Instruction<DATA_W> instr;
+    uint32_t imm = (sel_N.to_uint()  << 28) | (sel_S.to_uint()  << 24) |
+                   (sel_E.to_uint()  << 20) | (sel_W.to_uint()  << 16) |
+                   (sel_LN.to_uint() << 12) | (sel_LS.to_uint() << 8)  |
+                   (sel_LE.to_uint() << 4)  | (sel_LW.to_uint());
+    instr.imm = static_cast<int32_t>(imm);
+    return instr;
+}
+
 template <int DATA_W = 32, int VLEN = 4>
 class PE_Routing_Cell : public PE_Base<DATA_W, VLEN> {
 public:

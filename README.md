@@ -29,7 +29,11 @@ Layout de referencia (nivel 2, ver `Entrega_Avance_2/images/lvl2_diagram.png`): 
 arreglo CGRA 2×2 con una celda de cada tipo heterogéneo —
 `CGRA_Mesh_2x2_Heterogeneous_Test__TB` en `mesh/` es el testbench que reproduce ese
 layout exacto (Enrutamiento/Memoria arriba, Escalar/Vectorial abajo) y ejercita sus
-enlaces internos de extremo a extremo.
+enlaces internos de extremo a extremo. `mesh_wrapper/MeshWrapper` instancia esa misma
+malla 2×2 detrás del bus CSR (ver `mesh_wrapper/README.md`), y
+`riscv_dma_main_mem_components/RiscvDmaSystem__TB` la ejercita de punta a punta desde
+un programa RISC-V real (RiscvCore → CSR_DMA → MainMemory → las 4 celdas del arreglo
+→ MainMemory).
 
 El build de CMake está **unificado**: el `CMakeLists.txt` raíz (dentro de `Proyecto/`)
 hace `add_subdirectory` de `pe/` (que a su vez incluye `pe/routing/`), `mesh/`,

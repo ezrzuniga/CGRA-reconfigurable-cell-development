@@ -73,9 +73,19 @@ void CSR_DMA::b_transport(tlm_generic_payload& trans, sc_time& delay) {
             case 0x0C: 
                 data_size = *data_ptr; 
                 break;
-            case 0x10: 
+            case 0x10:
                 start = *data_ptr;
                 if(start == 1) {
+                    // done se limpia aqui, sincronicamente, no dentro de
+                    // dma_controller(): start_dma_event.notify() solo programa a
+                    // dma_controller para el proximo delta cycle, no lo ejecuta de
+                    // inmediato. Si un segundo kernel arranca en la misma
+                    // simulacion (ej. RiscvCore corriendo dos tests seguidos),
+                    // RiscvCore::wait_for_completion() puede leer `done` ANTES de
+                    // que dma_controller() alcance a poner done=0 el, viendo el
+                    // done=1 que quedo del kernel anterior y devolviendo de
+                    // inmediato con resultados viejos.
+                    done = 0;
                     start_dma_event.notify();
                 }
                 break;
@@ -140,7 +150,7 @@ void CSR_DMA::read_from_memory() {
     tlm_generic_payload trans;
 
 
-    const uint32_t input_bytes = (cgra_config == VECTOR_ADD) ? 32 : data_size;
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 32 : data_size;
 
     input_buffer.resize(input_bytes);
 
@@ -202,7 +212,7 @@ void CSR_DMA::send_input_data_to_cgra(){
     tlm_generic_payload trans;
 
 
-    const uint32_t input_bytes = (cgra_config == VECTOR_ADD) ? 32 : data_size;
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 32 : data_size;
 
     trans.set_command(TLM_WRITE_COMMAND);
 
@@ -286,7 +296,7 @@ void CSR_DMA::receive_output_data_from_cgra()
 
     tlm_generic_payload trans;
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
 
     output_buffer.resize(output_bytes);
 
@@ -318,7 +328,7 @@ void CSR_DMA::write_results() {
     tlm_generic_payload trans;
 
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
 
     trans.set_command(TLM_WRITE_COMMAND);
 

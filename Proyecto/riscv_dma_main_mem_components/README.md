@@ -7,7 +7,10 @@ The main testbench wires together:
 - RiscvCore: generates the software test flow and drives the bridge
 - CSR_DMA: forwards configuration, start, input, and output transactions
 - MainMemory: stores the input/output payloads
-- MeshWrapper: executes the configured program (including the vector-add path)
+- MeshWrapper: a real 2x2 heterogeneous CGRA array (Routing, Memory, Scalar, Vector
+  cells — the same layout as `Entrega_Avance_2/images/lvl2_diagram.png`), executing
+  whichever `MeshProgram` the configured `cgra_config` selects (see
+  `../mesh_wrapper/README.md`, "Catálogo de programas")
 
 ## Key files
 
@@ -19,12 +22,20 @@ The main testbench wires together:
 
 ## What the simulation does
 
-The included testbench runs a vector-add smoke test:
+The included testbench runs two kernels back-to-back through the exact same
+RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper chain:
 
-- the RISC-V core prepares two 4-lane int32 vectors
-- the bridge passes them to the accelerator through the memory-mapped interface
-- the MeshWrapper executes the vector-add program and returns the result
-- the output is printed and checked against the expected values
+- **Vector add** (`VECTOR_ADD`): two 4-lane int32 vectors are added elementwise
+  entirely on the Vector cell — `c = a + b`
+- **Full pipeline** (`FULL_PIPELINE`): exercises all 4 CGRA cells — operand `b`
+  travels Routing -> Memory (a real DMA round trip through the memory cell's SRAM)
+  -> Routing -> Scalar (which computes `b*2`), while operand `a` goes straight to
+  the Vector cell; Vector computes the final `e = a + b*2`
+
+For each kernel: the RISC-V core prepares the input vectors, the bridge passes them
+to the accelerator through the memory-mapped interface, MeshWrapper executes the
+selected program, and the output is printed and checked against the expected
+values.
 
 ## Prerequisites
 
@@ -53,9 +64,11 @@ cd /home/jeffrey/cgra_system/CGRA-reconfigurable-cell-development
 
 ## Expected output
 
-A successful run prints the input vectors, the accelerator output, and ends with a success message such as:
+A successful run prints the input vectors and accelerator output for each kernel, and ends with:
 
 ```text
 VECTOR ADD TEST PASSED.
-PASS: RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper vector-add smoke test.
+...
+FULL PIPELINE TEST PASSED.
+PASS: RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper end-to-end smoke test (vector-add + full 2x2 heterogeneous pipeline).
 ```
