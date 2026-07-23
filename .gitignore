@@ -20,7 +20,16 @@
 # Ignore build directories
 _build/
 build/
+build-vitis/
 latex-build/
+
+# Vitis HLS generated project/run artifacts (Proyecto_HSL/hls/)
+*_proj/
+*_prj/
+vitis_hls.log
+*.jou
+webtalk*.log
+webtalk*.jou
 
 
 
