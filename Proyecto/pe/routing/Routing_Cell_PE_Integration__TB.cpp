@@ -14,7 +14,7 @@
 
 #include <systemc.h>
 #include "Routing_Cell.h"
-#include "../pe/scalar/PE_Scalar_Cell.h"
+#include "../scalar/PE_Scalar_Cell.h"
 
 int sc_main(int argc, char* argv[]) {
     sc_clock clk("clk", 10, SC_NS);

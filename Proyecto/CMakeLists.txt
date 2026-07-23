@@ -32,7 +32,10 @@ find_library(
   REQUIRED
 )
 
+enable_testing()
+
 add_subdirectory(pe)
 add_subdirectory(mesh)
 add_subdirectory(mesh_wrapper)
 add_subdirectory(riscv_dma_main_mem_components)
+add_subdirectory(memory)

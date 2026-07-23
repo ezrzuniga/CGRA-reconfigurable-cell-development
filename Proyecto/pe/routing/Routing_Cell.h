@@ -37,7 +37,7 @@
 #define ROUTING_CELL_H
 
 #include <systemc.h>
-#include "../pe/pe_isa.h"
+#include "../pe_isa.h"
 
 // Origen posible para cada salida del switch-box. NONE deja esa salida en
 // el valor por defecto de Link (todas las lanes en 0). Los 4 primeros son

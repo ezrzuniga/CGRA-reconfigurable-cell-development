@@ -16,6 +16,8 @@
 #include "../pe/scalar/PE_Scalar_Cell.h"
 #include "../pe/vector/PE_Vector_Cell.h"
 #include "../pe/mac/PE_MAC_Cell.h"
+#include "../pe/routing/PE_Routing_Cell.h"
+#include "../memory/PE_Memory_Mesh_Cell.h"
 
 template <int ROWS, int COLS, int DATA_W = 32, int VLEN = 4,
           int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
@@ -72,6 +74,12 @@ public:
             }
             if (layout[idx] == CellKind::MAC) {
                 return new PE_MAC_Cell<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>(name.c_str());
+            }
+            if (layout[idx] == CellKind::ROUTING) {
+                return new PE_Routing_Cell<DATA_W, VLEN>(name.c_str());
+            }
+            if (layout[idx] == CellKind::MEMORY) {
+                return new PE_Memory_Mesh_Cell<DATA_W, VLEN>(name.c_str());
             }
             return new PE_Scalar_Cell<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>(name.c_str());
         });
