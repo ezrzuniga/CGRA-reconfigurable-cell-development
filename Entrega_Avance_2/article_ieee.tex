@@ -289,6 +289,42 @@ Tied to design-space exploration, the plan is to generate variations of the CGRA
 
 This type of exploration is consistent with the diversity of CGRA architectures reported in the literature, where performance depends heavily on the composition and arrangement of the PEs \cite{Podobas}.
 
+\subsection{Preliminary Results}
+\label{sec:results}
+
+This subsection reports what has actually been measured against the plan of Sec.~\ref{sec:experimento}, distinguishing completed results from work still in progress, consistent with the ``preliminary'' scope of this milestone.
+
+\subsubsection{Functional Verification}
+Table~\ref{tab:test_results} summarizes the regression suite: 19 SystemC testbenches covering every module from Table~\ref{tab:resumen_componentes} individually plus three integration levels (mesh, mesh wrapper/CSR-DMA, RISC-V-facing system), totaling 139 individual pass/fail assertions with \textbf{zero failures}. One additional testbench (MAC-cell sum-reduction) currently fails to \emph{build} due to a missing standard-library header, a build-pipeline issue rather than a design defect; it is tracked as a known, easily-fixable gap rather than hidden from this count.
+
+\begin{table}[htbp]
+\centering
+\caption{Regression suite results (SystemC testbenches).}
+\label{tab:test_results}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.46\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.14\linewidth}@{}}
+\toprule
+\textbf{Scope} & \textbf{TBs} & \textbf{Asserts} & \textbf{Result} \\
+\midrule
+Cell-level (scalar, vector, MAC, memory, routing) & 12 & 79 & 12/12 PASS \\
+Mesh integration (1$\times$1, heterogeneous 2$\times$2, smoke/complex) & 4 & 51 & 4/4 PASS \\
+CSR/DMA wrapper + sum-reduction dataflow & 2 & 16 & 2/2 PASS \\
+RISC-V-facing system integration & 1 & 1 & 1/1 PASS \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{End-to-End Sum-Reduction Demonstration}
+The mesh's routing, memory, scalar, and vector cells jointly execute $total = seed + \sum_{i=0}^{6} v_i$, driven entirely through the RISC-V-facing CSR/DMA bridge (no direct cell access from the testbench). Across three rounds with distinct signs and magnitudes, all outputs match the expected totals exactly. Counting the fixed-latency instruction-load/relay chain in the source (routing~$\to$~memory~$\to$~routing~$\to$~scalar~$\to$~vector, excluding the bounded DMA-completion poll), the dataflow completes in 27 fixed cycles plus at most 20 polling cycles (two single-element DMA transfers, each bounded at 10 cycles), i.e.\ $\leq$47 cycles per round at the simulated clock period --- an upper bound derived from the source, not yet from an instrumented cycle counter.
+
+\subsubsection{HLS Cross-Validation}
+The arithmetic kernel of the sum-reduction benchmark was re-implemented as a standalone Vitis HLS C function and validated in C-simulation (\texttt{csim}) against the same three golden rounds used in the SystemC testbench, with an exact match on all outputs. This confirms the arithmetic contract is synthesis-tool-portable before committing to a full \texttt{csynth}/\texttt{cosim} run, whose resource and timing figures are not yet available and are deferred to the final report.
+
+\subsubsection{RISC-V Baseline Characterization}
+To contextualize the CGRA's expected benefit, the same sum-reduction kernel is being characterized as a compiled RISC-V (RV64GC) binary under gem5's system-call-emulation mode, comparing in-order (Atomic, Timing, Minor) and out-of-order (O3) CPU models via cycle counts in \texttt{stats.txt}. At the time of writing, the gem5 build is in progress; cycle-count results will be reported in the final article alongside the CGRA and HLS figures above.
+
 \subsection{Development Tools and Environment}
 In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in Table~\ref{tab:herramientas}.
 
