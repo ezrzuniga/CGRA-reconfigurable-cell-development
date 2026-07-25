@@ -23,3 +23,20 @@ target_include_directories(MeshWrapper_SumReduction__TB PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../mesh"
 )
 target_link_libraries(MeshWrapper_SumReduction__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(MeshWrapper_MatMul__TB
+  MeshWrapper_MatMul__TB.cpp
+  mesh_wrapper.cpp
+  ../riscv_dma_main_mem_components/riscv_core.cpp
+  ../riscv_dma_main_mem_components/csr_dma.cpp
+  ../riscv_dma_main_mem_components/main_memory.cpp
+)
+target_include_directories(MeshWrapper_MatMul__TB PRIVATE
+  "${SYSTEMC_INCLUDE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../riscv_dma_main_mem_components"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe/scalar"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe/vector"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../pe/mac"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../mesh"
+)
+target_link_libraries(MeshWrapper_MatMul__TB PRIVATE "${SYSTEMC_LIBRARY}")

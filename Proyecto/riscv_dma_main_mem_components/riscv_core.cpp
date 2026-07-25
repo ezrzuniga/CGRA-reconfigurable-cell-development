@@ -50,6 +50,10 @@ void RiscvCore::run()
 
     wait(50, SC_NS);
 
+    test_matmul();
+
+    wait(50, SC_NS);
+
     std::cout << "\nRISC-V program finished.\n";
 }
 
@@ -226,7 +230,7 @@ void RiscvCore::read_results()
     sc_time delay = SC_ZERO_TIME;
     tlm_generic_payload trans;
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL) ? 16 : data_size;
 
     output_data.resize(output_bytes);
 
@@ -250,7 +254,7 @@ void RiscvCore::read_results()
     //--------------------------------------------------
     std::cout << "\n===== CGRA OUTPUT DATA =====\n";
 
-    if (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE)
+    if (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL)
     {
         const int32_t* lanes = reinterpret_cast<const int32_t*>(output_data.data());
         const uint32_t lane_count = output_bytes / sizeof(int32_t);
@@ -434,6 +438,87 @@ void RiscvCore::test_full_pipeline()
     }
 
     std::cout << (pass ? "FULL PIPELINE TEST PASSED.\n" : "FULL PIPELINE TEST FAILED.\n");
+}
+
+// Multiplicacion matricial 2x2 (C = A * B) por el flujo completo
+// RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper: el RISC-V provee A y B,
+// indica el kernel MATMUL, arranca la CGRA, espera DONE, lee C desde Main Memory
+// y la verifica contra un golden calculado en software. Toda la aritmetica (8
+// multiplicaciones + 4 sumas) la hace la celda Vectorial de la CGRA; el RISC-V
+// solo orquesta y verifica. Ver mesh_wrapper.cpp, run_matmul_dataflow.
+void RiscvCore::test_matmul()
+{
+    std::cout << "\n=========================================\n";
+    std::cout << "       Running MATMUL 2x2 TEST\n";
+    std::cout << "  (C = A * B, computo integro en la celda Vectorial)\n";
+    std::cout << "=========================================\n";
+
+    cgra_config = MATMUL;
+
+    input_addr  = 0x1000;
+    output_addr = 0x2000;
+
+    // Corre un caso 2x2 por el flujo completo y lo verifica contra el golden en
+    // software. A y B son row-major: {A00,A01,A10,A11} y {B00,B01,B10,B11}.
+    // Devuelve true si C (leida desde Main Memory) coincide con A*B.
+    auto run_case = [this](const int32_t A[4], const int32_t B[4]) -> bool {
+        int32_t expected[4];
+        expected[0] = A[0] * B[0] + A[1] * B[2];  // C00 = A00*B00 + A01*B10
+        expected[1] = A[0] * B[1] + A[1] * B[3];  // C01 = A00*B01 + A01*B11
+        expected[2] = A[2] * B[0] + A[3] * B[2];  // C10 = A10*B00 + A11*B10
+        expected[3] = A[2] * B[1] + A[3] * B[3];  // C11 = A10*B01 + A11*B11
+
+        input_data.resize(32);
+        std::memcpy(input_data.data(), A, 4 * sizeof(int32_t));
+        std::memcpy(input_data.data() + 4 * sizeof(int32_t), B, 4 * sizeof(int32_t));
+
+        std::cout << "RISC-V -> bridge input (A, B):\n";
+        print_vector_lanes(input_data, "  A");
+        print_vector_lanes(std::vector<uint8_t>(input_data.begin() + 16, input_data.end()), "  B");
+
+        data_size = input_data.size();
+
+        golden_reference.resize(sizeof(expected));
+        std::memcpy(golden_reference.data(), expected, sizeof(expected));
+
+        //----------------------------------------------
+        // Flujo CGRA completo.
+        //----------------------------------------------
+        load_input_data();
+        configure_cgra();
+        start_cgra();
+        wait_for_completion();
+        read_results();
+
+        const int32_t* got = reinterpret_cast<const int32_t*>(output_data.data());
+        bool pass = true;
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            if (got[i] != expected[i]) { pass = false; }
+        }
+
+        std::cout << "Expected C (row-major): [" << expected[0] << ", " << expected[1]
+                  << ", " << expected[2] << ", " << expected[3] << "]\n";
+        std::cout << (pass ? "  -> case OK\n" : "  -> case MISMATCH\n");
+        return pass;
+    };
+
+    // Dos casos: uno simetrico y uno con matrices asimetricas / negativas, para
+    // que un error de indice por-lane (transponer A o B, confundir filas con
+    // columnas) no pase inadvertido.
+    const int32_t A1[4] = {1, 2, 3, 4};
+    const int32_t B1[4] = {5, 6, 7, 8};      // A1*B1 = {19,22,43,50}
+
+    const int32_t A2[4] = {2, 0, 1, -3};
+    const int32_t B2[4] = {1, 4, -2, 5};     // A2*B2 = {2,8,7,-11}
+
+    bool pass = true;
+    std::cout << "\n-- Caso 1: A={{1,2},{3,4}}  B={{5,6},{7,8}} --\n";
+    pass &= run_case(A1, B1);
+    std::cout << "\n-- Caso 2: A={{2,0},{1,-3}}  B={{1,4},{-2,5}} --\n";
+    pass &= run_case(A2, B2);
+
+    std::cout << (pass ? "MATMUL 2x2 TEST PASSED.\n" : "MATMUL 2x2 TEST FAILED.\n");
 }
 
 void RiscvCore::test_fir()

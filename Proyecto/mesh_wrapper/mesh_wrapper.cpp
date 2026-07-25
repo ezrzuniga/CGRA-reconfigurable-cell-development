@@ -180,6 +180,15 @@ void MeshWrapper::handle_config_write(uint32_t value)
             vector_instr.dst = DST_EAST;
             break;
 
+        case PROGRAM_MATMUL:
+            // Vectorial se reprograma varias veces durante START
+            // (run_matmul_dataflow); lo que se cargue aqui queda pisado de
+            // inmediato. Escalar/Enrutamiento/Memoria no participan. Solo hace
+            // falta dejar programmed_=true (via el load/clear generico de abajo).
+            scalar_instr.opcode = OP_NOP;
+            vector_instr.opcode = OP_NOP;
+            break;
+
         default:
             ok = false;
             break;
@@ -218,6 +227,8 @@ void MeshWrapper::handle_start_write(uint32_t value)
         run_full_pipeline_dataflow();
     } else if (config_ == PROGRAM_SUM_REDUCTION) {
         run_sum_reduction_dataflow();
+    } else if (config_ == PROGRAM_MATMUL) {
+        run_matmul_dataflow();
     } else {
         // PROGRAM_VECTOR_ADD: solo Vectorial, bind directo sin bridge (ver
         // PE_Vector_Cell.h) -- mismo margen de 2 ciclos ya validado en
@@ -412,6 +423,100 @@ void MeshWrapper::run_sum_reduction_dataflow()
     wait(2 * CLK_PERIOD_NS, SC_NS);
 }
 
+// Multiplicacion matricial 2x2: C = A * B, computada enteramente en la celda
+// Vectorial (1,1) usando SIMD real por lane. Se aplana C row-major en los 4 lanes
+// del resultado:  lane0=C00, lane1=C01, lane2=C10, lane3=C11.
+//
+// C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j], asi que cada lane es una suma de 2
+// productos. Reagrupando por k (la dimension contraida) los 4 lanes comparten el
+// mismo patron, y cada termino_k es un producto ELEMENTWISE (lane-locked, sin
+// cruce entre lanes) de dos vectores:
+//
+//   termino_0[lane] = Avec0[lane] * Bvec0[lane]
+//   termino_1[lane] = Avec1[lane] * Bvec1[lane]
+//   C_flat = termino_0 + termino_1
+//
+// con los operandos reordenados por lane (trabajo de marshaling, no de computo --
+// solo replica/mueve valores de entrada a lanes, como haria un DMA scatter):
+//   Avec0 = {A00, A00, A10, A10}   Bvec0 = {B00, B01, B00, B01}
+//   Avec1 = {A01, A01, A11, A11}   Bvec1 = {B10, B11, B10, B11}
+//
+// La ALU vectorial hace las 8 multiplicaciones (4 lanes x 2 pasos) y las 4 sumas.
+// Cada paso k pone su par (Avec_k, Bvec_k) en los dos bordes reales per-lane de
+// Vectorial (S y E) -- estos writes salen del mismo hilo initiator que
+// handle_input_write, asi que siguen siendo un unico driver logico de in_S_/in_E_
+// (no dispara el E115 de sc_signal). Reusa el patron "load + exactamente 1
+// wait(CLK_PERIOD)" validado en run_sum_reduction_dataflow: la suma acumuladora
+// (reg0 += reg1) es la unica instruccion no idempotente, y se la pisa de inmediato
+// con la de emision para que ejecute una sola vez.
+void MeshWrapper::run_matmul_dataflow()
+{
+    const int32_t* A = matmul_a_;  // {A00, A01, A10, A11}
+    const int32_t* B = matmul_b_;  // {B00, B01, B10, B11}
+
+    Link Avec0, Bvec0, Avec1, Bvec1;
+    Avec0[0] = A[0]; Avec0[1] = A[0]; Avec0[2] = A[2]; Avec0[3] = A[2];
+    Bvec0[0] = B[0]; Bvec0[1] = B[1]; Bvec0[2] = B[0]; Bvec0[3] = B[1];
+    Avec1[0] = A[1]; Avec1[1] = A[1]; Avec1[2] = A[3]; Avec1[3] = A[3];
+    Bvec1[0] = B[2]; Bvec1[1] = B[3]; Bvec1[2] = B[2]; Bvec1[3] = B[3];
+
+    // Margen de asentamiento por paso: garantiza que el dato en los bordes
+    // per-lane se asiente y que el resultado propague por issue->ALU->writeback
+    // (latencia observada de ~1 ciclo) antes de avanzar. Todas las instrucciones
+    // de este dataflow son idempotentes (ninguna acumula sobre si misma), asi que
+    // un margen holgado nunca corrompe.
+    const int SETTLE = 3;
+
+    // El punto delicado es CAMBIAR los bordes per-lane entre pasos: mientras la
+    // instruccion residente lea los bordes (S/E), reescribirlos la haria
+    // recomputar su destino con datos nuevos. La disciplina de abajo evita eso
+    // dejando SIEMPRE residente una instruccion que solo lee REGISTROS (inmune a
+    // los bordes) durante cada cambio de bordes:
+    //
+    //   1. bordes=Avec0/Bvec0, reg0 = S*E            (= termino_0)
+    //   2. reg2 = reg0            <- resiliente: solo lee reg0, no bordes
+    //   3. bordes=Avec1/Bvec1 (seguro: 'reg2=reg0' residente no toca reg0)
+    //      reg0 = S*E             (= termino_1)
+    //   4. East = reg2 + reg0     (= termino_0 + termino_1 = C aplanada)
+
+    // Paso 1: reg0 = South * East = termino_0.
+    in_S_[1].write(Avec0);
+    in_E_[1].write(Bvec0);
+    Instr mul;
+    mul.opcode = OP_MUL; mul.src_a = SRC_SOUTH; mul.src_b = SRC_EAST;
+    mul.dst = DST_REG; mul.reg_dst = 0;
+    mesh_.load_instr(1, 1, 0, mul);
+    wait(SETTLE * CLK_PERIOD_NS, SC_NS);
+
+    // Paso 2: reg2 = reg0 (guarda termino_0 leyendo solo registros). Queda
+    // residente y protege reg0 durante el cambio de bordes del paso 3.
+    Instr save;
+    save.opcode = OP_ADD; save.src_a = SRC_REG; save.reg_a = 0;
+    save.src_b = SRC_IMM; save.imm = 0; save.dst = DST_REG; save.reg_dst = 2;
+    mesh_.load_instr(1, 1, 0, save);
+    wait(SETTLE * CLK_PERIOD_NS, SC_NS);
+
+    // Paso 3: bordes -> Avec1/Bvec1 (seguro, 'save' no lee bordes), luego reg0 =
+    // South * East = termino_1. termino_0 sigue a salvo en reg2.
+    in_S_[1].write(Avec1);
+    in_E_[1].write(Bvec1);
+    mesh_.load_instr(1, 1, 0, mul);   // mismo mul (reg0 = S*E), ahora con Avec1/Bvec1
+    wait(SETTLE * CLK_PERIOD_NS, SC_NS);
+
+    // Paso 4: East = reg2 + reg0 = C aplanada, en una sola instruccion idempotente
+    // (lee registros, rutea al borde este real de Vectorial, no modifica nada).
+    Instr emit;
+    emit.opcode = OP_ADD;
+    emit.src_a = SRC_REG; emit.reg_a = 2;
+    emit.src_b = SRC_REG; emit.reg_b = 0;
+    emit.dst = DST_EAST;
+    mesh_.load_instr(1, 1, 0, emit);
+    wait(SETTLE * CLK_PERIOD_NS, SC_NS);
+    mesh_.clear_instr(1, 1);
+
+    wait(2 * CLK_PERIOD_NS, SC_NS);
+}
+
 // INPUT_DATA_BUFFER (0x10, W): 32 bytes, interpretados segun el programa activo
 // (config_, ya establecido por la escritura de CONFIG que precede a esta segun el
 // protocolo -- ver CSR_DMA::dma_controller()):
@@ -448,6 +553,20 @@ void MeshWrapper::handle_input_write(const unsigned char* data, unsigned int len
         Link seed_link;
         for (int lane = 0; lane < 4; ++lane) seed_link[lane] = sum_reduction_seed_;
         in_N_[0].write(seed_link);
+        return;
+    }
+
+    if (config_ == PROGRAM_MATMUL) {
+        // 8 int32 row-major: A = {A00,A01,A10,A11}, B = {B00,B01,B10,B11}. Se
+        // guardan y se reordenan por lane recien en run_matmul_dataflow (los
+        // bordes reales de Vectorial se manejan alli, no aqui: cada paso k
+        // necesita un arreglo por-lane distinto).
+        int32_t words[8];
+        std::memcpy(words, data, sizeof(words));
+        for (int i = 0; i < 4; ++i) {
+            matmul_a_[i] = words[i];
+            matmul_b_[i] = words[i + 4];
+        }
         return;
     }
 

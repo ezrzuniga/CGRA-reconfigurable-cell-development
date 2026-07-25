@@ -15,11 +15,18 @@ del mesh real (`mesh/CGRA_Mesh_Heterogeneous.h`) y, para `PROGRAM_FULL_PIPELINE`
 la misma secuencia de programación de Enrutamiento/Memoria ya validada en
 `mesh/CGRA_Mesh_2x2_Heterogeneous_Test__TB.cpp`.
 
-**Alcance de esta carpeta**: standalone. No se instancia `CSR_DMA`/`RiscvCore`/
-`MainMemory` reales — el testbench trae su propio módulo de test (`FakeCsrDma`) que
-imita el protocolo. La integración de verdad (con `CSR_DMA`/`RiscvCore`/`MainMemory`
-reales) vive en `../riscv_dma_main_mem_components/` (`RiscvDmaSystem__TB`), que
-instancia este mismo `MeshWrapper` sin modificarlo.
+**Alcance de esta carpeta**: mayormente standalone. Los testbenches
+`MeshWrapper_CSRDMA_Sim__TB` y `MeshWrapper_SumReduction__TB` no instancian
+`CSR_DMA`/`RiscvCore`/`MainMemory` reales — traen su propio módulo de test
+(`FakeCsrDma`) que imita el protocolo. La integración de verdad (con `CSR_DMA`/
+`RiscvCore`/`MainMemory` reales) vive en `../riscv_dma_main_mem_components/`
+(`RiscvDmaSystem__TB`), que instancia este mismo `MeshWrapper` sin modificarlo.
+
+**Excepción**: `MeshWrapper_MatMul__TB` (en esta misma carpeta) sí cablea el flujo
+completo real `RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper` (mismo wiring que
+`RiscvDmaSystem__TB`, incluido el `MemoryRouter` fan-in que `MainMemory` necesita
+para aceptar CPU y DMA a la vez). Por eso su build enlaza también los `.cpp` de
+`../riscv_dma_main_mem_components/`.
 
 ## Requisitos
 - SystemC con TLM-2.0 (variable de entorno `SYSTEMC_HOME`, si no está en una ruta
@@ -42,12 +49,21 @@ El binario queda en `build/mesh_wrapper/`.
 ```
 ./MeshWrapper_CSRDMA_Sim__TB     # PROGRAM_VECTOR_ADD + PROGRAM_FULL_PIPELINE
 ./MeshWrapper_SumReduction__TB   # PROGRAM_SUM_REDUCTION (reducción por suma)
+./MeshWrapper_MatMul__TB         # PROGRAM_MATMUL (mult. matricial 2x2) por el flujo completo real
 ```
-Ambos generan un `.vcd` en el directorio desde el que se ejecutan, con las señales
-de control/borde del mesh interno más el estado de la PE (`wrapper.trace(tf)`
-reenvía a `mesh_.trace(tf)`). Se puede inspeccionar con
+Los tres generan un `.vcd` en el directorio desde el que se ejecutan, con las señales
+de control/borde del mesh interno más el estado de la PE (`wrapper.trace(tf)` /
+`cgra.trace(tf)` reenvía a `mesh_.trace(tf)`). Se pueden inspeccionar con
 `gtkwave mesh_wrapper_csr_dma_sim_wave.vcd` /
-`gtkwave mesh_wrapper_sum_reduction_wave.vcd`.
+`gtkwave mesh_wrapper_sum_reduction_wave.vcd` /
+`gtkwave mesh_wrapper_matmul_wave.vcd`.
+
+`MeshWrapper_MatMul__TB`, además de la traza, verifica funcionalmente: corre la suite
+completa del `RiscvCore` (vector-add, full-pipeline y dos casos de matmul 2x2) contra
+el golden que el propio RISC-V calcula, e imprime `MATMUL 2x2 TEST PASSED`. Como
+cablea los módulos reales, si se compila a mano hay que enlazar también
+`riscv_core.cpp`, `csr_dma.cpp` y `main_memory.cpp` de
+`../riscv_dma_main_mem_components/` (el target de CMake ya lo hace).
 
 ### Por qué una instrucción nueva por elemento (no un puerto que cambia con la instrucción fija)
 
@@ -65,6 +81,47 @@ solución robusta: cargar una instrucción **nueva** por cada elemento, con el v
 ya empaquetado en el campo `imm` (`reg0 = reg0 + imm(v[i])`), reusando el mismo
 patrón de "load + exactamente 1 ciclo" que ya es seguro en todos lados porque cada
 carga sustituye a la anterior antes de que alcance a re-ejecutarse.
+
+### Cómo computa el matmul (`run_matmul_dataflow`)
+
+`C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j]`, así que cada elemento de `C` es una
+suma de 2 productos. Reagrupando por `k` (la dimensión contraída), los 4 elementos de
+`C` comparten el mismo patrón y cada término es un producto **elementwise**
+(lane-locked, sin cruce entre lanes) de dos vectores de 4 lanes, que la ALU de la
+celda Vectorial computa en un paso:
+
+```
+termino_0[lane] = Avec0[lane] * Bvec0[lane]
+termino_1[lane] = Avec1[lane] * Bvec1[lane]
+C_flat = termino_0 + termino_1        # {C00, C01, C10, C11}
+```
+
+con los operandos reordenados por lane (marshaling puro — replicar/mover valores de
+entrada a lanes, como un DMA scatter; el cómputo lo hace la ALU):
+
+```
+Avec0 = {A00, A00, A10, A10}   Bvec0 = {B00, B01, B00, B01}
+Avec1 = {A01, A01, A11, A11}   Bvec1 = {B10, B11, B10, B11}
+```
+
+Los dos pasos se alimentan por los **dos bordes reales per-lane** de Vectorial (S y
+E), reescribiéndolos entre paso y paso. El punto delicado es justo ese: mientras la
+instrucción residente lea los bordes, reescribirlos la haría recomputar su destino
+con datos nuevos. La disciplina que usa `run_matmul_dataflow` para evitarlo es dejar
+**siempre residente, durante cada cambio de bordes, una instrucción que solo lee
+registros** (inmune a los bordes):
+
+1. bordes = `Avec0`/`Bvec0`, `reg0 = S*E` (= `termino_0`)
+2. `reg2 = reg0` — resiliente: solo lee `reg0`, no bordes; protege `reg0`
+3. bordes = `Avec1`/`Bvec1` (seguro: `reg2=reg0` residente no toca `reg0`), `reg0 = S*E` (= `termino_1`)
+4. `East = reg2 + reg0` (= `C_flat`), en una sola instrucción idempotente
+
+Todas las instrucciones del dataflow son idempotentes (ninguna acumula sobre sí
+misma), así que un margen holgado por paso (`SETTLE` ciclos) nunca corrompe — solo
+garantiza que el dato en los bordes se asiente y que el resultado propague por
+`issue→ALU→writeback` (latencia observada de ~1 ciclo) antes de avanzar. Esto es
+distinto del acumulador de `PROGRAM_SUM_REDUCTION`, que sí es no-idempotente y exige
+el patrón de "una instrucción nueva por elemento" de la sección anterior.
 
 ## Mapa de registros
 
@@ -99,6 +156,7 @@ tal cual como `CONFIG` (ver `csr_dma.cpp::send_configuration()`).
 | `0`   | `PROGRAM_VECTOR_ADD`     | `c = a + b`, elementwise real (4 lanes independientes) | Solo Vectorial (`(1,1)`), usando sus dos bordes reales (S=a, E=b) — Enrutamiento/Memoria/Escalar inactivas. Mismo resultado que la versión `<1,1>` original. |
 | `3`   | `PROGRAM_FULL_PIPELINE`  | `e = a + b*2` | Las 4: `b` entra por el borde norte real de Enrutamiento, viaja por Memoria (round-trip NoC) y Enrutamiento otra vez hasta el borde norte (interno) de Escalar; Escalar calcula `b*2`; Vectorial suma su borde sur real (`a`) con `b*2` (borde oeste, interno) y expone el resultado en su borde este real. |
 | `4`   | `PROGRAM_SUM_REDUCTION`  | Reducción por suma: `total = seed + sum(v[0..6])` | Las 4: `INPUT_DATA_BUFFER` (32 bytes) se reinterpreta como 8 enteros de 32 bits — `word[0]` es el seed (mismo camino Enrutamiento→Memoria→Enrutamiento→Escalar que "b" en `PROGRAM_FULL_PIPELINE`) y `word[1..7]` son los 7 elementos a sumar. Escalar acumula: primero siembra `reg0 = seed`, después carga una instrucción **nueva por cada elemento** (`reg0 = reg0 + imm(v[i])`, un ciclo cada una — ver "Por qué una instrucción por elemento" abajo) y por último reenvía `reg0` a Vectorial, que lo expone en su borde este real. |
+| `5`   | `PROGRAM_MATMUL`         | Multiplicación matricial 2x2: `C = A * B` | Solo Vectorial (`(1,1)`), SIMD real por lane. `INPUT_DATA_BUFFER` (32 bytes) = 8 int32 row-major: `A = {A00,A01,A10,A11}` seguido de `B = {B00,B01,B10,B11}`; `OUTPUT_DATA_BUFFER` (16 bytes) = `C` aplanada row-major `{C00,C01,C10,C11}` en los 4 lanes del borde este real. La ALU vectorial hace las 8 multiplicaciones (4 lanes × 2 pasos) y las 4 sumas — ver "Cómo computa el matmul" abajo. |
 
 Cualquier otro valor genera `SC_REPORT_ERROR` (la transacción sigue respondiendo
 `TLM_OK_RESPONSE`, el catálogo simplemente no encontró un programa para ese índice).
@@ -173,6 +231,13 @@ Memoria ctx0 NoC→SRAM → Memoria ctx1 SRAM→NoC → Enrutamiento ctx1 relay 
 Escalar/Vectorial ya residentes calculan el resultado), usando `mesh_.load_instr(...)`
 para reprogramar Enrutamiento/Memoria y `memory_cell().dma_done()` para esperar cada
 transferencia del DMA local antes de avanzar a la siguiente fase.
+
+`PROGRAM_MATMUL` usa el mismo esqueleto: el paso 3 despacha a
+`run_matmul_dataflow()`, que reprograma únicamente la celda Vectorial (`(1,1)`) y
+reescribe sus dos bordes reales per-lane (S/E) entre paso y paso — ver "Cómo computa
+el matmul" arriba. `INPUT_DATA_BUFFER` se reinterpreta como 8 int32 (A y B row-major,
+guardados en `handle_input_write` para reordenarlos por lane recién en `START`) y el
+resultado sale por el borde este real de Vectorial, igual que los demás programas.
 
 Puntos clave:
 - `CONFIG` es el momento en que se programa la celda (no `START`) — `START` solo

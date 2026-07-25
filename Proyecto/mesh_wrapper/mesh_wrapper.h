@@ -52,7 +52,19 @@ enum MeshProgram {
     // Escalar en vez del acumulador dedicado de PE_MAC, que no existe en este
     // layout). Escalar reenvia el total a Vectorial, que lo expone en su borde
     // este real. Ver MeshWrapper::run_sum_reduction_dataflow.
-    PROGRAM_SUM_REDUCTION = 4
+    PROGRAM_SUM_REDUCTION = 4,
+
+    // Multiplicacion matricial 2x2: C = A * B. INPUT_DATA_BUFFER (32 bytes) se
+    // reinterpreta como 8 int32 row-major: word[0..3] = A = {A00,A01,A10,A11},
+    // word[4..7] = B = {B00,B01,B10,B11}. La computa entera la celda Vectorial
+    // aprovechando sus dos bordes reales per-lane (S y E): C aplanada row-major
+    // {C00,C01,C10,C11} se arma como suma sobre k=0,1 de productos elementwise
+    // lane-locked, un paso por cada columna de A / fila de B. Sin cruce entre
+    // lanes ni acumulador dedicado: 8 multiplicaciones (4 lanes x 2 pasos) y 4
+    // sumas, todo en la ALU vectorial. El resultado sale por el borde este real de
+    // Vectorial (out_E_[1]), igual que los demas programas. Ver
+    // MeshWrapper::run_matmul_dataflow.
+    PROGRAM_MATMUL = 5
 };
 
 // Cantidad de elementos del vector a reducir en PROGRAM_SUM_REDUCTION (7, no 8:
@@ -119,6 +131,13 @@ private:
     int32_t sum_reduction_seed_;
     int32_t sum_reduction_vec_[SUM_REDUCTION_VECTOR_LEN];
 
+    // Operandos de PROGRAM_MATMUL, guardados en handle_input_write (llegan como un
+    // unico bloque TLM de 32 bytes = 8 int32 row-major) para que
+    // run_matmul_dataflow los reordene por lane recien en START. A row-major:
+    // {A00,A01,A10,A11}; B row-major: {B00,B01,B10,B11}.
+    int32_t matmul_a_[4];
+    int32_t matmul_b_[4];
+
     void reset_thread();
 
     void handle_config_write(uint32_t value);
@@ -135,6 +154,12 @@ private:
     // elementos de sum_reduction_vec_ uno por ciclo (reg0+=west) y reenvia el
     // total a Vectorial.
     void run_sum_reduction_dataflow();
+
+    // Fases de PROGRAM_MATMUL (ver .cpp): en dos pasos (k=0,1) la celda Vectorial
+    // multiplica elementwise los operandos ya reordenados por lane sobre sus
+    // bordes reales S/E, acumula ambos productos en un registro vectorial y expone
+    // C aplanada en su borde este real.
+    void run_matmul_dataflow();
 
     PE_Memory_Mesh_Cell<32, 4>& memory_cell();
 };

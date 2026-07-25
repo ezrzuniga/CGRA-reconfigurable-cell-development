@@ -1,5 +1,5 @@
 #include "csr_dma.h"
-#include "dummy_cgra.h"
+#include "cgra_kernel.h"
 
 #include <cstring>
 #include <iostream>
@@ -150,7 +150,7 @@ void CSR_DMA::read_from_memory() {
     tlm_generic_payload trans;
 
 
-    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 32 : data_size;
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL) ? 32 : data_size;
 
     input_buffer.resize(input_bytes);
 
@@ -212,7 +212,7 @@ void CSR_DMA::send_input_data_to_cgra(){
     tlm_generic_payload trans;
 
 
-    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 32 : data_size;
+    const uint32_t input_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL) ? 32 : data_size;
 
     trans.set_command(TLM_WRITE_COMMAND);
 
@@ -296,7 +296,7 @@ void CSR_DMA::receive_output_data_from_cgra()
 
     tlm_generic_payload trans;
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL) ? 16 : data_size;
 
     output_buffer.resize(output_bytes);
 
@@ -328,7 +328,7 @@ void CSR_DMA::write_results() {
     tlm_generic_payload trans;
 
 
-    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE) ? 16 : data_size;
+    const uint32_t output_bytes = (cgra_config == VECTOR_ADD || cgra_config == FULL_PIPELINE || cgra_config == MATMUL) ? 16 : data_size;
 
     trans.set_command(TLM_WRITE_COMMAND);
 
