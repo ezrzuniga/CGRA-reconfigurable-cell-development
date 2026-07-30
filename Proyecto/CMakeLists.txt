@@ -57,3 +57,7 @@ add_subdirectory(mesh)
 add_subdirectory(mesh_wrapper)
 add_subdirectory(riscv_dma_main_mem_components)
 add_subdirectory(memory)
+
+add_subdirectory(pe_hls)
+add_subdirectory(mesh_hls)
+add_subdirectory(memory_hls)
