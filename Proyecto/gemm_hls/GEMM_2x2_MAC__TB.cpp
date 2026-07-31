@@ -1,101 +1,30 @@
 // GEMM_2x2_MAC__TB.cpp
 // CGRA 2x2 de mapeo espacial para GEMM: una PE_MAC_Cell_HLS por elemento de
 // salida (output-stationary), sin routing/memoria -- ver plan de diseno.
-//
-// Cada PE ejecuta el mismo programa fijo de 4 instrucciones (INSTR_MEM_SIZE=4)
-// una vez por cada k=0,1 (8 ciclos de computo por caso). El programa resuelve
-// el limite real del ISA (una instruccion = un dst por ciclo) escalonando
-// relevo de operandos y acumulacion en slots distintos en vez de intentar
-// hacerlo en el mismo ciclo:
-//
-//        slot0            slot1            slot2            slot3
-// P00  MOV W->E(a)     MOV N->S(b)      MAC(W,N)->ACC    MOV ACC->W
-// P01  MOV N->S(b)     MAC(W,N)->ACC    NOP              MOV ACC->E
-// P10  MOV W->E(a)     NOP              MAC(W,N)->ACC    MOV ACC->W
-// P11  NOP             MAC(W,N)->ACC    NOP              MOV ACC->E
-//
-// A entra por in_W[fila], B por in_N[columna]; C sale por out_W[fila] (col 0)
-// y out_E[fila] (col 1) -- bordes que quedan libres porque el relevo interno
-// de esta malla solo usa E (fila 0) y S (columna 0).
+// Malla y programa en GEMM_2x2_Mesh.h (compartido con GEMM_2x2_HLS_Top.h, el
+// wrapper sintetizable que controla la misma malla desde una FSM en vez de
+// desde este testbench).
 #include <systemc.h>
 #include <cstdint>
 #include <string>
 #include <sstream>
-#include "../mesh_hls/CGRA_Mesh_Static.h"
-#include "../pe_hls/mac/PE_MAC_Cell_HLS.h"
+#include "GEMM_2x2_Mesh.h"
 #include "../pe/test_util.h"
 
-static const int ROWS = 2;
-static const int COLS = 2;
-typedef CGRA_Mesh_Static<ROWS, COLS, 32, 1,
-    PE_MAC_Cell_HLS<32, 1, 8, 4>,
-    PE_MAC_Cell_HLS<32, 1, 8, 4>,
-    PE_MAC_Cell_HLS<32, 1, 8, 4>,
-    PE_MAC_Cell_HLS<32, 1, 8, 4>> Mesh;
-typedef Mesh::Link Link;
-typedef Mesh::Instr Instr;
-
-static Instr mac_instr(sc_uint<3> src_a, sc_uint<3> src_b, sc_uint<3> dst) {
-    Instr i;
-    i.opcode = OP_MAC;
-    i.src_a = src_a;
-    i.src_b = src_b;
-    i.dst = dst;
-    return i;
-}
-
-static Instr mov_instr(sc_uint<3> src_a, sc_uint<3> dst) {
-    Instr i;
-    i.opcode = OP_MOV;
-    i.src_a = src_a;
-    i.dst = dst;
-    return i;
-}
-
-static Instr clear_acc_instr() {
-    Instr i;
-    i.opcode = OP_MOV;
-    i.src_a = SRC_IMM;
-    i.imm = 0;
-    i.dst = DST_ACC;
-    return i;
-}
-
-// El programa espacial de GEMM 2x2 descrito en el encabezado.
-static void gemm_program(Instr prog[ROWS][COLS][4]) {
-    prog[0][0][0] = mov_instr(SRC_WEST, DST_EAST);
-    prog[0][0][1] = mov_instr(SRC_NORTH, DST_SOUTH);
-    prog[0][0][2] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
-    prog[0][0][3] = mov_instr(SRC_ACC, DST_WEST);
-
-    prog[0][1][0] = mov_instr(SRC_NORTH, DST_SOUTH);
-    prog[0][1][1] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
-    prog[0][1][2] = Instr();
-    prog[0][1][3] = mov_instr(SRC_ACC, DST_EAST);
-
-    prog[1][0][0] = mov_instr(SRC_WEST, DST_EAST);
-    prog[1][0][1] = Instr();
-    prog[1][0][2] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
-    prog[1][0][3] = mov_instr(SRC_ACC, DST_WEST);
-
-    prog[1][1][0] = Instr();
-    prog[1][1][1] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
-    prog[1][1][2] = Instr();
-    prog[1][1][3] = mov_instr(SRC_ACC, DST_EAST);
-}
+static const int ROWS = GEMM_ROWS;
+static const int COLS = GEMM_COLS;
+typedef GemmMesh Mesh;
+typedef GemmLink Link;
+typedef GemmInstr Instr;
 
 // Carga un programa de 4 slots en las 4 PEs, una direccion por ciclo (mismo
 // patron de load_instr+advance_cycles(1) que los demas testbenches de mesh_hls).
 static void load_program(Mesh& mesh, const Instr prog[ROWS][COLS][4]) {
     for (int addr = 0; addr < 4; addr++) {
-        for (int r = 0; r < ROWS; r++)
-            for (int c = 0; c < COLS; c++)
-                mesh.load_instr(r, c, addr, prog[r][c][addr]);
+        gemm_load_program(mesh, prog, addr);
         advance_cycles(1);
     }
-    for (int r = 0; r < ROWS; r++)
-        for (int c = 0; c < COLS; c++)
-            mesh.clear_instr(r, c);
+    gemm_clear_all_instr(mesh);
 }
 
 // rst no limpia el acumulador de PE_MAC_HLS (mismo precedente que PE_MAC.h) --
@@ -104,17 +33,12 @@ static void load_program(Mesh& mesh, const Instr prog[ROWS][COLS][4]) {
 // load_program) y despues un ciclo mas para que de verdad se ejecute desde
 // cualquiera de las 4 direcciones -- ya quedaron todas con la misma instruccion.
 static void clear_all_acc(Mesh& mesh) {
-    Instr clr = clear_acc_instr();
     for (int addr = 0; addr < 4; addr++) {
-        for (int r = 0; r < ROWS; r++)
-            for (int c = 0; c < COLS; c++)
-                mesh.load_instr(r, c, addr, clr);
+        gemm_load_clear_acc(mesh, addr);
         advance_cycles(1);
     }
     advance_cycles(1);
-    for (int r = 0; r < ROWS; r++)
-        for (int c = 0; c < COLS; c++)
-            mesh.clear_instr(r, c);
+    gemm_clear_all_instr(mesh);
 }
 
 struct GemmCase {
