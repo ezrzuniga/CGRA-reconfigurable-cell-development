@@ -65,13 +65,34 @@ Esto ejecuta el flujo completo definido en `run_hls.tcl`:
 negativos, 4 valores de `C` cada uno) y un resumen final, igual que el resto de los
 testbenches de `Proyecto/`.
 
-## 4) Riesgos conocidos (no se pudieron descartar sin `vitis_hls` real)
+## 4) Estado confirmado: bloqueado por Vitis HLS 2024.1 (SystemC no soportado)
 
-Este entorno no tiene `vitis_hls` instalado (solo un directorio vacío en
-`/tools/Xilinx/Vitis_HLS`), así que el flujo de arriba está preparado y verificado
-hasta donde una simulación SystemC normal alcanza (`GEMM_2x2_HLS_Top__TB.cpp` pasa
-compilado con g++ en `Proyecto/build`), pero `csim_design` en adelante no se pudo
-correr en esta sesión. Si algo falla, revisar primero:
+Corriendo `vitis_hls -f run_hls.tcl` con una instalación real de Vitis HLS 2024.1:
+`csim_design` pasa (corre con g++ + libSystemC real, no con el frontend de
+síntesis), pero `csynth_design` falla con:
+
+```
+ERROR: [HLS 200-637] SystemC input is not supported
+SystemC is not supported!
+```
+
+(ver `vitis_hls.log:35`). No es un problema de flags/pragmas ni de esta versión en
+particular del diseño: el flujo unificado de Vitis HLS rechaza categóricamente
+cualquier top escrito como `sc_module` — la síntesis SystemC que sí soportaba
+Vivado HLS clásico fue discontinuada. No hay forma de destrabar esto sin migrar el
+top (y su jerarquía) a C/C++ plano + pragmas HLS.
+
+Esa migración ya se hizo, preservando la misma arquitectura (memoria de
+instrucciones por PE, wiring N/S/E/W explícito, FSM de fases) sin SystemC —
+ver `../hls_vitis_gemm_2x2_cgra_c/` (`Proyecto/pe_hls_c/`, `Proyecto/mesh_hls_c/`,
+`Proyecto/gemm_hls_c/`). Ahí sí pasan `csim_design`/`csynth_design`/
+`cosim_design`/`export_design` reales. Esta carpeta queda intacta como referencia
+histórica de la variante SystemC-HLS (que sirvió para simular y validar la
+arquitectura antes de saber que Vitis HLS 2024.1 no la sintetiza).
+
+Riesgos que se habían anticipado sin poder correr `vitis_hls` (quedan como
+referencia, ya no aplican para decidir si esta carpeta sirve — no sirve para
+síntesis en ninguna versión del flujo unificado):
 
 - **Structs con `std::array` como tipo de canal interno**: `Link = PE_VectorData<32,1>`
   envuelve `std::array<sc_int<32>,1>`. No es un puerto del *top* (evitado a propósito),

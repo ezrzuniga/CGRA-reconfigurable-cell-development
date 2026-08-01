@@ -28,8 +28,11 @@ set FPGA_PART     "xck26-sfvc784-2LV-c"
 
 open_project -reset $PROJECT_NAME
 
-add_files gemm_2x2_hls_top.cpp
-add_files -tb ../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp -cflags "-Wno-unknown-pragmas"
+set SYSTEMC_XIL_INC "/tools/Xilinx/Vivado/2024.1/lnx64/tools/systemc/include"
+set SYSTEMC_XIL_LIB "/tools/Xilinx/Vivado/2024.1/lnx64/tools/systemc/lib"
+
+add_files gemm_2x2_hls_top.cpp -cflags "-std=c++14 -I${SYSTEMC_XIL_INC}"
+add_files -tb ../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp -cflags "-std=c++17 -I${SYSTEMC_XIL_INC} -Wno-unknown-pragmas"
 
 set_top $TOP_MODULE
 
@@ -37,8 +40,14 @@ open_solution -reset $SOLUTION_NAME -flow_target vivado
 set_part $FPGA_PART
 create_clock -period $CLK_PERIOD_NS -name default
 
+# Evitar que LD_LIBRARY_PATH (apunta a /opt/systemc y ~/systemc-3.0.2,
+# usadas por el flujo CMake normal) choque con la libsystemc de /usr/include
+# que Vitis HLS resuelve en tiempo de compilacion. Forzamos que en runtime
+# tambien se use la libsystemc del paquete Debian.
+set env(LD_LIBRARY_PATH) "/usr/lib/x86_64-linux-gnu"
+
 puts "\n===== Running C Simulation ====="
-csim_design
+csim_design -ldflags "-L${SYSTEMC_XIL_LIB} -lsystemc -lpthread"
 
 puts "\n===== Running C Synthesis ====="
 csynth_design
