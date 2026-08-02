@@ -8,6 +8,16 @@
 // PE_MAC_State: siguen siendo "registros" que retienen su ultimo valor
 // cuando la instruccion de un ciclo no los toca, exactamente igual que un
 // sc_out que no recibe write() ese ciclo.
+//
+// pe_mac_program()/pe_mac_clear_acc(): canales laterales de "memoria de
+// configuracion", separados del datapath de ejecucion (pe_mac_step). Antes,
+// cargar instr_mem competia con el mismo ciclo de ejecucion (pe_mac_step
+// aplicaba instr_in despues del fetch) y limpiar acc se hacia pisando
+// temporalmente instr_mem con una instruccion MOV_IMM_0->ACC -- eso dejo de
+// ser aceptable cuando instr_mem paso a ser persistente entre corridas (ver
+// cgra_hls_c/CGRA_Top_C.h): un host que programa la malla una vez y la
+// corre muchas veces no puede arriesgarse a que "correr" le pise el
+// programa real cada vez que limpia el acumulador.
 
 #ifndef PE_MAC_HLS_C_H
 #define PE_MAC_HLS_C_H
@@ -112,15 +122,31 @@ inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s,
 
 } // namespace pe_mac_hls_c_detail
 
+// Escritura directa a instr_mem: sin fetch/ALU/avance de pc, no compite con
+// la ejecucion del datapath. Un unico slot por llamada (addr(PE) la resuelve
+// quien orquesta la malla, ver mesh_program() en CGRA_Mesh_Static_C.h).
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void pe_mac_program(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
+                            ap_uint<8> slot, const PE_Instruction<DATA_W>& instr)
+{
+    s.instr_mem[slot.to_uint() % INSTR_MEM_SIZE] = instr;
+}
+
+// Reset directo del acumulador, bypass de instr_mem.
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void pe_mac_clear_acc(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s)
+{
+    s.acc = PE_VectorData<DATA_W, VLEN>();
+}
+
 // Un ciclo de reloj del PE MAC. rst NO limpia acc/instr_mem/reg_file, solo
-// pc (mismo precedente que PE_MAC_HLS.h). instr_in llega ya resuelto para
-// este ciclo (quien orquesta la malla decide addr/instr/valid).
+// pc (mismo precedente que PE_MAC_HLS.h). La carga de programa ya no ocurre
+// por este camino (ver pe_mac_program arriba).
 template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                          bool rst, bool enable,
                          const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
-                         const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W,
-                         const PE_InstrIn<DATA_W>& instr_in)
+                         const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
     if (rst) {
         s.pc = 0;
@@ -128,13 +154,7 @@ inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
     }
     if (!enable) return;
 
-    // Fetch antes de aplicar una carga pendiente de este mismo ciclo
-    // (semantica read-old-data de BRAM de un puerto, igual que PE_MAC_HLS.h).
     PE_Instruction<DATA_W> ins = s.instr_mem[s.pc.to_uint() % INSTR_MEM_SIZE];
-
-    if (instr_in.valid) {
-        s.instr_mem[instr_in.addr.to_uint() % INSTR_MEM_SIZE] = instr_in.instr;
-    }
 
     PE_VectorData<DATA_W, VLEN> a = pe_mac_hls_c_detail::select_src(s, ins.src_a, ins.reg_a, ins.imm, in_N, in_S, in_E, in_W);
     PE_VectorData<DATA_W, VLEN> b = pe_mac_hls_c_detail::select_src(s, ins.src_b, ins.reg_b, ins.imm, in_N, in_S, in_E, in_W);

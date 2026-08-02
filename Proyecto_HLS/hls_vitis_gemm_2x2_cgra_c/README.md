@@ -26,20 +26,49 @@ problema no se detectó antes de tener `vitis_hls` real disponible.
 
 Esta carpeta (`_c`) es la migración de esa misma arquitectura a C/C++ plano +
 pragmas HLS: mismo datapath por PE (memoria de instrucciones, ALU/MAC,
-acumulador), mismo wiring N/S/E/W explícito de la malla, misma secuencia de
-fases (limpiar acumuladores → recargar programa → fase 0 → fase 1 → lectura)
-— ver `Proyecto/pe_hls_c/`, `Proyecto/mesh_hls_c/`, `Proyecto/gemm_hls_c/` y
-el comentario de cabecera de `GEMM_2x2_HLS_Top_C.h` para el detalle de cada
-decisión de la migración (por qué se pudo saltar el arranque de una sola vez
-del `sc_module` original, y cómo se preserva la disciplina de "escritura este
-ciclo, visible el ciclo siguiente" entre la FSM y la malla sin sc_signal).
+acumulador), mismo wiring N/S/E/W explícito de la malla — ver
+`Proyecto/pe_hls_c/`, `Proyecto/mesh_hls_c/`, `Proyecto/gemm_hls_c/`.
 
-Diferencia de interfaz respecto al original: `GEMM_2x2_HLS_Top_C` no es un
-`sc_module` con puertos `clk`/`rst`/`enable` — es una función plana que
-corre la secuencia completa de ciclos en una sola invocación y retorna con
-`done=true` (ver decisión de diseño en el plan de migración). `start`/`done`
-siguen presentes como argumentos, pero como pulso de una sola llamada, no
-como handshake entre invocaciones separadas.
+## Arquitectura: CGRA reprogramable, no un programa fijo en el hardware
+
+`GEMM_2x2_HLS_Top_C` ya no es un `sc_module` con puertos `clk`/`rst`/`enable`,
+y tampoco carga un programa fijo internamente. Es un wrapper delgado sobre un
+**template genérico reutilizable**, `cgra_run<...>` (`Proyecto/cgra_hls_c/
+CGRA_Top_C.h`), parametrizado por `ROWS/COLS/DATA_W/VLEN/NUM_REGS/
+INSTR_MEM_SIZE/NUM_PHASES` — de ahí se "saca" cualquier CGRA sintetizable
+concreta con el mínimo código posible (ver el header de `GEMM_2x2_HLS_Top_C.h`
+y `GEMM_2x2_HLS_Top_C.cpp`, unas 25 líneas en total).
+
+La malla vive en un `static GemmMesh_C mesh;` dentro del `.cpp` del top — el
+único estado con memoria del diseño, persiste entre invocaciones separadas.
+Esto habilita dos caminos de control, mutuamente excluyentes por llamada:
+
+1. **Programar** (`prog_valid=true`, `prog_row`/`prog_col`/`prog_slot`/
+   `prog_instr`): escribe una única instrucción en la memoria de
+   instrucciones de la PE `(prog_row,prog_col)`, slot `prog_slot`. `done=true`
+   de inmediato. El host sube el programa espacial completo con una llamada
+   por instrucción (16 llamadas para GEMM 2x2: 4 PEs × 4 slots).
+2. **Correr** (`start=true`): corre las `NUM_PHASES` fases completas en una
+   sola invocación, usando el programa YA RESIDENTE en `instr_mem` (subido
+   antes vía el paso 1) — se puede disparar muchas veces con operandos
+   distintos SIN volver a programar, igual que hardware reconfigurable real
+   (firmware cargado una vez, corrido muchas veces). El testbench
+   (`GEMM_2x2_HLS_Top_C__TB.cpp`) demuestra esto explícitamente: programa la
+   malla una vez y corre los 2 casos de prueba sin reprogramar entre ellos.
+
+Puertos de borde genéricos: `in_N/in_S/in_W/in_E` (entrada, con un eje extra
+de fase: `in_*[NUM_PHASES][...]`) y `out_N/out_S/out_W/out_E` (salida),
+dimensionados por `GEMM_ROWS`/`GEMM_COLS` — los 4 bordes completos de la
+malla, siempre, aunque GEMM 2x2 solo use oeste/norte de entrada y oeste/este
+de salida (sur/este de entrada y norte/sur de salida quedan en cero, sin usar
+— máxima fidelidad al template en vez de puertos con nombre fijo por
+aplicación como `a00`/`b00`/`c00`).
+
+Ver el comentario de cabecera de `Proyecto/cgra_hls_c/CGRA_Top_C.h` para el
+detalle completo de la FSM (por qué ya no hace falta un estado de "recargar
+programa", cómo se limpia el acumulador con un canal directo en vez de pedir
+prestada `instr_mem`, y cómo se preserva la disciplina de "escritura este
+ciclo, visible el ciclo siguiente" entre la FSM y la malla sin `sc_signal`).
 
 ## 1) Requirements
 
@@ -67,9 +96,9 @@ marcado como deprecado en 2024.1 a favor de `vitis-run --mode hls`.)
 
 Esto ejecuta el flujo completo definido en `run_hls.tcl`:
 - C Simulation (`csim_design`) — corre `GEMM_2x2_HLS_Top_C__TB.cpp`, un
-  testbench plano (sin `sc_main`) que llama la función top directamente y
-  compara contra los mismos 2 casos de prueba que el resto de testbenches
-  de GEMM 2x2 del repo.
+  testbench plano (sin `sc_main`) que programa la malla vía `prog_valid`
+  (16 llamadas) y luego corre los mismos 2 casos de prueba que el resto de
+  testbenches de GEMM 2x2 del repo, sin volver a programar entre ellos.
 - C Synthesis (`csynth_design`)
 - C/RTL Co-simulation (`cosim_design -rtl verilog`)
 - IP export (`export_design -format ip_catalog`)
@@ -90,12 +119,22 @@ instalación local de Vitis HLS) antes de intentar el flujo real.
 
 - `run_hls.tcl` — script de automatización principal (top, part, reloj, flujo).
 - `gemm_2x2_hls_top_c.cpp` — unidad de traducción mínima, solo incluye el
-  diseño real (`../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C.h`), sin
-  duplicarlo.
+  diseño real (`../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C.cpp`), sin
+  duplicarlo. Los includes son relativos (`../mesh_hls_c/`, `../cgra_hls_c/`,
+  `../pe_hls_c/`), no hace falta ningún `-I` adicional en `run_hls.tcl`.
 - (sin testbench propio) — `run_hls.tcl` reutiliza
   `../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C__TB.cpp` directamente.
 
-## 5) Common issues
+## 5) Cómo instanciar una CGRA propia a partir del template
+
+Cualquier aplicación nueva repite el mismo patrón de `GEMM_2x2_HLS_Top_C.h`/
+`.cpp` (~25 líneas): declarar sus propias constantes `ROWS/COLS/DATA_W/VLEN/
+NUM_REGS/INSTR_MEM_SIZE/NUM_PHASES`, un `static Mesh mesh;` dentro de su
+`.cpp`, y reenviar sus puertos a `cgra_run<...>(mesh, ...)`
+(`Proyecto/cgra_hls_c/CGRA_Top_C.h`) — toda la FSM de fases, la interfaz de
+programación y el wiring de bordes se reutilizan sin cambios.
+
+## 6) Common issues
 
 - Part not found: editar `run_hls.tcl` y ajustar `FPGA_PART` (o usar la
   alternativa de board file comentada).

@@ -1,39 +1,21 @@
 // GEMM_2x2_HLS_Top_C.h
-// Top sintetizable para Vitis HLS en C/C++ puro: transliteracion de
-// gemm_hls/GEMM_2x2_HLS_Top.h, que Vitis HLS 2024.1 rechaza con
-// "ERROR: [HLS 200-637] SystemC input is not supported" por estar escrito
-// como sc_module (ver Proyecto_HLS/hls_vitis_gemm_2x2_cgra/vitis_hls.log).
-// Envuelve la misma malla real (CGRA_Mesh_Static_C<2,2,32,1, 4 celdas
-// PE_MAC>, sin modificarla) con la misma FSM de fases, adaptada a un
-// invariante distinto: en vez de un sc_module persistente que arranca una
-// vez (BOOT_LOAD/BOOT_CLEAR) y despues espera en IDLE entre llamadas
-// separadas, cada invocacion de esta funcion corre la secuencia completa
-// (limpiar acumuladores, recargar el programa, fase 0, fase 1, lectura) de
-// principio a fin y retorna con done=true -- start/done quedan como pulso
-// de control de una sola llamada, no como handshake entre invocaciones (ver
-// plan de migracion).
+// Wrapper delgado que instancia el template generico cgra_run<...>
+// (cgra_hls_c/CGRA_Top_C.h) con los parametros de GEMM 2x2 (2x2 PE_MAC,
+// DATA_W=32, VLEN=1, 8 registros, 4 slots de instr_mem, 2 fases). Es
+// literalmente "sacar una CGRA sintetizable especifica del template": toda
+// la FSM de fases, la interfaz de programacion y el wiring de bordes viven
+// en cgra_hls_c/CGRA_Top_C.h -- este archivo solo aporta los tamanos y el
+// unico estado con memoria del diseno (`static GemmMesh_C mesh`, ver el
+// .cpp), que es lo que hace a esta CGRA reprogramable en vez de tener un
+// programa fijo en el hardware: el host sube instrucciones con prog_valid/
+// prog_row/prog_col/prog_slot/prog_instr, y puede disparar start muchas
+// veces (con operandos distintos) sin volver a programar.
 //
-// Por que se puede saltar BOOT_LOAD/BOOT_CLEAR sin cambiar el resultado:
-// esos dos estados solo existian para dejar *algo* cargado en instr_mem
-// antes del primer `start` de un modulo persistente. CLEAR_ACC siempre
-// sobreescribe las 4 direcciones con la instruccion de limpieza sin
-// importar que hubiera antes, y RELOAD vuelve a cargar el programa real en
-// esas mismas 4 direcciones -- por lo que partir de instr_mem vacio
-// (PE_MAC_HLS_C ya lo inicializa a NOP) y arrancar directo en CLEAR_ACC da
-// exactamente el mismo resultado que arrancar en BOOT_LOAD, un ciclo mas
-// tarde.
-//
-// Disciplina de registro preservada de GEMM_2x2_HLS_Top.h: todo lo que la
-// FSM le "presenta" a la malla en un ciclo (reset, carga de instruccion,
-// operandos de borde in_W/in_N) solo se vuelve efectivo para la malla en el
-// ciclo SIGUIENTE -- la malla, dentro de esta misma funcion, es otro bloque
-// de hardware sincrono separado, no una lectura combinacional del mismo
-// ciclo. Se modela con un registro explicito (MeshDrive `curr`/`nxt`, en
-// GEMM_2x2_HLS_Top_C.cpp) que por defecto es "pegajoso" (retiene el valor
-// del ciclo anterior salvo que el estado actual lo sobreescriba), igual que
-// un sc_signal que no recibe write() ese ciclo. Ver GEMM_2x2_HLS_Top.h para
-// la "Nota de temporizacion" original y los mismos casos de prueba en el
-// testbench.
+// Puertos de borde (in_N/in_S/in_W/in_E, out_N/out_S/out_W/out_E) expuestos
+// genericamente, dimensionados por GEMM_ROWS/GEMM_COLS igual que el resto de
+// la malla -- GEMM 2x2 solo usa in_W/in_N como entrada (A por columna oeste,
+// B por fila norte) y out_W/out_E como salida (C), pero in_S/in_E/out_N/
+// out_S quedan expuestos igual (en cero) por fidelidad al template.
 //
 // Declaracion separada de la definicion (en el .cpp) a proposito: Vitis HLS
 // no encuentra un top marcado `inline` ("ERROR: [HLS 214-157] Top function
@@ -47,9 +29,12 @@
 #include "GEMM_2x2_Mesh_C.h"
 
 void GEMM_2x2_HLS_Top_C(
+    bool prog_valid, ap_uint<8> prog_row, ap_uint<8> prog_col, ap_uint<8> prog_slot,
+    GemmInstr_C prog_instr,
     bool start, bool& done,
-    ap_int<32> a00, ap_int<32> a01, ap_int<32> a10, ap_int<32> a11,
-    ap_int<32> b00, ap_int<32> b01, ap_int<32> b10, ap_int<32> b11,
-    ap_int<32>& c00, ap_int<32>& c01, ap_int<32>& c10, ap_int<32>& c11);
+    GemmLink_C in_N[GEMM_NUM_PHASES][GEMM_COLS], GemmLink_C in_S[GEMM_NUM_PHASES][GEMM_COLS],
+    GemmLink_C in_W[GEMM_NUM_PHASES][GEMM_ROWS], GemmLink_C in_E[GEMM_NUM_PHASES][GEMM_ROWS],
+    GemmLink_C out_N[GEMM_COLS], GemmLink_C out_S[GEMM_COLS],
+    GemmLink_C out_W[GEMM_ROWS], GemmLink_C out_E[GEMM_ROWS]);
 
 #endif // GEMM_2X2_HLS_TOP_C_H

@@ -1,7 +1,7 @@
 // GEMM_2x2_Mesh_C.h
 // Transliteracion a C/C++ puro de gemm_hls/GEMM_2x2_Mesh.h: mismo typedef de
 // malla (2x2, 4 PE_MAC) y mismo programa espacial de 4 slots (una fuente de
-// verdad compartida por el top sintetizable), sin SystemC.
+// verdad compartida por el testbench), sin SystemC.
 //
 // Programa espacial (una celda PE_MAC por elemento de salida, 4 slots que se
 // repiten una vez por cada fase k=0,1):
@@ -14,6 +14,12 @@
 //
 // A entra por in_W[fila], B por in_N[columna]; C sale por out_W[fila] (col 0)
 // y out_E[fila] (col 1).
+//
+// gemm_program_c() ya no la carga el top (GEMM_2x2_HLS_Top_C es un wrapper
+// delgado sobre cgra_run<...>, ver cgra_hls_c/CGRA_Top_C.h) -- pasa a ser la
+// tabla que el testbench usa para generar la secuencia de llamadas con
+// prog_valid=true que programan la malla antes de correrla (ver
+// GEMM_2x2_HLS_Top_C__TB.cpp).
 
 #ifndef GEMM_2X2_MESH_C_H
 #define GEMM_2X2_MESH_C_H
@@ -26,6 +32,7 @@ static const int GEMM_DATA_W = 32;
 static const int GEMM_VLEN = 1;
 static const int GEMM_NUM_REGS = 8;
 static const int GEMM_INSTR_MEM_SIZE = 4;
+static const int GEMM_NUM_PHASES = 2;
 
 typedef CGRA_Mesh_Static_C<GEMM_ROWS, GEMM_COLS, GEMM_DATA_W, GEMM_VLEN,
                             GEMM_NUM_REGS, GEMM_INSTR_MEM_SIZE> GemmMesh_C;
