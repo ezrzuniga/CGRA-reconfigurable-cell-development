@@ -165,4 +165,32 @@ inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
     s.pc = (s.pc + 1) % INSTR_MEM_SIZE;
 }
 
+// Overloads genericos usados por la malla heterogenea (mesh_hls_c/
+// CGRA_Mesh_Static_C.h): mismo nombre para las 5 celdas, cada header aporta
+// su propio overload -- la malla conoce el tipo concreto de cada celda en
+// tiempo de compilacion (parameter pack CellTs...), asi que llamar
+// cell_step/cell_program/cell_clear_acc resuelve al overload correcto por
+// sobrecarga normal de C++, sin virtuales ni un trait especializado a mano.
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void cell_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
+                       bool rst, bool enable,
+                       const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
+                       const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
+{
+    pe_mac_step(s, rst, enable, in_N, in_S, in_E, in_W);
+}
+
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void cell_program(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
+                          ap_uint<8> slot, const PE_Instruction<DATA_W>& instr)
+{
+    pe_mac_program(s, slot, instr);
+}
+
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void cell_clear_acc(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s)
+{
+    pe_mac_clear_acc(s);
+}
+
 #endif // PE_MAC_HLS_C_H

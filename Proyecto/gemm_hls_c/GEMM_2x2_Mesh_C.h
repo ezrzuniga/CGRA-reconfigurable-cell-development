@@ -3,6 +3,12 @@
 // malla (2x2, 4 PE_MAC) y mismo programa espacial de 4 slots (una fuente de
 // verdad compartida por el testbench), sin SystemC.
 //
+// GemmMesh_C instancia CGRA_Mesh_Static_C (ya generalizada a heterogenea,
+// ver mesh_hls_c/CGRA_Mesh_Static_C.h) con el mismo tipo de celda (PE_MAC)
+// repetido 4 veces -- un caso homogeneo es simplemente CellTs... con todos
+// los tipos iguales, mismo espiritu que ya probaba mesh_hls/
+// CGRA_Mesh_Static.h en el tier SystemC-HLS.
+//
 // Programa espacial (una celda PE_MAC por elemento de salida, 4 slots que se
 // repiten una vez por cada fase k=0,1):
 //
@@ -24,6 +30,7 @@
 #ifndef GEMM_2X2_MESH_C_H
 #define GEMM_2X2_MESH_C_H
 
+#include "../pe_hls_c/mac/PE_MAC_HLS_C.h"
 #include "../mesh_hls_c/CGRA_Mesh_Static_C.h"
 
 static const int GEMM_ROWS = 2;
@@ -34,11 +41,12 @@ static const int GEMM_NUM_REGS = 8;
 static const int GEMM_INSTR_MEM_SIZE = 4;
 static const int GEMM_NUM_PHASES = 2;
 
+typedef PE_MAC_State<GEMM_DATA_W, GEMM_VLEN, GEMM_NUM_REGS, GEMM_INSTR_MEM_SIZE> GemmCell_C;
+
 typedef CGRA_Mesh_Static_C<GEMM_ROWS, GEMM_COLS, GEMM_DATA_W, GEMM_VLEN,
-                            GEMM_NUM_REGS, GEMM_INSTR_MEM_SIZE> GemmMesh_C;
-typedef GemmMesh_C::Link    GemmLink_C;
-typedef GemmMesh_C::Instr   GemmInstr_C;
-typedef GemmMesh_C::InstrIn GemmInstrIn_C;
+                            GemmCell_C, GemmCell_C, GemmCell_C, GemmCell_C> GemmMesh_C;
+typedef GemmMesh_C::Link  GemmLink_C;
+typedef GemmMesh_C::Instr GemmInstr_C;
 
 inline GemmInstr_C gemm_mac_instr_c(ap_uint<3> src_a, ap_uint<3> src_b, ap_uint<3> dst) {
     GemmInstr_C i;

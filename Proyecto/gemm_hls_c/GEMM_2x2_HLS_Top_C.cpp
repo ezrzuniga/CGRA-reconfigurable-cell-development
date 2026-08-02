@@ -18,8 +18,9 @@ void GEMM_2x2_HLS_Top_C(
 {
     static GemmMesh_C mesh; // unico estado con memoria del diseno -- persiste entre llamadas
 
-    cgra_run<GEMM_ROWS, GEMM_COLS, GEMM_DATA_W, GEMM_VLEN, GEMM_NUM_REGS,
-             GEMM_INSTR_MEM_SIZE, GEMM_NUM_PHASES>(
+    // CellTs... (GemmCell_C x4) se deduce del tipo de `mesh`, no hace falta
+    // especificarlo explicitamente.
+    cgra_run<GEMM_ROWS, GEMM_COLS, GEMM_DATA_W, GEMM_VLEN, GEMM_INSTR_MEM_SIZE, GEMM_NUM_PHASES>(
         mesh, prog_valid, prog_row, prog_col, prog_slot, prog_instr, start, done,
         in_N, in_S, in_W, in_E, out_N, out_S, out_W, out_E);
 }

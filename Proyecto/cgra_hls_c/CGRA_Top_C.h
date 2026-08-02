@@ -87,9 +87,15 @@ inline void present_phase(
 
 } // namespace cgra_hls_c_detail
 
-template <int ROWS, int COLS, int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE, int NUM_PHASES>
+// INSTR_MEM_SIZE queda como parametro explicito de cgra_run (no se puede
+// deducir de CellTs...): es "cuantos ciclos dura una fase" para TODAS las
+// celdas de la malla por igual -- una suposicion simplificadora razonable
+// (incluso para celdas sin instr_mem propio, como routing/memoria, que no
+// tienen un concepto de "una pasada" en el mismo sentido, pero igual
+// necesitan que la FSM generica sepa un unico numero de ciclos por fase).
+template <int ROWS, int COLS, int DATA_W, int VLEN, int INSTR_MEM_SIZE, int NUM_PHASES, typename... CellTs>
 void cgra_run(
-    CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& mesh,
+    CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, CellTs...>& mesh,
     bool prog_valid, ap_uint<8> prog_row, ap_uint<8> prog_col, ap_uint<8> prog_slot,
     const PE_Instruction<DATA_W>& prog_instr,
     bool start, bool& done,
@@ -165,19 +171,31 @@ cgra_cycle_loop:
                 state = ST_DONE;
                 break;
 
-            case ST_DONE:
+            case ST_DONE: {
+                // mesh.pe es un std::tuple heterogeneo -- no se puede indexar
+                // [r][c] en runtime. mesh_read_outputs() vuelca las salidas de
+                // las ROWS*COLS celdas (desenrollado en tiempo de compilacion,
+                // ver CGRA_Mesh_Static_C.h) en arreglos Link[ROWS][COLS]
+                // homogeneos, que si se pueden indexar en runtime como
+                // cualquier arreglo comun.
+                typedef PE_VectorData<DATA_W, VLEN> Link;
+                Link all_out_N[ROWS][COLS], all_out_S[ROWS][COLS];
+                Link all_out_E[ROWS][COLS], all_out_W[ROWS][COLS];
+                mesh_read_outputs(mesh, all_out_N, all_out_S, all_out_E, all_out_W);
+
                 for (int c = 0; c < COLS; c++) {
 #pragma HLS UNROLL
-                    out_N[c] = mesh.pe[0][c].out_N;
-                    out_S[c] = mesh.pe[ROWS - 1][c].out_S;
+                    out_N[c] = all_out_N[0][c];
+                    out_S[c] = all_out_S[ROWS - 1][c];
                 }
                 for (int r = 0; r < ROWS; r++) {
 #pragma HLS UNROLL
-                    out_W[r] = mesh.pe[r][0].out_W;
-                    out_E[r] = mesh.pe[r][COLS - 1].out_E;
+                    out_W[r] = all_out_W[r][0];
+                    out_E[r] = all_out_E[r][COLS - 1];
                 }
                 done = true;
                 return;
+            }
         }
 
         curr = nxt;
