@@ -1,0 +1,220 @@
+% Standalone TikZ diagram — can be \input{} from the main document
+% Requires: \usepackage{tikz}
+%           \usetikzlibrary{positioning, fit, arrows.meta, calc, patterns, decorations.pathreplacing}
+
+\begin{tikzpicture}[
+    >=Stealth,
+    font=\footnotesize,
+    % Cell styles
+    cellbox/.style={draw, thick, rounded corners=3pt, minimum width=5.8cm, minimum height=5.2cm, anchor=north west},
+    % Sub-block styles
+    subblock/.style={draw, fill=#1, rounded corners=2pt, minimum width=2.2cm, minimum height=0.55cm, align=center, font=\scriptsize},
+    subblock/.default={blue!8},
+    fifo/.style={draw, fill=orange!15, rounded corners=1pt, minimum width=0.9cm, minimum height=0.4cm, font=\tiny, align=center},
+    regfile/.style={draw, fill=green!10, rounded corners=1pt, minimum width=1.6cm, minimum height=0.4cm, font=\tiny, align=center},
+    port/.style={draw, fill=gray!20, circle, inner sep=1.5pt, font=\tiny},
+    % Arrow styles
+    noc/.style={->, thick, blue!60!black},
+    nocbi/.style={<->, thick, blue!60!black},
+    data/.style={->, semithick, black!70},
+    config/.style={->, dashed, red!60!black, semithick},
+    % Label styles
+    celllabel/.style={font=\small\bfseries, fill=white, inner sep=2pt},
+    seclabel/.style={font=\scriptsize\itshape, text=gray!70!black},
+  ]
+
+  % ============================================================
+  % CELL POSITIONS  (2x2 grid)
+  % ============================================================
+  \def\cellw{6.2}   % horizontal spacing
+  \def\cellh{5.6}   % vertical spacing
+
+  % --- (0,0) TOP-LEFT: Routing Cell ---
+  \coordinate (RC) at (0,0);
+  % --- (1,0) TOP-RIGHT: Memory Cell ---
+  \coordinate (MC) at (\cellw,0);
+  % --- (0,1) BOTTOM-LEFT: Scalar Cell ---
+  \coordinate (SC) at (0,-\cellh);
+  % --- (1,1) BOTTOM-RIGHT: Vector Cell ---
+  \coordinate (VC) at (\cellw,-\cellh);
+
+  % ============================================================
+  % ROUTING CELL (top-left)
+  % ============================================================
+  \node[cellbox, fill=orange!4] (rcbox) at (RC) {};
+  \node[celllabel] at ([yshift=-0.35cm]rcbox.north) {Celda de Enrutamiento};
+
+  % FIFOs
+  \node[fifo] (fifo_n) at ([yshift=-1.1cm]rcbox.north) {FIFO N};
+  \node[fifo] (fifo_s) at ([yshift=0.7cm]rcbox.south) {FIFO S};
+  \node[fifo] (fifo_w) at ([xshift=0.7cm, yshift=-2.6cm]rcbox.north west) {FIFO W};
+  \node[fifo] (fifo_e) at ([xshift=-0.7cm, yshift=-2.6cm]rcbox.north east) {FIFO E};
+
+  % Crossbar
+  \node[subblock=orange!15, minimum width=2.8cm, minimum height=1.0cm] (xbar) at ([yshift=-2.6cm]rcbox.north) {Crossbar $4\!\times\!4$\\configurable};
+
+  % Credit controller
+  \node[subblock=yellow!15, minimum width=2.4cm] (cred_rc) at ([yshift=1.3cm]rcbox.south) {Control de Créditos};
+
+  % Context register
+  \node[regfile, minimum width=2.4cm] (ctx_rc) at ([yshift=-1.7cm, xshift=0cm]rcbox.north) {4 Contextos Config};
+
+  % Internal arrows
+  \draw[data] (fifo_n) -- (xbar);
+  \draw[data] (fifo_w) -- (xbar);
+  \draw[data] (fifo_e) -- (xbar);
+  \draw[data] (xbar) -- (fifo_s);
+  \draw[data] (cred_rc) -- (xbar);
+
+  % ============================================================
+  % MEMORY CELL (top-right)
+  % ============================================================
+  \node[cellbox, fill=green!4] (mcbox) at (MC) {};
+  \node[celllabel] at ([yshift=-0.35cm]mcbox.north) {Celda de Memoria};
+
+  % SRAM bank
+  \node[subblock=green!18, minimum width=3.2cm, minimum height=1.0cm] (sram) at ([yshift=-1.5cm]mcbox.north) {Banco SRAM\\Dual-Port 1--4\,KB};
+
+  % Access controller
+  \node[subblock=green!10, minimum width=2.6cm] (accctrl) at ([yshift=-2.7cm]mcbox.north) {Controlador de Acceso\\(directo / stride)};
+
+  % DMA
+  \node[subblock=teal!12, minimum width=2.2cm] (dma_mc) at ([yshift=-3.6cm]mcbox.north) {DMA Local};
+
+  % NoC interface
+  \node[subblock=blue!10, minimum width=2.2cm] (noc_mc) at ([yshift=0.7cm]mcbox.south) {Interfaz NoC\\(créditos 32\,b)};
+
+  % Context register
+  \node[regfile, minimum width=2.0cm] (ctx_mc) at ([yshift=1.5cm]mcbox.south) {4 Contextos};
+
+  % Internal arrows
+  \draw[data] (sram) -- (accctrl);
+  \draw[<->, semithick] (accctrl) -- (dma_mc);
+  \draw[<->, semithick] (dma_mc) -- (noc_mc);
+  \draw[data] (ctx_mc) -- (accctrl);
+
+  % ============================================================
+  % SCALAR PROCESSING CELL (bottom-left)
+  % ============================================================
+  \node[cellbox, fill=blue!4] (scbox) at (SC) {};
+  \node[celllabel] at ([yshift=-0.35cm]scbox.north) {Celda Escalar};
+
+  % ALU
+  \node[subblock=blue!15, minimum width=3.4cm, minimum height=0.9cm] (alu) at ([yshift=-1.4cm]scbox.north) {ALU Multi-Precisión\\int8 / int16 / int32};
+
+  % Register file
+  \node[regfile, minimum width=2.6cm] (rf_sc) at ([yshift=-2.5cm]scbox.north) {Banco Reg. 16$\times$32\,b};
+
+  % HW loop
+  \node[subblock=cyan!12, minimum width=2.6cm] (hwloop) at ([yshift=-3.3cm]scbox.north) {Bucle HW\\(contador + predicación)};
+
+  % Context register
+  \node[regfile, minimum width=2.0cm] (ctx_sc) at ([yshift=-4.1cm]scbox.north) {4 Contextos Config};
+
+  % NoC interface
+  \node[subblock=blue!10, minimum width=2.2cm] (noc_sc) at ([yshift=0.7cm]scbox.south) {Interfaz NoC\\(créditos 32\,b)};
+
+  % Internal arrows
+  \draw[data] (rf_sc) -- (alu);
+  \draw[data] (hwloop) -- (alu);
+  \draw[data] (ctx_sc) -- (alu);
+  \draw[<->, semithick] (noc_sc) -- (rf_sc);
+
+  % ============================================================
+  % VECTOR PROCESSING CELL (bottom-right)
+  % ============================================================
+  \node[cellbox, fill=purple!4] (vcbox) at (VC) {};
+  \node[celllabel] at ([yshift=-0.35cm]vcbox.north) {Celda Vectorial};
+
+  % VALU
+  \node[subblock=purple!15, minimum width=3.4cm, minimum height=0.9cm] (valu) at ([yshift=-1.4cm]vcbox.north) {VALU SIMD float32\\4--8 lanes (MAC)};
+
+  % Vector register file
+  \node[regfile, minimum width=2.6cm] (vrf) at ([yshift=-2.5cm]vcbox.north) {8 Reg. Vectoriales\\128--256\,b};
+
+  % Load/Store unit
+  \node[subblock=purple!10, minimum width=2.6cm] (vls) at ([yshift=-3.3cm]vcbox.north) {Load/Store Vectorial\\(contiguo / strided)};
+
+  % Context register
+  \node[regfile, minimum width=2.0cm] (ctx_vc) at ([yshift=-4.1cm]vcbox.north) {4 Contextos Config};
+
+  % NoC interface
+  \node[subblock=blue!10, minimum width=2.2cm] (noc_vc) at ([yshift=0.7cm]vcbox.south) {Interfaz NoC\\(32/128\,b ráfaga)};
+
+  % Internal arrows
+  \draw[data] (vrf) -- (valu);
+  \draw[data] (vls) -- (vrf);
+  \draw[data] (ctx_vc) -- (valu);
+  \draw[<->, semithick] (noc_vc) -- (vls);
+
+  % ============================================================
+  % NoC LINKS (mesh interconnect between cells)
+  % ============================================================
+  % Horizontal top: RC <-> MC
+  \draw[nocbi, line width=1.8pt] ([xshift=0.15cm]rcbox.east |- fifo_e) -- node[above, font=\tiny, text=blue!60!black] {32\,b} ([xshift=-0.15cm]mcbox.west |- fifo_e);
+
+  % Horizontal bottom: SC <-> VC
+  \draw[nocbi, line width=1.8pt] ([xshift=0.15cm]scbox.east |- noc_sc) -- node[above, font=\tiny, text=blue!60!black] {32\,b} ([xshift=-0.15cm]vcbox.west |- noc_vc);
+
+  % Vertical left: RC <-> SC
+  \draw[nocbi, line width=1.8pt] ([yshift=-0.15cm]rcbox.south -| fifo_s) -- node[left, font=\tiny, text=blue!60!black, rotate=90, anchor=south] {32\,b} ([yshift=0.15cm]scbox.north -| fifo_s);
+
+  % Vertical right: MC <-> VC
+  \draw[nocbi, line width=1.8pt] ([yshift=-0.15cm]mcbox.south -| noc_mc) -- node[right, font=\tiny, text=blue!60!black, rotate=90, anchor=north] {32\,b} ([yshift=0.15cm]vcbox.north -| noc_vc);
+
+  % NoC link labels
+  \node[font=\tiny\bfseries, text=blue!50!black, rotate=90] at ([xshift=-0.6cm]$(rcbox.south west)!0.5!(scbox.north west)$) {NoC Malla};
+
+  % ============================================================
+  % RISC-V HOST INTERFACE (left side)
+  % ============================================================
+  % CSR/DMA Bridge
+  \node[draw, thick, fill=red!8, rounded corners=4pt, minimum width=2.4cm, minimum height=3.0cm, align=center, font=\scriptsize]
+    (bridge) at (-3.5, -\cellh/2)
+    {Puente\\CSR / DMA\\[3pt]
+     \texttt{cgra\_config}\\
+     \texttt{cgra\_start}\\
+     \texttt{cgra\_wait}\\
+     \texttt{cgra\_read}};
+
+  \node[celllabel, above=0.1cm of bridge] {Interfaz RISC-V};
+
+  % RISC-V Processor
+  \node[draw, very thick, fill=red!15, rounded corners=6pt, minimum width=2.4cm, minimum height=1.6cm, align=center, font=\small]
+    (riscv) at (-3.5, -\cellh/2 - 3.5)
+    {\textbf{RISC-V}\\RV32IMAF\\Core};
+
+  % Memory
+  \node[draw, thick, fill=gray!15, rounded corners=4pt, minimum width=2.0cm, minimum height=1.0cm, align=center, font=\scriptsize]
+    (mainmem) at (-3.5, -\cellh/2 + 3.2)
+    {Memoria\\Principal};
+
+  % Connections bridge <-> cells
+  \draw[config, line width=1.2pt] (bridge.east) -- node[above, font=\tiny, text=red!60!black] {CSR} ([xshift=-0.15cm]rcbox.west |- bridge);
+  \draw[config, line width=1.2pt] (bridge.east |- scbox.west) -- node[above, font=\tiny, text=red!60!black] {CSR} ([xshift=-0.15cm]scbox.west |- bridge);
+
+  % RISC-V <-> Bridge
+  \draw[<->, very thick, red!40!black] (riscv.north) -- node[right, font=\tiny] {Bus} (bridge.south);
+
+  % Memory <-> Bridge
+  \draw[<->, thick, gray!60!black] (mainmem.south) -- node[right, font=\tiny] {DMA} (bridge.north);
+
+  % ============================================================
+  % ANNOTATIONS & LEGEND
+  % ============================================================
+  % Brace for the 2x2 array
+  \draw[decorate, decoration={brace, amplitude=8pt, mirror}, thick, gray]
+    ([xshift=0.3cm]mcbox.north east) -- ([xshift=0.3cm]vcbox.south east)
+    node[midway, right=10pt, align=center, font=\footnotesize\bfseries, text=gray!70!black] {Arreglo\\CGRA\\$2\!\times\!2$};
+
+  % Legend box
+  \node[draw, rounded corners=3pt, fill=white, inner sep=5pt, font=\tiny, align=left]
+    (legend) at ([yshift=-1.2cm]$(scbox.south)!0.5!(vcbox.south)$)
+    {%
+      \textbf{Leyenda:}\\[2pt]
+      \tikz[baseline=-0.5ex]\draw[nocbi, line width=1.5pt] (0,0) -- (0.7,0); \ Enlace NoC bidireccional (créditos)\\
+      \tikz[baseline=-0.5ex]\draw[config, line width=1pt] (0,0) -- (0.7,0); \ Bus de configuración CSR\\
+      \tikz[baseline=-0.5ex]\draw[data] (0,0) -- (0.7,0); \ Flujo de datos interno
+    };
+
+\end{tikzpicture}

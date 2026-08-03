@@ -1,0 +1,5 @@
+add_executable(CGRA_Mesh_Static_2x2_Heterogeneous_Test__TB CGRA_Mesh_Static_2x2_Heterogeneous_Test__TB.cpp)
+target_include_directories(CGRA_Mesh_Static_2x2_Heterogeneous_Test__TB PRIVATE
+  "${SYSTEMC_INCLUDE_DIR}"
+)
+target_link_libraries(CGRA_Mesh_Static_2x2_Heterogeneous_Test__TB PRIVATE "${SYSTEMC_LIBRARY}")

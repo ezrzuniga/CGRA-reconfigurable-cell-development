@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 0 1540 1085" font-family="sans-serif">
+<rect x="-40" y="0" width="1540" height="1085" fill="#ffffff"/>
+<defs>
+  <marker id="arrEnd" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#7c3aed"/>
+  </marker>
+  <marker id="arrStart" markerWidth="10" markerHeight="10" refX="2" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M8,0 L0,3 L8,6 Z" fill="#7c3aed"/>
+  </marker>
+  <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/>
+  </marker>
+  <marker id="arrGray" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L7,2.5 L0,5 Z" fill="#6b7280"/>
+  </marker>
+</defs>
+
+<text x="750" y="28" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2937">CGRA C/HLS reprogramable -- arquitectura de GEMM_2x2_HLS_Top_C</text>
+<text x="750" y="48" text-anchor="middle" font-size="12" fill="#6b7280">gemm_hls_c (aplicacion concreta) sobre cgra_hls_c (template generico, nuevo) sobre mesh_hls_c + pe_hls_c (IP existente)</text>
+
+<g transform="translate(0,25)">
+<!-- ============ Outer box: gemm_hls_c ============ -->
+<rect x="30" y="70" width="950" height="920" rx="16" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
+<text x="52" y="96" font-size="17" font-weight="700" fill="#991b1b">GEMM_2x2_HLS_Top_C</text>
+<text x="52" y="113" font-size="11" fill="#991b1b">gemm_hls_c/GEMM_2x2_HLS_Top_C.h + .cpp -- wrapper delgado (~25 lineas)</text>
+
+<!-- static mesh (persistent state) -->
+<rect x="55" y="128" width="900" height="46" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+<text x="505" y="147" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="13" font-weight="700" fill="#334155">static GemmMesh_C mesh;</text>
+<text x="505" y="164" text-anchor="middle" font-size="10.5" fill="#64748b">unico estado con memoria del diseno -- persiste entre invocaciones separadas del top</text>
+
+<!-- ============ cgra_run box: cgra_hls_c (template generico, NUEVO) ============ -->
+<rect x="55" y="188" width="900" height="778" rx="14" fill="#f0fdfa" stroke="#0d9488" stroke-width="2.5"/>
+<text x="75" y="214" font-size="15" font-weight="700" fill="#0f766e">cgra_run&lt;2,2,32,1,8,4,2&gt;</text>
+<text x="75" y="231" font-size="11" fill="#0f766e">cgra_hls_c/CGRA_Top_C.h -- template generico: ROWS,COLS,DATA_W,VLEN,NUM_REGS,INSTR_MEM_SIZE,NUM_PHASES</text>
+
+<!-- control path A: programar -->
+<rect x="75" y="248" width="420" height="70" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+<text x="285" y="269" text-anchor="middle" font-size="13" font-weight="700" fill="#0f766e">prog_valid = true</text>
+<text x="285" y="287" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="9.5" fill="#134e4a">mesh_program(prog_row, prog_col,</text>
+<text x="285" y="299" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="9.5" fill="#134e4a">prog_slot, prog_instr)</text>
+<text x="285" y="313" text-anchor="middle" font-size="9.5" fill="#0f766e">-&gt; done=true inmediato (poke, 1 instruccion)</text>
+
+<!-- control path B: correr -->
+<rect x="515" y="248" width="420" height="70" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+<text x="725" y="269" text-anchor="middle" font-size="13" font-weight="700" fill="#0f766e">start = true</text>
+<text x="725" y="288" text-anchor="middle" font-size="9.5" fill="#134e4a">FSM: REALIGN -&gt; PHASE_RUN (fase 0..NUM_PHASES-1)</text>
+<text x="725" y="301" text-anchor="middle" font-size="9.5" fill="#134e4a">-&gt; WAIT_DONE -&gt; DONE</text>
+<text x="725" y="315" text-anchor="middle" font-size="9.5" fill="#0f766e">usa el programa YA RESIDENTE en instr_mem</text>
+
+<text x="505" y="334" text-anchor="middle" font-size="10" font-style="italic" fill="#6b7280">mutuamente excluyentes por llamada -- contrato de uso, no impuesto en hardware</text>
+
+<text x="505" y="353" text-anchor="middle" font-size="13" font-weight="700" fill="#7c3aed">N</text>
+
+<!-- ============ mesh box: mesh_hls_c + pe_hls_c (IP existente) ============ -->
+<rect x="95" y="360" width="820" height="580" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="505" y="386" text-anchor="middle" font-size="14" font-weight="700" fill="#5b21b6">CGRA_Mesh_Static_C&lt;2,2,32,1,8,4&gt;</text>
+<text x="505" y="403" text-anchor="middle" font-size="10.5" fill="#5b21b6">mesh_hls_c/CGRA_Mesh_Static_C.h -- mesh_step / mesh_program / mesh_clear_acc</text>
+<text x="505" y="419" text-anchor="middle" font-size="10.5" fill="#5b21b6">celdas: pe_hls_c/mac/PE_MAC_HLS_C.h -- pe_mac_step / pe_mac_program / pe_mac_clear_acc</text>
+
+<text x="75" y="654" text-anchor="middle" font-size="13" font-weight="700" fill="#7c3aed">W</text>
+<text x="935" y="654" text-anchor="middle" font-size="13" font-weight="700" fill="#7c3aed">E</text>
+
+<!-- PE cells -->
+<rect x="185" y="440" width="260" height="170" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="315" y="465" text-anchor="middle" font-size="13" font-weight="700" fill="#4c1d95">P00 : PE_MAC</text>
+<text x="315" y="486" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">instr_mem[4]</text>
+<text x="315" y="503" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">reg_file[8]</text>
+<text x="315" y="520" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">acc</text>
+<text x="315" y="540" text-anchor="middle" font-size="9.5" fill="#4c1d95">out_N/S/E/W registrados</text>
+
+<rect x="565" y="440" width="260" height="170" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="695" y="465" text-anchor="middle" font-size="13" font-weight="700" fill="#4c1d95">P01 : PE_MAC</text>
+<text x="695" y="486" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">instr_mem[4]</text>
+<text x="695" y="503" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">reg_file[8]</text>
+<text x="695" y="520" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">acc</text>
+<text x="695" y="540" text-anchor="middle" font-size="9.5" fill="#4c1d95">out_N/S/E/W registrados</text>
+
+<rect x="185" y="690" width="260" height="170" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="315" y="715" text-anchor="middle" font-size="13" font-weight="700" fill="#4c1d95">P10 : PE_MAC</text>
+<text x="315" y="736" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">instr_mem[4]</text>
+<text x="315" y="753" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">reg_file[8]</text>
+<text x="315" y="770" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">acc</text>
+<text x="315" y="790" text-anchor="middle" font-size="9.5" fill="#4c1d95">out_N/S/E/W registrados</text>
+
+<rect x="565" y="690" width="260" height="170" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="695" y="715" text-anchor="middle" font-size="13" font-weight="700" fill="#4c1d95">P11 : PE_MAC</text>
+<text x="695" y="736" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">instr_mem[4]</text>
+<text x="695" y="753" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">reg_file[8]</text>
+<text x="695" y="770" text-anchor="middle" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#4c1d95">acc</text>
+<text x="695" y="790" text-anchor="middle" font-size="9.5" fill="#4c1d95">out_N/S/E/W registrados</text>
+
+<!-- internal N/S/E/W wiring between neighbouring cells -->
+<line x1="445" y1="525" x2="565" y2="525" stroke="#7c3aed" stroke-width="2.5" marker-start="url(#arrStart)" marker-end="url(#arrEnd)"/>
+<text x="505" y="518" text-anchor="middle" font-size="9.5" fill="#5b21b6">E / W</text>
+<line x1="445" y1="775" x2="565" y2="775" stroke="#7c3aed" stroke-width="2.5" marker-start="url(#arrStart)" marker-end="url(#arrEnd)"/>
+<text x="505" y="768" text-anchor="middle" font-size="9.5" fill="#5b21b6">E / W</text>
+<line x1="315" y1="610" x2="315" y2="690" stroke="#7c3aed" stroke-width="2.5" marker-start="url(#arrStart)" marker-end="url(#arrEnd)"/>
+<text x="322" y="654" font-size="9.5" fill="#5b21b6">N / S</text>
+<line x1="695" y1="610" x2="695" y2="690" stroke="#7c3aed" stroke-width="2.5" marker-start="url(#arrStart)" marker-end="url(#arrEnd)"/>
+<text x="702" y="654" font-size="9.5" fill="#5b21b6">N / S</text>
+
+<text x="505" y="900" text-anchor="middle" font-size="10.5" font-style="italic" fill="#5b21b6">dataflow sistolico: A entra por in_W y fluye al este; B entra por in_N y fluye al sur;</text>
+<text x="505" y="916" text-anchor="middle" font-size="10.5" font-style="italic" fill="#5b21b6">cada celda acumula MAC(oeste,norte)-&gt;acc a lo largo de las NUM_PHASES fases</text>
+
+<text x="505" y="955" text-anchor="middle" font-size="13" font-weight="700" fill="#7c3aed">S</text>
+
+<!-- ============ start/done/prog stubs crossing the outer boundary (drawn last so they sit on top) ============ -->
+<line x1="700" y1="50" x2="700" y2="70" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrBlue)"/>
+<text x="700" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8">start</text>
+<line x1="760" y1="70" x2="760" y2="50" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrBlue)"/>
+<text x="760" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8">done</text>
+<line x1="5" y1="283" x2="75" y2="283" stroke="#6b7280" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrGray)"/>
+<text x="26" y="274" text-anchor="end" font-size="10.5" font-weight="700" fill="#475569">config</text>
+
+<!-- ============ Right column: port table ============ -->
+<text x="1240" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#1f2937">Puertos de GEMM_2x2_HLS_Top_C</text>
+<text x="1240" y="113" text-anchor="middle" font-size="10.5" fill="#6b7280">bordes dimensionados por ROWS/COLS -- expuestos siempre, aunque GEMM no use todos</text>
+
+<!-- start -->
+<rect x="1000" y="130" width="480" height="68" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+<text x="1016" y="153" font-family="Consolas, Menlo, monospace" font-size="12.5" font-weight="700" fill="#1d4ed8">start : bool (in)</text>
+<text x="1016" y="171" font-size="10" fill="#1e3a8a">control -- pulso que dispara una corrida completa</text>
+<text x="1016" y="187" font-size="10" fill="#1e3a8a">(FSM entera en una sola invocacion)</text>
+
+<!-- done -->
+<rect x="1000" y="206" width="480" height="68" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+<text x="1016" y="229" font-family="Consolas, Menlo, monospace" font-size="12.5" font-weight="700" fill="#1d4ed8">done : bool&amp; (out)</text>
+<text x="1016" y="247" font-size="10" fill="#1e3a8a">control -- se activa al terminar una programacion</text>
+<text x="1016" y="263" font-size="10" fill="#1e3a8a">(prog_valid) o una corrida (start)</text>
+
+<!-- prog group -->
+<rect x="1000" y="282" width="480" height="68" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5,3"/>
+<text x="1016" y="305" font-family="Consolas, Menlo, monospace" font-size="11.5" font-weight="700" fill="#334155">prog_valid, prog_row, prog_col,</text>
+<text x="1016" y="320" font-family="Consolas, Menlo, monospace" font-size="11.5" font-weight="700" fill="#334155">prog_slot, prog_instr (in)</text>
+<text x="1016" y="337" font-size="10" fill="#475569">canal de configuracion -- sube 1 instruccion a la PE</text>
+<text x="1016" y="345" font-size="9" fill="#475569">indicada, escribe instr_mem persistente (mesh_program)</text>
+
+<!-- in_N -->
+<rect x="1000" y="358" width="480" height="68" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1016" y="381" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#5b21b6">in_N[fase][col] (2) -- borde N, in</text>
+<text x="1016" y="399" font-size="10" fill="#5b21b6">USADO: operando B (fila `fase` de B), (2)</text>
+<text x="1016" y="415" font-size="10" fill="#5b21b6">valores, uno para cada fase de GEMM</text>
+
+<!-- in_S -->
+<rect x="1000" y="434" width="480" height="68" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="1016" y="457" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#64748b">in_S[fase][col] (2) -- borde S, in</text>
+<text x="1016" y="475" font-size="10" fill="#64748b">sin usar en GEMM 2x2 -- expuesto en cero</text>
+<text x="1016" y="491" font-size="10" fill="#64748b">por fidelidad al template generico</text>
+
+<!-- in_W -->
+<rect x="1000" y="510" width="480" height="68" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1016" y="533" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#5b21b6">in_W[fase][fila] (2) -- borde W, in</text>
+<text x="1016" y="551" font-size="10" fill="#5b21b6">USADO: operando A (columna `fase` de A), (2)</text>
+<text x="1016" y="567" font-size="10" fill="#5b21b6">valores, uno para cada fase de GEMM</text>
+
+<!-- in_E -->
+<rect x="1000" y="586" width="480" height="68" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="1016" y="609" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#64748b">in_E[fase][fila] (2) -- borde E, in</text>
+<text x="1016" y="627" font-size="10" fill="#64748b">sin usar en GEMM 2x2 -- expuesto en cero</text>
+<text x="1016" y="643" font-size="10" fill="#64748b">por fidelidad al template generico</text>
+
+<!-- out_N -->
+<rect x="1000" y="662" width="480" height="68" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="1016" y="685" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#64748b">out_N[col] (2) -- borde N, out</text>
+<text x="1016" y="703" font-size="10" fill="#64748b">sin usar en GEMM 2x2 -- expuesto en cero</text>
+<text x="1016" y="719" font-size="10" fill="#64748b">por fidelidad al template generico</text>
+
+<!-- out_S -->
+<rect x="1000" y="738" width="480" height="68" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="1016" y="761" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#64748b">out_S[col] (2) -- borde S, out</text>
+<text x="1016" y="779" font-size="10" fill="#64748b">sin usar en GEMM 2x2 -- expuesto en cero</text>
+<text x="1016" y="795" font-size="10" fill="#64748b">por fidelidad al template generico</text>
+
+<!-- out_W -->
+<rect x="1000" y="814" width="480" height="68" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1016" y="837" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#5b21b6">out_W[fila] (2) -- borde W, out</text>
+<text x="1016" y="855" font-size="10" fill="#5b21b6">USADO: C[fila][0] -- resultado de la columna 0</text>
+
+<!-- out_E -->
+<rect x="1000" y="890" width="480" height="68" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1016" y="913" font-family="Consolas, Menlo, monospace" font-size="12" font-weight="700" fill="#5b21b6">out_E[fila] (2) -- borde E, out</text>
+<text x="1016" y="931" font-size="10" fill="#5b21b6">USADO: C[fila][1] -- resultado de la columna 1</text>
+
+<!-- ============ Legend ============ -->
+<rect x="30" y="1010" width="20" height="16" rx="3" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+<text x="56" y="1022" font-size="12" fill="#1f2937">gemm_hls_c (aplicacion)</text>
+
+<rect x="240" y="1010" width="20" height="16" rx="3" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+<text x="266" y="1022" font-size="12" fill="#1f2937">cgra_hls_c (template generico, nuevo)</text>
+
+<rect x="520" y="1010" width="20" height="16" rx="3" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="546" y="1022" font-size="12" fill="#1f2937">mesh_hls_c + pe_hls_c (IP existente)</text>
+
+<rect x="800" y="1010" width="20" height="16" rx="3" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+<text x="826" y="1022" font-size="12" fill="#1f2937">puerto sin usar en GEMM (expuesto en 0)</text>
+
+<line x1="1130" y1="1018" x2="1164" y2="1018" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrBlue)"/>
+<text x="1172" y="1022" font-size="12" fill="#1f2937">control (start/done)</text>
+
+<line x1="30" y1="1042" x2="64" y2="1042" stroke="#6b7280" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrGray)"/>
+<text x="72" y="1046" font-size="12" fill="#1f2937">canal de configuracion (prog_*)</text>
+
+<line x1="340" y1="1042" x2="374" y2="1042" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arrEnd)"/>
+<text x="382" y="1046" font-size="12" fill="#1f2937">dataflow real / wiring N-S-E-W</text>
+</g>
+
+</svg>
