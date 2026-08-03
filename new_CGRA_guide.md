@@ -3,7 +3,7 @@
 Esta es una guía paso a paso para alguien que quiere **construir una aplicación nueva**
 sobre las piezas de este repositorio: elegir qué celdas usar, armar la malla, escribir el
 "programa espacial" que corre sobre ella, y llevarlo hasta un proyecto de Vitis HLS real.
-Está escrita sobre el tier **C/HLS** (`Proyecto/*_hls_c/`, `Proyecto_HLS/`), que es el que
+Está escrita sobre el tier **C/HLS** (`Proyecto_C/*_hls_c/`, `Proyecto_HLS/`), que es el que
 efectivamente sintetiza (ver `project.md`, sección 3.1, para por qué el tier SystemC no
 sirve como entrada de síntesis).
 
@@ -79,7 +79,7 @@ wiring que importan al elegir el layout:
 
 ### Paso 2 — Los typedefs de celda y de malla
 
-Un archivo nuevo (p. ej. `Proyecto/mi_app_hls_c/MiApp_Mesh_C.h`), mismo patrón que
+Un archivo nuevo (p. ej. `Proyecto_C/mi_app_hls_c/MiApp_Mesh_C.h`), mismo patrón que
 `gemm_hls_c/GEMM_2x2_Mesh_C.h` o `cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C.h`:
 
 ```cpp
@@ -295,14 +295,14 @@ y los 2 `add_files` (unidad de traducción del diseño + testbench):
 
 ```tcl
 add_files mi_app_top_c.cpp -cflags "-std=c++17"
-add_files -tb ../../Proyecto/mi_app_hls_c/MiApp_Top__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
+add_files -tb ../../Proyecto_C/mi_app_hls_c/MiApp_Top__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
 ```
 
 `mi_app_top_c.cpp` es una unidad de traducción mínima que solo incluye tu `.cpp` real
 (mismo patrón que `cgra_hetero_2x2_top_c.cpp`):
 
 ```cpp
-#include "../../Proyecto/mi_app_hls_c/MiApp_Top.cpp"
+#include "../../Proyecto_C/mi_app_hls_c/MiApp_Top.cpp"
 ```
 
 ### Paso 7 — Validar, en este orden

@@ -10,9 +10,9 @@
 # Vitis HLS 2024.1, flujo unificado, rechaza cualquier top escrito como
 # sc_module). Sintetiza la misma CGRA real -- GEMM_2x2_HLS_Top_C instancia
 # CGRA_Mesh_Static_C<2,2,32,1, 4 celdas PE_MAC> sin modificarla
-# (../../Proyecto/mesh_hls_c, ../../Proyecto/pe_hls_c) -- pero sin
+# (../../Proyecto_C/mesh_hls_c, ../../Proyecto_C/pe_hls_c) -- pero sin
 # sc_module/puertos/sc_signal: la FSM corre completa en una sola invocacion
-# de la funcion top. Ver ../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C.h para
+# de la funcion top. Ver ../../Proyecto_C/gemm_hls_c/GEMM_2x2_HLS_Top_C.h para
 # el diseno completo y el README de esta carpeta para la relacion con la
 # variante SystemC-HLS bloqueada.
 #
@@ -32,7 +32,7 @@ set FPGA_PART     "xck26-sfvc784-2LV-c"
 open_project -reset $PROJECT_NAME
 
 add_files gemm_2x2_hls_top_c.cpp -cflags "-std=c++17"
-add_files -tb ../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
+add_files -tb ../../Proyecto_C/gemm_hls_c/GEMM_2x2_HLS_Top_C__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
 
 set_top $TOP_MODULE
 

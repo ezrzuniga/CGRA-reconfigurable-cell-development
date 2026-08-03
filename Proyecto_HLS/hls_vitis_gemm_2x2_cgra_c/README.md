@@ -1,7 +1,7 @@
 # hls_vitis_gemm_2x2_cgra_c
 
 Vitis HLS project para `GEMM_2x2_HLS_Top_C`
-(`../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C.h`) — sintetiza la malla real
+(`../../Proyecto_C/gemm_hls_c/GEMM_2x2_HLS_Top_C.h`) — sintetiza la malla real
 (`CGRA_Mesh_Static_C<2,2,32,1, 4 celdas PE_MAC>`), en C/C++ puro (sin
 SystemC), no una reimplementación aritmética aparte.
 
@@ -27,13 +27,13 @@ problema no se detectó antes de tener `vitis_hls` real disponible.
 Esta carpeta (`_c`) es la migración de esa misma arquitectura a C/C++ plano +
 pragmas HLS: mismo datapath por PE (memoria de instrucciones, ALU/MAC,
 acumulador), mismo wiring N/S/E/W explícito de la malla — ver
-`Proyecto/pe_hls_c/`, `Proyecto/mesh_hls_c/`, `Proyecto/gemm_hls_c/`.
+`Proyecto_C/pe_hls_c/`, `Proyecto_C/mesh_hls_c/`, `Proyecto_C/gemm_hls_c/`.
 
 ## Arquitectura: CGRA reprogramable, no un programa fijo en el hardware
 
 `GEMM_2x2_HLS_Top_C` ya no es un `sc_module` con puertos `clk`/`rst`/`enable`,
 y tampoco carga un programa fijo internamente. Es un wrapper delgado sobre un
-**template genérico reutilizable**, `cgra_run<...>` (`Proyecto/cgra_hls_c/
+**template genérico reutilizable**, `cgra_run<...>` (`Proyecto_C/cgra_hls_c/
 CGRA_Top_C.h`), parametrizado por `ROWS/COLS/DATA_W/VLEN/NUM_REGS/
 INSTR_MEM_SIZE/NUM_PHASES` — de ahí se "saca" cualquier CGRA sintetizable
 concreta con el mínimo código posible (ver el header de `GEMM_2x2_HLS_Top_C.h`
@@ -64,7 +64,7 @@ de salida (sur/este de entrada y norte/sur de salida quedan en cero, sin usar
 — máxima fidelidad al template en vez de puertos con nombre fijo por
 aplicación como `a00`/`b00`/`c00`).
 
-Ver el comentario de cabecera de `Proyecto/cgra_hls_c/CGRA_Top_C.h` para el
+Ver el comentario de cabecera de `Proyecto_C/cgra_hls_c/CGRA_Top_C.h` para el
 detalle completo de la FSM (por qué ya no hace falta un estado de "recargar
 programa", cómo se limpia el acumulador con un canal directo en vez de pedir
 prestada `instr_mem`, y cómo se preserva la disciplina de "escritura este
@@ -119,11 +119,11 @@ instalación local de Vitis HLS) antes de intentar el flujo real.
 
 - `run_hls.tcl` — script de automatización principal (top, part, reloj, flujo).
 - `gemm_2x2_hls_top_c.cpp` — unidad de traducción mínima, solo incluye el
-  diseño real (`../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C.cpp`), sin
+  diseño real (`../../Proyecto_C/gemm_hls_c/GEMM_2x2_HLS_Top_C.cpp`), sin
   duplicarlo. Los includes son relativos (`../mesh_hls_c/`, `../cgra_hls_c/`,
   `../pe_hls_c/`), no hace falta ningún `-I` adicional en `run_hls.tcl`.
 - (sin testbench propio) — `run_hls.tcl` reutiliza
-  `../../Proyecto/gemm_hls_c/GEMM_2x2_HLS_Top_C__TB.cpp` directamente.
+  `../../Proyecto_C/gemm_hls_c/GEMM_2x2_HLS_Top_C__TB.cpp` directamente.
 
 ## 5) Cómo instanciar una CGRA propia a partir del template
 
@@ -131,7 +131,7 @@ Cualquier aplicación nueva repite el mismo patrón de `GEMM_2x2_HLS_Top_C.h`/
 `.cpp` (~25 líneas): declarar sus propias constantes `ROWS/COLS/DATA_W/VLEN/
 NUM_REGS/INSTR_MEM_SIZE/NUM_PHASES`, un `static Mesh mesh;` dentro de su
 `.cpp`, y reenviar sus puertos a `cgra_run<...>(mesh, ...)`
-(`Proyecto/cgra_hls_c/CGRA_Top_C.h`) — toda la FSM de fases, la interfaz de
+(`Proyecto_C/cgra_hls_c/CGRA_Top_C.h`) — toda la FSM de fases, la interfaz de
 programación y el wiring de bordes se reutilizan sin cambios.
 
 ## 6) Common issues

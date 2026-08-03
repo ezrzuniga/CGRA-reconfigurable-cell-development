@@ -1,7 +1,7 @@
 # hls_vitis_cgra_2x2_heterogeneous_c
 
 Vitis HLS project para `CGRA_Hetero_2x2_Demo_Top_C`
-(`../../Proyecto/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C.h`) —
+(`../../Proyecto_C/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C.h`) —
 sintetiza una malla 2x2 **heterogénea** de verdad (`Routing_Cell` + `PE_Memory` +
 `PE_Scalar` + `PE_Vector`, cada celda un tipo C++ distinto en la misma malla),
 en C/C++ puro, sin SystemC.
@@ -10,7 +10,7 @@ en C/C++ puro, sin SystemC.
 
 `Proyecto_HLS/hls_vitis_gemm_2x2_cgra_c/` ya probó que una malla C/HLS *homogénea*
 (4 `PE_MAC`) sintetiza de punta a punta. Este proyecto prueba el paso que faltaba:
-que `Proyecto/mesh_hls_c/CGRA_Mesh_Static_C.h` — generalizada de homogénea a
+que `Proyecto_C/mesh_hls_c/CGRA_Mesh_Static_C.h` — generalizada de homogénea a
 heterogénea (`CellTs...` variádico, storage en cadena de herencia `CellChain`,
 dispatch por sobrecarga de `cell_step`/`cell_program`/`cell_clear_acc`) — también
 sintetiza con una mezcla real de tipos de celda, no solo con el mismo tipo repetido.
@@ -92,10 +92,10 @@ Routing↔Memoria y el pipeline Scalar→Vector, ya validado con g++ standalone
 
 - `run_hls.tcl` — script de automatización principal.
 - `cgra_hetero_2x2_top_c.cpp` — unidad de traducción mínima, solo incluye el
-  diseño real (`../../Proyecto/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C.cpp`),
+  diseño real (`../../Proyecto_C/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C.cpp`),
   sin duplicarlo.
 - (sin testbench propio) — `run_hls.tcl` reutiliza
-  `../../Proyecto/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C__TB.cpp` directamente.
+  `../../Proyecto_C/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C__TB.cpp` directamente.
 
 ## 5) Common issues
 

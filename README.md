@@ -35,7 +35,7 @@ malla 2×2 detrás del bus CSR (ver `mesh_wrapper/README.md`), y
 un programa RISC-V real (RiscvCore → CSR_DMA → MainMemory → las 4 celdas del arreglo
 → MainMemory).
 
-El build de CMake está **unificado**: el `CMakeLists.txt` raíz (dentro de `Proyecto/`)
+El build de CMake está **unificado**: el `CMakeLists.txt` raíz (dentro de `Proyecto_SystemC/`)
 hace `add_subdirectory` de `pe/` (que a su vez incluye `pe/routing/`), `mesh/`,
 `mesh_wrapper/`, `riscv_dma_main_mem_components/` y `memory/`. Un solo
 `cmake .. && make` desde `build/` compila todo.
@@ -51,10 +51,10 @@ hace `add_subdirectory` de `pe/` (que a su vez incluye `pe/routing/`), `mesh/`,
 
 ## Compilar
 
-Desde `Proyecto/` (raíz del código, un nivel debajo de este README):
+Desde `Proyecto_SystemC/` (raíz del código, un nivel debajo de este README):
 ```
 export SYSTEMC_HOME=/ruta/a/tu/instalacion/systemc   # si no está en una ruta estándar
-cd Proyecto
+cd Proyecto_SystemC
 mkdir -p build && cd build
 cmake ..
 make -j4
@@ -63,7 +63,7 @@ Todos los binarios quedan bajo `build/<carpeta>/` (mismo layout que el código f
 
 ## Ejecutar
 
-Desde `Proyecto/build/`, cada testbench es un binario independiente (ejecutar desde
+Desde `Proyecto_SystemC/build/`, cada testbench es un binario independiente (ejecutar desde
 ahí para que las rutas relativas de los `.vcd` de salida caigan en ese directorio):
 
 **`pe/`** — ALUs y smoke tests de cada variante de PE:
@@ -76,13 +76,13 @@ ahí para que las rutas relativas de los `.vcd` de salida caigan en ese director
 ./pe/PE_MAC__TB       # smoke test de la PE MAC (acumulación de 1 ciclo, SRC_ACC/DST_ACC)
 ```
 
-**`pe/routing/`** — celda de enrutamiento (ver `Proyecto/pe/routing/README.md`):
+**`pe/routing/`** — celda de enrutamiento (ver `Proyecto_SystemC/pe/routing/README.md`):
 ```
 ./pe/routing/Routing_Cell__TB                  # switch-box aislado: contextos, ctx_sel, reset
 ./pe/routing/Routing_Cell_PE_Integration__TB   # 2 Routing_Cell + 2 PE_scalar encadenadas
 ```
 
-**`memory/`** — celda de memoria (ver `Proyecto/memory/README.md`):
+**`memory/`** — celda de memoria (ver `Proyecto_SystemC/memory/README.md`):
 ```
 ./memory/SRAM_dual_port__TB               # acceso concurrente por los 2 puertos de la SRAM
 ./memory/PE_Memory_Cell__TB                # smoke test manual de PE_Memory_Cell
@@ -112,7 +112,7 @@ Todos los testbenches además generan un `.vcd` (waveform) en el directorio desd
 que se ejecutan, inspeccionable con `gtkwave <archivo>.vcd`. Alternativamente, correr
 todo lo que esté registrado con `add_test` vía CTest:
 ```
-ctest --test-dir Proyecto/build
+ctest --test-dir Proyecto_SystemC/build
 ```
 
 ## Limpiar y recompilar

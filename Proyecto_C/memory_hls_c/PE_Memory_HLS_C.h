@@ -1,8 +1,8 @@
 // PE_Memory_HLS_C.h
 // Transliteracion a C/C++ puro de memory_hls/PE_Memory_HLS_Cell.h: SRAM +
 // motor de rafaga como arreglo fijo + FSM de 2 estados, sin TLM/sc_module.
-// Proyecto/memory/Access_controller.h se reusa TAL CUAL -- ya es C++ puro,
-// sin dependencia de SystemC, nada que portar.
+// Proyecto_SystemC/memory/Access_controller.h se reusa TAL CUAL -- ya es
+// C++ puro, sin dependencia de SystemC, nada que portar.
 //
 // Convenio de campos identico al original (MemCellField,
 // make_memory_field_instr): `slot` (el mismo parametro generico de
@@ -24,7 +24,7 @@
 #define PE_MEMORY_HLS_C_H
 
 #include "../pe_hls_c/pe_isa_hls_c.h"
-#include "../memory/Access_controller.h"
+#include "../../Proyecto_SystemC/memory/Access_controller.h"
 
 enum MemCellField {
     MEM_FIELD_SRC_ADDR = 0,

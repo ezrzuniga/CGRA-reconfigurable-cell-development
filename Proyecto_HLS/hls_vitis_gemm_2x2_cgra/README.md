@@ -1,7 +1,7 @@
 # hls_vitis_gemm_2x2_cgra
 
 Vitis HLS project for `GEMM_2x2_HLS_Top`, la CGRA 2x2 de mapeo espacial para GEMM
-(`../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top.h`) — sintetiza la malla real
+(`../../Proyecto_SystemC/gemm_hls/GEMM_2x2_HLS_Top.h`) — sintetiza la malla real
 (`CGRA_Mesh_Static<2,2,32,1,PE_MAC_Cell_HLS x4>`), no una reimplementación
 aritmética aparte.
 
@@ -48,7 +48,7 @@ vitis_hls -f run_hls.tcl
 
 Esto ejecuta el flujo completo definido en `run_hls.tcl`:
 - C Simulation (`csim_design`) — corre `GEMM_2x2_HLS_Top__TB.cpp` (el mismo testbench
-  que ya se compila y pasa con g++/SystemC normal en `Proyecto/build`, referenciado
+  que ya se compila y pasa con g++/SystemC normal en `Proyecto_SystemC/build`, referenciado
   aquí por ruta relativa, no duplicado).
 - C Synthesis (`csynth_design`)
 - C/RTL Co-simulation (`cosim_design -rtl verilog`)
@@ -63,7 +63,7 @@ Esto ejecuta el flujo completo definido en `run_hls.tcl`:
 
 `GEMM_2x2_HLS_Top__TB.cpp` imprime PASS/FAIL por caso (2 casos: enteros positivos y con
 negativos, 4 valores de `C` cada uno) y un resumen final, igual que el resto de los
-testbenches de `Proyecto/`.
+testbenches de `Proyecto_SystemC/`.
 
 ## 4) Estado confirmado: bloqueado por Vitis HLS 2024.1 (SystemC no soportado)
 
@@ -84,8 +84,8 @@ top (y su jerarquía) a C/C++ plano + pragmas HLS.
 
 Esa migración ya se hizo, preservando la misma arquitectura (memoria de
 instrucciones por PE, wiring N/S/E/W explícito, FSM de fases) sin SystemC —
-ver `../hls_vitis_gemm_2x2_cgra_c/` (`Proyecto/pe_hls_c/`, `Proyecto/mesh_hls_c/`,
-`Proyecto/gemm_hls_c/`). Ahí sí pasan `csim_design`/`csynth_design`/
+ver `../hls_vitis_gemm_2x2_cgra_c/` (`Proyecto_C/pe_hls_c/`, `Proyecto_C/mesh_hls_c/`,
+`Proyecto_C/gemm_hls_c/`). Ahí sí pasan `csim_design`/`csynth_design`/
 `cosim_design`/`export_design` reales. Esta carpeta queda intacta como referencia
 histórica de la variante SystemC-HLS (que sirvió para simular y validar la
 arquitectura antes de saber que Vitis HLS 2024.1 no la sintetiza).
@@ -119,9 +119,9 @@ síntesis en ninguna versión del flujo unificado):
 
 - `run_hls.tcl` — script de automatización principal (top, part, reloj, flujo).
 - `gemm_2x2_hls_top.cpp` — unidad de traducción mínima, solo incluye el diseño real
-  (`../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top.h`), sin duplicarlo.
+  (`../../Proyecto_SystemC/gemm_hls/GEMM_2x2_HLS_Top.h`), sin duplicarlo.
 - (sin testbench propio) — `run_hls.tcl` reutiliza
-  `../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp` directamente.
+  `../../Proyecto_SystemC/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp` directamente.
 
 ## 6) Common issues
 
