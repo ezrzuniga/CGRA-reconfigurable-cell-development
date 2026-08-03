@@ -18,12 +18,12 @@ eficiencia energética/de área.
 El proyecto existe en **dos representaciones paralelas del mismo diseño**:
 
 - **SystemC** (`pe/`, `mesh/`, `memory/`, `mesh_wrapper/`, `riscv_dma_main_mem_components/`,
-  y sus equivalentes completos dentro de `Proyecto/`): el modelo de referencia, con
+  y sus equivalentes completos dentro de `Proyecto_SystemC/`): el modelo de referencia, con
   simulación ciclo-preciso, TLM-2.0 para el sistema completo (RISC-V + DMA + memoria
   principal), y el mayor detalle arquitectónico (incluye el enlace a un sistema RISC-V
   anfitrión). **No sintetizable** con las herramientas usadas en este proyecto (ver
   sección 3.1).
-- **C/C++ puro + pragmas de Vitis HLS** (`Proyecto/pe_hls_c/`, `mesh_hls_c/`, `cgra_hls_c/`,
+- **C/C++ puro + pragmas de Vitis HLS** (`Proyecto_C/pe_hls_c/`, `mesh_hls_c/`, `cgra_hls_c/`,
   `gemm_hls_c/`, `memory_hls_c/`, `cgra_hetero_2x2_demo_c/`): la migración del mismo
   datapath a una forma que Vitis HLS 2024.1 sí acepta como entrada de síntesis. Es la
   representación que efectivamente compila a IP de hardware (RTL), y la que se documenta
@@ -106,7 +106,7 @@ destino, stride, cantidad de palabras, modo `DIRECT`/`STRIDE`, dirección de tra
 `SRAM->NoC`, `NoC->SRAM`, o `SRAM->SRAM`). El puerto de red-en-chip (NoC) está simplificado
 a **un solo borde** (oeste: `in_W`/`out_W`); los otros 3 bordes están cableados por
 uniformidad de grilla pero siempre en cero. Dos `AccessController` (uno para origen, uno
-para destino — ver `Proyecto/memory/Access_controller.h`, reusado sin cambios en ambos
+para destino — ver `Proyecto_SystemC/memory/Access_controller.h`, reusado sin cambios en ambos
 tiers) generan la secuencia de direcciones de cada ráfaga.
 
 ### 2.5 Wire unificado y disciplina de temporización
@@ -164,7 +164,7 @@ una instalación real de Vitis HLS.
 ### 3.2 Mapa de carpetas — tier C/HLS (el que se sintetiza)
 
 ```
-Proyecto/
+Proyecto_C/
 ├── pe_hls_c/
 │   ├── pe_isa_hls_c.h        ISA compartido (ap_int/ap_uint, sin SystemC)
 │   ├── mac/PE_MAC_HLS_C.h    PE MAC: datapath + acumulador
@@ -262,7 +262,7 @@ hardware en tiempo de síntesis.
 
 ### 5.1 El template genérico `cgra_run<...>`
 
-`Proyecto/cgra_hls_c/CGRA_Top_C.h` define un template reutilizable,
+`Proyecto_C/cgra_hls_c/CGRA_Top_C.h` define un template reutilizable,
 `cgra_run<ROWS,COLS,DATA_W,VLEN,INSTR_MEM_SIZE,NUM_PHASES,CellTs...>`, del cual "se saca"
 cualquier CGRA sintetizable concreta con un wrapper de ~25 líneas (constantes de tamaño +
 un `static Mesh mesh;` + reenviar puertos). Expone 2 caminos de control mutuamente
@@ -291,7 +291,7 @@ contaminando un acumulador justo después de limpiarlo.
 
 ### 5.2 El algoritmo: multiplicación de matrices 2x2
 
-`Proyecto/gemm_hls_c/GEMM_2x2_Mesh_C.h` instancia `CGRA_Mesh_Static_C<2,2,32,1,` 4 celdas
+`Proyecto_C/gemm_hls_c/GEMM_2x2_Mesh_C.h` instancia `CGRA_Mesh_Static_C<2,2,32,1,` 4 celdas
 `PE_MAC>` (el caso homogéneo es simplemente pasar el mismo tipo 4 veces en el parameter
 pack heterogéneo) y define el **programa espacial**: 4 slots de instrucción por celda,
 repetidos una vez por fase (`k=0,1`, el índice de suma del producto matricial):
@@ -324,7 +324,7 @@ la derecha/abajo por la malla en el mismo ciclo. `C` sale por `out_W[fila]` (col
 
 ## 6. La demo heterogénea 2x2
 
-`Proyecto/cgra_hetero_2x2_demo_c/` (+ el proyecto Vitis HLS
+`Proyecto_C/cgra_hetero_2x2_demo_c/` (+ el proyecto Vitis HLS
 `Proyecto_HLS/hls_vitis_cgra_2x2_heterogeneous_c/`) prueba que la malla heterogénea
 sintetiza de verdad con una mezcla real de tipos de celda, no solo con el mismo tipo
 repetido (como GEMM). Layout fijo:
@@ -398,7 +398,7 @@ Ambos diseños entran cómodamente en el dispositivo objetivo (Kria KV26/K26 SoM
 
 ### 9.1 Tier SystemC (modelo de referencia, simulación ciclo-precisa)
 
-Requiere SystemC (TLM-2.0) y CMake ≥ 3.16 con C++17. Desde `Proyecto/`:
+Requiere SystemC (TLM-2.0) y CMake ≥ 3.16 con C++17. Desde `Proyecto_SystemC/`:
 
 ```bash
 export SYSTEMC_HOME=/ruta/a/tu/instalacion/systemc   # si no está en una ruta estándar
@@ -465,14 +465,14 @@ de fases propia (como la demo heterogénea, sección 6), se puede exponer `mesh_
 | Archivo | Qué contiene |
 |---|---|
 | `pe/CLAUDE.md`, `mesh/CLAUDE.md` | Detalle de diseño del tier SystemC simplificado (histórico, sin routing/memoria) |
-| `Proyecto/pe/`, `Proyecto/mesh/`, `Proyecto/memory/` | Tier SystemC completo y actual (con routing + memoria integrados) |
-| `Proyecto/pe_hls_c/pe_isa_hls_c.h` | ISA compartida del tier C/HLS |
-| `Proyecto/pe_hls_c/{mac,scalar,vector,routing}/` | Las 4 celdas tipo PE/routing en C/HLS |
-| `Proyecto/memory_hls_c/PE_Memory_HLS_C.h` | Celda de memoria en C/HLS |
-| `Proyecto/mesh_hls_c/CGRA_Mesh_Static_C.h` | Malla heterogénea genérica (`CellTs...`, `CellChain`) |
-| `Proyecto/cgra_hls_c/CGRA_Top_C.h` | Template genérico de top reprogramable (`cgra_run<...>`) |
-| `Proyecto/gemm_hls_c/` | Aplicación GEMM 2x2 sobre el template |
-| `Proyecto/cgra_hetero_2x2_demo_c/` | Demo de malla heterogénea cruda (Routing+Memoria+Scalar+Vector) |
+| `Proyecto_SystemC/pe/`, `Proyecto_SystemC/mesh/`, `Proyecto_SystemC/memory/` | Tier SystemC completo y actual (con routing + memoria integrados) |
+| `Proyecto_C/pe_hls_c/pe_isa_hls_c.h` | ISA compartida del tier C/HLS |
+| `Proyecto_C/pe_hls_c/{mac,scalar,vector,routing}/` | Las 4 celdas tipo PE/routing en C/HLS |
+| `Proyecto_C/memory_hls_c/PE_Memory_HLS_C.h` | Celda de memoria en C/HLS |
+| `Proyecto_C/mesh_hls_c/CGRA_Mesh_Static_C.h` | Malla heterogénea genérica (`CellTs...`, `CellChain`) |
+| `Proyecto_C/cgra_hls_c/CGRA_Top_C.h` | Template genérico de top reprogramable (`cgra_run<...>`) |
+| `Proyecto_C/gemm_hls_c/` | Aplicación GEMM 2x2 sobre el template |
+| `Proyecto_C/cgra_hetero_2x2_demo_c/` | Demo de malla heterogénea cruda (Routing+Memoria+Scalar+Vector) |
 | `Proyecto_HLS/hls_vitis_gemm_2x2_cgra_c/README.md` | Instrucciones detalladas del proyecto Vitis HLS de GEMM |
 | `Proyecto_HLS/hls_vitis_cgra_2x2_heterogeneous_c/README.md` | Instrucciones detalladas del proyecto Vitis HLS heterogéneo |
 | `architecture/` | Diagramas `.svg` de arquitectura (mallas de prueba, bloques del reprogramable) |

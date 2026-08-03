@@ -7,10 +7,10 @@
 #
 # A diferencia de hls_vitis_sum_reduction (una funcion C++ plana), esto
 # sintetiza la CGRA real: GEMM_2x2_HLS_Top instancia CGRA_Mesh_Static<2,2,32,1,
-# PE_MAC_Cell_HLS x4> sin modificarla (../../Proyecto/mesh_hls,
-# ../../Proyecto/pe_hls) detras de una FSM propia que reemplaza el
+# PE_MAC_Cell_HLS x4> sin modificarla (../../Proyecto_SystemC/mesh_hls,
+# ../../Proyecto_SystemC/pe_hls) detras de una FSM propia que reemplaza el
 # load_instr()/advance_cycles() del testbench de simulacion por hardware real.
-# Ver ../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top.h para el diseno completo y el
+# Ver ../../Proyecto_SystemC/gemm_hls/GEMM_2x2_HLS_Top.h para el diseno completo y el
 # README de esta carpeta para riesgos conocidos del subset SystemC de HLS.
 #
 # Usage:
@@ -32,7 +32,7 @@ set SYSTEMC_XIL_INC "/tools/Xilinx/Vivado/2024.1/lnx64/tools/systemc/include"
 set SYSTEMC_XIL_LIB "/tools/Xilinx/Vivado/2024.1/lnx64/tools/systemc/lib"
 
 add_files gemm_2x2_hls_top.cpp -cflags "-std=c++14 -I${SYSTEMC_XIL_INC}"
-add_files -tb ../../Proyecto/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp -cflags "-std=c++17 -I${SYSTEMC_XIL_INC} -Wno-unknown-pragmas"
+add_files -tb ../../Proyecto_SystemC/gemm_hls/GEMM_2x2_HLS_Top__TB.cpp -cflags "-std=c++17 -I${SYSTEMC_XIL_INC} -Wno-unknown-pragmas"
 
 set_top $TOP_MODULE
 

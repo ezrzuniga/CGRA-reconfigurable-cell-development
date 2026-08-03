@@ -6,7 +6,7 @@
 # Clock:  250 MHz (period = 4 ns)
 #
 # Prueba que la malla heterogenea 2x2 (Routing_Cell + PE_Memory + PE_Scalar +
-# PE_Vector, ver ../../Proyecto/cgra_hetero_2x2_demo_c/) sintetiza de verdad
+# PE_Vector, ver ../../Proyecto_C/cgra_hetero_2x2_demo_c/) sintetiza de verdad
 # -- no es una aplicacion especifica con FSM de fases como GEMM (ese sigue
 # siendo cgra_run<...>/CGRA_Top_C.h): es la malla misma expuesta con un top
 # minimo (programar una celda, o correr un ciclo), para que un host orqueste
@@ -28,7 +28,7 @@ set FPGA_PART     "xck26-sfvc784-2LV-c"
 open_project -reset $PROJECT_NAME
 
 add_files cgra_hetero_2x2_top_c.cpp -cflags "-std=c++17"
-add_files -tb ../../Proyecto/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
+add_files -tb ../../Proyecto_C/cgra_hetero_2x2_demo_c/CGRA_Hetero_2x2_Demo_Top_C__TB.cpp -cflags "-std=c++17 -Wno-unknown-pragmas"
 
 set_top $TOP_MODULE
 
