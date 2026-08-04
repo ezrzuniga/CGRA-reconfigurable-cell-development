@@ -16,8 +16,10 @@
 \usetikzlibrary{positioning, fit, arrows.meta, calc, patterns, decorations.pathreplacing}
 
 \title{Development of a Heterogeneous Reconfigurable CGRA Cell}
-\author{\IEEEauthorblockN{Duarte Sanchez David, Jimenez Ulate Eddy, Ruiz Rivera Jeffrey, Esquivel Arias Fabian Zúñiga Ramírez Jose Eduardo}
-\IEEEauthorblockA{{davidduarte28, e.jimenez.10, yr1ruiz, fabiesqui22, je.zuniga}@estudiantec.cr}
+\author{\IEEEauthorblockN{Duarte Sanchez David, Jimenez Ulate Eddy, Ruiz Rivera Jeffrey, Esquivel Arias Fabian, Zúñiga Ramírez Jose Eduardo}
+\IEEEauthorblockA{School of Electronics Engineering \\
+Costa Rica Institute of Technology \\
+\{davidduarte28, e.jimenez.10, yr1ruiz, fabiesqui22, je.zuniga\}@estudiantec.cr}
 }
 \date{}
 
@@ -27,55 +29,119 @@
 % Loosen line breaking to avoid overfull boxes in two-column layout
 \sloppy
 
-%\begin{abstract}
-%-This document is a preliminary IEEE-format draft that includes title, authors, introduction, and state of the art. Here should go a 150--250 word abstract describing objectives, methodology, and expected results.
-%\end{abstract}
+\begin{abstract}
+TODO: Write a 150--250 word abstract describing the problem/motivation, objectives, methodology, and expected/preliminary results.
+\end{abstract}
+
+\begin{IEEEkeywords}
+coarse-grained reconfigurable architecture (CGRA), heterogeneous CGRA, spatial CGRA, reconfigurable computing.
+\end{IEEEkeywords}
 
 \section{Introduction}
 %The introduction should motivate the problem, explain its importance, and define the objectives of the work. Include context, research questions, and main contributions.
 
 
-Reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
+The reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
 different user needs, and scientific progress, so hardware cannot adapt at the same pace as software \cite{LeiboLiu}. Special-purpose systems
 can suffer from rapid obsolescence, and if the price of hardware development and production is high, it becomes economically unviable \cite{LeiboLiu}.
 
-Currently, architectures such as FPGAs (\textit{Field Programmable Gate Arrays}) have been widely adopted in diverse applications due to their flexibility and customization capability, gaining traction in High-Performance Computing (HPC).
-However, FPGAs present certain limitations such as slow configuration times, long compilation times, and, although somewhat relative, low operating frequencies \cite{Podobas}.
+Currently, architectures such as FPGAs (Field Programmable Gate Arrays) have been widely adopted in diverse applications due to their flexibility and customization capability, gaining traction in HPC (High-Performance Computing).
+However, FPGAs present certain limitations such as slow configuration times, long compilation times, and in cases, low operating frequencies \cite{Podobas}.
 
- Due to the above, there has been growing interest in HPC in using architectures such as CGRAs (\textit{Coarse-Grained Reconfigurable Arrays}), which offer an intermediate solution between FPGAs and general-purpose processors (GPPs).
+In the recent years there has been growing interest in HPC in using architectures such as CGRAs (Coarse-Grained Reconfigurable Arrays), which offer an intermediate solution between FPGAs and ASICs (Application Specific Integrated Circuits).
 CGRAs are hardware architectures that, conceptually, allow silicon to be malleable and their functionality to be dynamically reconfigured \cite{Podobas}.
-CGRAs have the advantage of being one to two orders of magnitude more efficient than FPGAs and more than 2 to 3 orders of magnitude more efficient than GPPs \cite{LeiboLiu}.
+CGRAs have the advantage of being one to two orders of magnitude more efficient than FPGAs and more than 2 to 3 orders of magnitude more efficient than ASICs \cite{LeiboLiu}.
 
-The development of a reconfigurable CGRA cell is of great importance not only for its relevance in HPC, but also for its adoption in \textit{Machine-learning} applications, image processing, and computer vision,
-communications, and other areas \cite{GuoweiZhu}. Therefore, the objective of this work is to develop a heterogeneous CGRA, tentatively featuring data-routing cells,
-cells with distributed memory banks, scalar processing cells, and vector processing cells, capable of executing programs using the RISC-V instruction set, with the ability to execute 8, 16, and 32-bit logic.
+The development of a reconfigurable CGRA cell is of great importance not only for its relevance in HPC, but also for its adoption in Machine-Learning applications, image processing, and computer vision,
+communications, and other areas \cite{GuoweiZhu}. Therefore, the objective of this work is to develop a heterogeneous CGRA with different kind of processing elements such as a scalar and vector processing cells, memory banks and a MAC (Multiply-Accumulate) unit. 
+%tentatively featuring data-routing cells,
+%cells with distributed memory banks, scalar processing cells, and vector processing cells, capable of executing programs using the RISC-V instruction set, with the ability to execute 8, 16, and 32-bit logic.
 
-The importance of using this instruction set is that it is an open standard, facilitating its adoption since it requires no license payments. This is an instruction set based on simplicity,
-making hardware design simpler and its implementation more direct \cite{riscv}.
+%The importance of using this instruction set is that it is an open standard, facilitating its adoption since it requires no license payments. This is an instruction set based on simplicity,
+%making hardware design simpler and its implementation more direct \cite{riscv}.
 
 
 \section{Background and Related Work}
-In recent years, CGRAs have gained significant prominence as hardware accelerators due to their ability to offer an exceptional balance between software flexibility and the high performance of application-specific hardware \cite{LeiboLiu,Podobas}. Unlike fine-grained architectures, CGRAs operate at the word or block level, which substantially reduces reconfiguration and routing overhead, making them particularly attractive for efficient edge-computing applications. The development and research of these architectures has been strongly driven by the adoption of the open-source RISC-V instruction set architecture (ISA) \cite{riscv}, whose extensible nature facilitates the creation of highly customized heterogeneous Systems on Chip (SoCs).
+In recent years, CGRAs have gained significant prominence as hardware accelerators due to their ability to offer an exceptional balance between software flexibility and the high performance of application-specific hardware \cite{LeiboLiu,Podobas}. 
+Unlike fine-grained architectures, CGRAs operate at the word or block level, which substantially reduces reconfiguration and routing overhead, making them particularly attractive for efficient edge-computing applications. 
+The development and research of these architectures has been strongly driven by the adoption of the open-source RISC-V instruction set architecture (ISA) \cite{riscv}, whose extensible nature facilitates the creation of highly customized heterogeneous SoCs (Systems on Chip).
 
-Recent research has demonstrated the advantages of tightly integrating RISC-V cores with CGRA arrays to overcome the traditional Von Neumann bottleneck. For example, \cite{granja} explore the integration of a CGRA accelerator coupled to a high-performance RISC-V CVA6 core focused on cloud-edge ecosystems, while \cite{GuoweiZhu} propose DVHetero, a comprehensive framework for the design and validation of heterogeneous SoCs based on this combination.
+At the level of practical implementation, these architectures are the result of cutting-edge open-source efforts. 
+Repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level.
+OpenCGRA is a unified framework that supports the full top-to-botton design flow, this adopts a Python-based PyMTL3 framework to model the architecture and enabling the RTL generation and mutilevel simulation \cite{OpenCGRA}
+TRAM is another example which adopts a Chisel-based CGRA template to model hardware architecture with register transfer level (RTL) code generation and functional-level (FL) simulation; TRAM propouses a flexible and scalable CGRA template composed of GPEs, IOBs and GIBs with two-dimensional (2D) islad-style topology \cite{TRAM}. 
+HETA is a temporal CGRA implementing a heterogeneous architecture with a Bayesian optimization, this CGRA is a 2D island style layoud build by four type of blocks: GPE (Generic Processing Element), GIB (General Interconnect Block), LSU (Load/Store Unit) and IOB (I/O Block) \cite{HETA}. 
 
-At the level of practical implementation, these architectures materialize in cutting-edge open-source efforts; repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level, while projects such as OpenEdgeCGRA (ESL-EPFL) provide complete open-hardware platforms. In the latter, the architecture is composed of a configurable two-dimensional mesh of Processing Elements (PEs), or reconfigurable cells, that interact in a toroidal fashion and share registers to maximize instruction-level parallelism with minimal memory overhead. Another notable project is OpenCGRA, developed by PNNL (\textit{Pacific Northwest National Laboratory}), which generates reconfigurable processors in a parameterizable way, allowing the hardware to be designed via code — including mesh size, cell type, and how cells communicate with each other — after which functionality is tested using Python and Verilator, and finally the design is exported to a standard hardware description code (HDL) such as Verilog.
+For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. 
+They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. 
+Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
 
-For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
+
+
+%Recent research has demonstrated the advantages of tightly integrating RISC-V cores with CGRA arrays to overcome the traditional Von Neumann bottleneck. 
+%For example, \cite{granja} explore the integration of a CGRA accelerator coupled to a high-performance RISC-V CVA6 core focused on cloud-edge ecosystems, while \cite{GuoweiZhu} propose DVHetero, a comprehensive framework for the design and validation of heterogeneous SoCs based on this combination.
+
+%At the level of practical implementation, these architectures materialize in cutting-edge open-source efforts; repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level, while projects such as OpenEdgeCGRA (ESL-EPFL) provide complete open-hardware platforms. 
+%In the latter, the architecture is composed of a configurable two-dimensional mesh of Processing Elements (PEs), or reconfigurable cells, that interact in a toroidal fashion and share registers to maximize instruction-level parallelism with minimal memory overhead. Another notable project is OpenCGRA, developed by PNNL (\textit{Pacific Northwest National Laboratory}), which generates reconfigurable processors in a parameterizable way, allowing the hardware to be designed via code — including mesh size, cell type, and how cells communicate with each other — after which functionality is tested using Python and Verilator, and finally the design is exported to a standard hardware description code (HDL) such as Verilog.
+
+%For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. 
+%They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. 
+%Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
 
 
 \section{Analysis of Existing Solutions (SOTA)} %Jose
 \label{sec:sota}
+%%%%%%%%%% new
 
-Currently, there are different types of CGRAs, which can have an array of homogeneous PEs, as is the case with the HyCUBE and DySER CGRAs \cite{Blocks2022}, or they can be heterogeneous, such as Plasticine, which has two types of units, PCUs and PMUs \cite{plasticine2017}. Another important characteristic to highlight is the type of precision these devices can support, where many of them are restricted to processing only integer operations, making them more general-purpose, while others do add the advantage of floating point for more specialized processes \cite{exploration_tradeoffs}.
+Nowadays there are different types of CGRAs, you can classify them by their elements in heterogeneous or homogeneous, also depending on how you use structure the hardware and the handling of the data, they can be classified as temporal or spatial. 
+Examples of homogeneous CGRAs are the HyCUBE, DySER, TRAM and OpenCGRA \cite{Blocks2022, TRAM, OpenCGRA} which have an array of homogeneous or equal PEs, while examples of heterogeneous CGRAs are Plasticine and HETA \cite{plasticine2017, HETA} which combine different PE.
 
 CGRA systems are no longer seen as an isolated element; today they are presented as a heterogeneous part of an architecture system \cite{dvhetero}.
-Furthermore, CGRAs have become highly important in HPC (\textit{High Performance Computing}) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
+Furthermore, CGRAs have become highly important in HPC (High Performance Computing) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. 
+This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
+
+In the table \ref{tab:comparativa_sota} it is shown a comparison between four types of CGRAs. They present different trade-offs, where they are developed according to the area of application or workload. 
+For example the HETA CGRA is good when the physical space is a concern \cite{HETA} or the Plasticina is a good option when the workload is highly parallel \cite{plasticine2017}.
+\begin{table}[htbp]
+\caption{Comparison of state-of-the-art solutions}
+\label{tab:comparativa_sota}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}l p{2.2cm} p{2.2cm} p{2.2cm} p{1.6cm}@{}}
+  \toprule
+  \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} & \textbf{PE / CGRA Type}\\
+  \midrule
+  HETA \cite{HETA} & Bayesian DSE requires zero manual intervention, very fast CGRA. & Only functional and RTL simulation, limited veification tooling. & Good for research, idea for temporal CGRA exploration. & Heterogeneous / Temporal.\\
+  \addlinespace
+  TRAM \cite{TRAM} & High PE utilization and clean interconnect model. & Spacial CGRA only, cannot time-multiplex resources. & Good for research, when the interconnect flexibility and mapping are priorities. & Homogeneous / Spatial.\\
+  \addlinespace
+  OpenCGRA \cite{OpenCGRA} & Very complete, with multi-level simulation. Based on mature LLVM and PyMTL3 infrastructure. & The mapper can give a low PE utilization. Since it uses python-based modeling, large designs can be slower. & Ideal for research and prototyping, presenting a very complete verification and integration flow. & Homogeneous / Spatial.\\
+  \addlinespace
+  Plasticine \cite{plasticine2017} & Massive per-cycle processing (OP/s), build for parallel patterns. & Rigid programming and restrictive power consumption. & Fixed infrastructure/servers, proved at 28nm with real performance numbers. & Heterogeneous / Spatial.\\
+  \bottomrule
+  \end{tabular}%
+}
+\end{table}
 
 
 
-Table \ref{tab:comparativa_sota} shows a comparison of three types of CGRA; the construction of these devices can vary,
-generating different applications and \textit{trade-offs} where they are used according to the application.
+
+
+%%%%%%%%%% old 
+
+
+%Currently, there are different types of CGRAs, which can have an array of homogeneous PEs, as is the case with the HyCUBE and DySER CGRAs \cite{Blocks2022}, or they can be heterogeneous, such as Plasticine, which has two types of units, PCUs and PMUs \cite{plasticine2017}. 
+%Another important characteristic to highlight is the type of precision these devices can support, where many of them are restricted to processing only integer operations, making them more general-purpose, while others do add the advantage of floating point for more specialized processes \cite{exploration_tradeoffs}.
+
+%CGRA systems are no longer seen as an isolated element; today they are presented as a heterogeneous part of an architecture system \cite{dvhetero}.
+%Furthermore, CGRAs have become highly important in HPC (\textit{High Performance Computing}) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
+
+
+
+%Table \ref{tab:comparativa_sota} shows a comparison of three types of CGRA; the construction of these devices can vary,
+%generating different applications and \textit{trade-offs} where they are used according to the application.
 
 
 
@@ -93,28 +159,28 @@ generating different applications and \textit{trade-offs} where they are used ac
 %
 %To concisely illustrate these trade-offs, Table~\ref{tab:comparativa_sota} summarizes the technological feasibility criteria found in the literature.
 %
-\begin{table}[htbp]
-\caption{Comparative matrix of state-of-the-art solutions}
-\label{tab:comparativa_sota}
-\centering
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\resizebox{\columnwidth}{!}{%
-  \begin{tabular}{@{}l p{1.9cm} p{1.9cm} p{1.9cm}@{}}
-  \toprule
-  \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} \\
-  \midrule
-  Proposal A \cite{adres2004} & Low latency, spatial optimization. & Hardware rigidity, high design time. & Fixed, stable domains. \\
-  \addlinespace
-  Proposal B \cite{hycube2017} & High flexibility, agile reconfiguration. & High resource consumption, \textit{overhead}. & Non-critical dynamic environments. \\
-  \addlinespace
-  Proposal C \cite{plasticine2017} & Massive per-cycle processing (OP/s). & Restrictive power consumption. & Fixed infrastructure/servers. \\
-  \bottomrule
-  \end{tabular}%
-}
-\end{table}
-
-The design of these systems is no longer only necessary at the \textit{hardware} level; it is also relevant to take their \textit{software} counterpart into account \cite{plasticine2017}. Cases such as the one presented in \cite{dvhetero} prioritize validation, mapping, and routing as problems just as important as the \textit{hardware} side.
+%\begin{table}[htbp]
+%\caption{Comparative matrix of state-of-the-art solutions}
+%\label{tab:comparativa_sota}
+%\centering
+%\scriptsize
+%\setlength{\tabcolsep}{3pt}
+%\resizebox{\columnwidth}{!}{%
+%  \begin{tabular}{@{}l p{1.9cm} p{1.9cm} p{1.9cm}@{}}
+%  \toprule
+%  \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} \\
+%  \midrule
+%  Proposal A \cite{adres2004} & Low latency, spatial optimization. & Hardware rigidity, high design time. & Fixed, stable domains. \\
+%  \addlinespace
+%  Proposal B \cite{hycube2017} & High flexibility, agile reconfiguration. & High resource consumption, \textit{overhead}. & Non-critical dynamic environments. \\
+%  \addlinespace
+%  Proposal C \cite{plasticine2017} & Massive per-cycle processing (OP/s). & Restrictive power consumption. & Fixed infrastructure/servers. \\
+%  \bottomrule
+%  \end{tabular}%
+%}
+%\end{table}
+%
+%The design of these systems is no longer only necessary at the \textit{hardware} level; it is also relevant to take their \textit{software} counterpart into account \cite{plasticine2017}. Cases such as the one presented in \cite{dvhetero} prioritize validation, mapping, and routing as problems just as important as the \textit{hardware} side.
 
 
 
@@ -132,7 +198,24 @@ The design of these systems is no longer only necessary at the \textit{hardware}
 % =========================================================
 \section{Proposed Solution and Second-Level Architecture}
 
-\subsection{General Description and Scope}
+
+%%%%% new
+
+%This work presents heterogeneous CGRA 
+
+
+
+
+
+
+
+
+
+
+
+
+%%%%% new
+
 This work presents a \textbf{heterogeneous reconfigurable cell} for CGRA \cite{cgra_repo}, overcoming homogeneous architectures with under-utilization under heterogeneous workloads \cite{adres2004, hycube2017}. It introduces \textbf{four specialized cell types} in a single \textit{fabric}:
 \begin{enumerate}
     \item \textbf{Routing:} FIFOs for dynamic, non-blocking flow.
