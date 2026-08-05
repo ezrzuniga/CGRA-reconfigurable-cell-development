@@ -32,6 +32,12 @@ public:
 
     SC_CTOR(RiscvCore);
 
+    // Veredicto agregado de la suite que corre run(): true solo si TODOS los tests
+    // pasaron. Existe para que sc_main pueda devolver un exit code honesto -- antes
+    // los testbenches que instancian RiscvCore imprimian "PASS" incondicionalmente y
+    // el veredicto real habia que buscarlo a ojo en el stdout.
+    bool all_passed() const { return all_passed_; }
+
 
 private:
 
@@ -69,8 +75,15 @@ private:
     void test_vector_add();
     void test_full_pipeline();
     void test_matmul();
+    void test_exp_vec();
+    void test_softmax();
     void test_fir();
     void test_fft();
+
+    // Registra el resultado de un test y lo acumula en all_passed_.
+    void report_test(const char* name, bool pass);
+
+    bool all_passed_;
 
 
     //---------------------------------------------------

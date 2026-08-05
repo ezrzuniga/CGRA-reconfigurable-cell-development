@@ -18,6 +18,22 @@ public:
     sc_in<PE_VectorData<DATA_W, VLEN>> operand_b;
     sc_in<bool>                    enable;
 
+    // Disparador de despacho. La PE lo invierte cada vez que despacha una
+    // instruccion, y compute() es sensible a el ADEMAS de a los operandos.
+    //
+    // Por que hace falta: sc_signal::write() no genera evento cuando el valor nuevo
+    // coincide con el actual. Dos instrucciones CONSECUTIVAS pueden coincidir en
+    // (opcode, operand_a, operand_b) aunque escriban a registros destino distintos --
+    // por ejemplo "T2 = SRA(T1,12)" seguida de "T6 = SRA(T2,12)" cuando T1 == T2 == 0.
+    // Sin este puerto, issue() no genera ningun evento, compute() no vuelve a correr,
+    // valid_toggle no cambia, writeback() no dispara y el registro destino de la
+    // SEGUNDA instruccion se queda con el valor que tuviera de antes: un resultado
+    // silenciosamente incorrecto que depende de los datos, no del programa.
+    //
+    // Es el mismo problema que valid_toggle ya resuelve entre esta ALU y writeback(),
+    // pero una etapa antes, entre issue() y esta ALU.
+    sc_in<bool>            issue_toggle;
+
     sc_out<PE_VectorData<DATA_W, VLEN>> result;
     sc_out<bool>                   valid;
     // Mismo mecanismo que ALU_vector: se invierte en cada compute() habilitado,
@@ -30,11 +46,12 @@ public:
     explicit ALU_MAC(sc_core::sc_module_name name)
         : sc_module(name),
           opcode("opcode"), operand_a("operand_a"), operand_b("operand_b"),
-          enable("enable"), result("result"), valid("valid"),
+          enable("enable"), issue_toggle("issue_toggle"),
+          result("result"), valid("valid"),
           valid_toggle("valid_toggle")
     {
         SC_METHOD(compute);
-        sensitive << opcode << operand_a << operand_b << enable;
+        sensitive << opcode << operand_a << operand_b << enable << issue_toggle;
     }
 
 private:

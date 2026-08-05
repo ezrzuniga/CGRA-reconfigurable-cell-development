@@ -64,8 +64,124 @@ enum MeshProgram {
     // sumas, todo en la ALU vectorial. El resultado sale por el borde este real de
     // Vectorial (out_E_[1]), igual que los demas programas. Ver
     // MeshWrapper::run_matmul_dataflow.
-    PROGRAM_MATMUL = 5
+    PROGRAM_MATMUL = 5,
+
+    // e^u elementwise sobre los 4 lanes, en punto fijo Q4.12 (ver EXP_Q_* abajo).
+    // INPUT_DATA_BUFFER (32 bytes) = 8 int32, de los cuales solo word[0..3] se usan
+    // (los 4 valores de u); OUTPUT_DATA_BUFFER (16 bytes) = e^u por lane. Lo computa
+    // entera la celda Vectorial (1,1): u entra por su borde sur real y el resultado
+    // sale por su borde este real.
+    //
+    // Es el primer programa del catalogo que evalua una funcion trascendente, algo
+    // que el ISA no ofrece (no hay exp, ni division, ni punto flotante). Se
+    // construye con range reduction base-2:
+    //
+    //     e^u = 2^(u*log2(e)) = 2^k * 2^f     con k = floor(t) entero, f = t-k en [0,1)
+    //
+    // El 2^k es exactamente un OP_SRA -- y la ALU vectorial toma el shamt de b[i],
+    // o sea POR LANE (ver ALU_vector.h), asi que los 4 lanes pueden desplazarse
+    // cantidades distintas en una sola instruccion. El 2^f es un polinomio grado 3
+    // evaluado por Horner con OP_MUL/OP_SRA/OP_ADD. Ver
+    // MeshWrapper::run_exp_vec_dataflow para la secuencia completa.
+    PROGRAM_EXP_VEC = 6,
+
+    // Softmax sobre los 4 lanes en punto fijo Q4.12:
+    //
+    //     y_i = e^(x_i - max) / sum_j e^(x_j - max)
+    //
+    // INPUT_DATA_BUFFER usa word[0..3] (los 4 valores de x en Q4.12);
+    // OUTPUT_DATA_BUFFER = y por lane, con sum(y) ~ 1.0 (== EXP_Q_ONE).
+    //
+    // Es el primer programa del catalogo que reparte el computo entre DOS celdas por
+    // razones arquitectonicas y no por conveniencia:
+    //
+    //   Vectorial (1,1): todo lo lane-parallel -- las reducciones por butterfly
+    //                    (max y suma), la resta del maximo, los 4 exponenciales en
+    //                    paralelo y la normalizacion final.
+    //   Escalar   (1,0): el reciproco 1/S por Newton-Raphson. S es UN numero, asi
+    //                    que calcularlo en Vectorial serian 4 lanes haciendo el
+    //                    mismo trabajo. Ademas la salida de Escalar hace broadcast
+    //                    de lane 0 a las 4 lanes (ver pe/scalar/PE_Scalar_Cell.h),
+    //                    que es exactamente como hay que devolverle r a Vectorial.
+    //
+    // Los dos escalares que softmax necesita difundir (el maximo y 1/S) encajan con
+    // esa semantica de broadcast; la direccion dificil es la inversa (los 4 lanes de
+    // Vectorial hacia Escalar, que solo ve lane 0), y por eso las reducciones se
+    // hacen por butterfly DENTRO de Vectorial en vez de serializarlas hacia Escalar.
+    //
+    // Ver MeshWrapper::run_softmax_dataflow y la seccion "Como computa el softmax"
+    // del README.
+    PROGRAM_SOFTMAX = 7
 };
+
+// ---------------------------------------------------------------------------
+// Formato de punto fijo de PROGRAM_EXP_VEC: Q4.12 (12 bits fraccionarios sobre
+// int32). Un valor real v se representa como round(v * 4096).
+//
+// Por que Q4.12 y no Q16.16: OP_MUL trunca a DATA_W bits (r[i] = a[i]*b[i] sobre
+// sc_int<32>, ver ALU_vector.h) -- no hay MULH, asi que el producto entero de dos
+// Qm.f tiene que caber en 32 bits. En Q16.16 eso limitaria |a*b| < 0.5 (inservible);
+// en Q4.12 el peor MUL de este kernel usa el 9% del rango de int32, o sea ~11x de
+// margen (verificado sobre el rango completo de entrada).
+static const int     EXP_Q_FRAC_BITS = 12;
+static const int32_t EXP_Q_ONE       = 1 << EXP_Q_FRAC_BITS;   // 4096 == 1.0
+static const int32_t EXP_Q_FRAC_MASK = EXP_Q_ONE - 1;          // aisla f = t - floor(t)
+
+// log2(e) en Q4.12: round(1.4426950408889634 * 4096).
+static const int32_t EXP_Q_LOG2E = 5909;
+
+// Cota inferior de u. El kernel satura la entrada a [EXP_Q_U_MIN, 0] antes de operar
+// -- no es una restriccion arbitraria sino el rango util del formato: e^-8 = 3.4e-4
+// es ~1.4 LSB en Q4.12, debajo de eso el resultado es indistinguible de cero. La
+// saturacion NO es cosmetica: sin ella, un u < -10.8 haria que shift >= 16 y, peor,
+// un u > 0 daria un shift negativo -- y ALU_vector enmascara el shamt con
+// (DATA_W-1), asi que ambos casos devolverian silenciosamente un valor absurdo en
+// vez de saturar. Se implementa branchless (el ISA no tiene saltos): ver fases 2-3
+// de run_exp_vec_dataflow.
+static const int32_t EXP_Q_U_MIN = -8 * EXP_Q_ONE;             // -32768 == -8.0
+
+// Coeficientes Horner de 2^f en [0,1), Q4.12: 2^f ~ c0 + c1*f + c2*f^2 + c3*f^3.
+// Punto de partida: ajuste minimax sobre el ideal matematico (1.83 LSB de error
+// maximo). Punto de llegada: esos coeficientes reoptimizados por descenso de
+// coordenadas contra la implementacion en enteros REAL -- incluyendo el truncamiento
+// de cada OP_SRA -- en vez de contra el ideal. Mismo conteo de instrucciones, error
+// maximo 1.83 -> 1.25 LSB sobre todo el rango de entrada.
+//
+// c0 se dejo clavado en EXP_Q_ONE durante esa reoptimizacion: sale el mismo error
+// maximo que dejandolo libre, y a cambio e^0 da exactamente 1.0 en vez de 1 LSB de
+// mas. Una propiedad que conviene tener gratis, porque el caso u=0 no es un borde
+// exotico -- es el lane del maximo en cada softmax.
+//
+// Grado 3 y no 4 a proposito: con grado 4 el truncamiento del paso extra de Horner
+// pesa mas que el termino adicional y el error EMPEORA (2.56 LSB medidos). El
+// polinomio no es el factor limitante aqui, la aritmetica de 12 bits si.
+static const int32_t EXP_Q_C0 = 4096;
+static const int32_t EXP_Q_C1 = 2856;
+static const int32_t EXP_Q_C2 = 918;
+static const int32_t EXP_Q_C3 = 324;
+
+// ---------------------------------------------------------------------------
+// Reciproco de PROGRAM_SOFTMAX: r = 1/S por Newton-Raphson, r <- r*(2 - S*r).
+// Solo OP_MUL y OP_SUB, que es todo lo que hay -- el ISA no tiene division.
+//
+// Normalmente el problema de un reciproco por Newton-Raphson es acotar S para elegir
+// una semilla, lo que pide un CLZ que este ISA no tiene. Aca sale gratis: como se
+// resto el maximo, el lane del maximo aporta e^0 = exactamente EXP_Q_ONE (por eso se
+// clavo EXP_Q_C0 en ONE) y los otros 3 terminos estan en (0,1]. Entonces
+// S esta SIEMPRE en [1, 4] -- verificado ademas empiricamente sobre 50k vectores
+// aleatorios. La resta del maximo no es solo estabilidad numerica aca: es lo que
+// hace viable la division.
+//
+// Sobre ese rango se normaliza a [1,2] con un unico shift condicional (flag = S>=2,
+// obtenido con OP_SLT, que devuelve 0/1 y sirve directo como shamt) antes de iterar.
+// Newton-Raphson duplica los bits correctos por iteracion, asi que arrancar de un
+// rango 2x en vez de 4x ahorra iteraciones: normalizar + 2 iteraciones da 1.01 LSB en
+// 16 instrucciones, contra 1.05 LSB en 23 sin normalizar. Mejor en las dos
+// dimensiones. El peor MUL usa el 0.84% de int32 (119x de margen).
+static const int32_t SOFTMAX_NR_SEED_A = 5944;   // r0 = A - B*Sn, minimax sobre [1,2]
+static const int32_t SOFTMAX_NR_SEED_B = 2007;
+static const int     SOFTMAX_NR_ITERS  = 2;
+static const int32_t EXP_Q_TWO         = 2 * EXP_Q_ONE;   // la constante "2" del NR
 
 // Cantidad de elementos del vector a reducir en PROGRAM_SUM_REDUCTION (7, no 8:
 // el primer word de INPUT_DATA_BUFFER es el seed, no un elemento del vector).
@@ -138,6 +254,14 @@ private:
     int32_t matmul_a_[4];
     int32_t matmul_b_[4];
 
+    // Los 4 valores de u (Q4.12) de PROGRAM_EXP_VEC, guardados en
+    // handle_input_write para que run_exp_vec_dataflow los ponga en el borde sur
+    // real de Vectorial recien en START (mismo criterio que matmul_a_/matmul_b_).
+    int32_t exp_u_[4];
+
+    // Los 4 valores de x (Q4.12) de PROGRAM_SOFTMAX, mismo criterio.
+    int32_t softmax_x_[4];
+
     void reset_thread();
 
     void handle_config_write(uint32_t value);
@@ -160,6 +284,50 @@ private:
     // bordes reales S/E, acumula ambos productos en un registro vectorial y expone
     // C aplanada en su borde este real.
     void run_matmul_dataflow();
+
+    // Fases de PROGRAM_EXP_VEC (ver .cpp): la celda Vectorial satura u a
+    // [EXP_Q_U_MIN, 0], hace la range reduction base-2 (t = u*log2(e), k = floor(t),
+    // f = t-k), evalua 2^f por Horner grado 3 y expone 2^f >> (-k) en su borde este
+    // real. 23 instrucciones, todas sobre (1,1), todas lane-locked.
+    void run_exp_vec_dataflow();
+
+    // Fases de PROGRAM_SOFTMAX (ver .cpp): Vectorial hace las dos reducciones por
+    // butterfly (max y suma), la resta del maximo, los 4 exponenciales y la
+    // normalizacion final; Escalar calcula el reciproco 1/S por Newton-Raphson. Es
+    // el unico programa del catalogo con ida y vuelta real sobre el enlace interno
+    // Escalar<->Vectorial.
+    void run_softmax_dataflow();
+
+    // -----------------------------------------------------------------------
+    // Constructores breves de instrucciones. Armar cada Instr campo por campo (el
+    // estilo del resto del archivo) es apropiado cuando son 2 o 3; los kernels
+    // aritmeticos son decenas de instrucciones seguidas y ahi la secuencia --que es
+    // lo unico que importa entender-- se pierde entre el ruido. Todos delegan en
+    // make_instr; los sufijos indican de donde sale cada operando:
+    //   r = registro,  i = inmediato,  s = borde de malla (SRC_NORTH/SOUTH/EAST/WEST)
+    // y los "out_" escriben a un borde (DST_*) en vez de a un registro.
+    static Instr make_instr(int op, int src_a, int reg_a, int src_b, int reg_b,
+                            int32_t imm, int dst, int reg_dst);
+    static Instr alu_rr(int op, int ra, int rb, int rd);
+    static Instr alu_ri(int op, int ra, int32_t imm, int rd);
+    static Instr alu_ir(int op, int32_t imm, int rb, int rd);
+    static Instr alu_sr(int op, int src, int rb, int rd);
+    static Instr alu_ss(int op, int src_a, int src_b, int rd);
+    static Instr alu_mov_imm(int32_t imm, int rd);
+    static Instr alu_mov_src(int src, int rd);
+    static Instr out_reg(int ra, int dst);
+    static Instr out_rr(int op, int ra, int rb, int dst);
+    static Instr out_ri(int op, int ra, int32_t imm, int dst);
+
+    // Carga una instruccion en la celda (row,col) y le da SETTLE_CYCLES de margen.
+    // Solo es seguro con instrucciones idempotentes (que escriban un registro/borde
+    // que no lean) -- ver el comentario de run_exp_vec_dataflow.
+    void step_cell(int row, int col, const Instr& instr);
+
+    // Emite sobre Vectorial las 22 instrucciones de e^u en Q4.12, asumiendo que u ya
+    // esta en reg_u y dejando el resultado en reg_out. Usa el resto del banco como
+    // temporales. Compartida por PROGRAM_EXP_VEC y PROGRAM_SOFTMAX.
+    void emit_exp_sequence(int reg_u, int reg_out);
 
     PE_Memory_Mesh_Cell<32, 4>& memory_cell();
 };

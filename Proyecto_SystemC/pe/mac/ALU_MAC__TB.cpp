@@ -20,12 +20,16 @@ int sc_main(int argc, char* argv[]) {
     sc_signal<sc_uint<4>> opcode;
     sc_signal<PE_VectorData<32, 4>> operand_a, operand_b, result;
     sc_signal<bool> enable, valid, valid_toggle;
+    // issue_toggle solo dispara la reevaluacion de la ALU; este TB maneja los
+    // operandos directo, asi que alcanza con dejarla cableada y quieta.
+    sc_signal<bool> issue_toggle;
 
     ALU_MAC<32, 4> alu("alu");
     alu.opcode(opcode);
     alu.operand_a(operand_a);
     alu.operand_b(operand_b);
     alu.enable(enable);
+    alu.issue_toggle(issue_toggle);
     alu.result(result);
     alu.valid(valid);
     alu.valid_toggle(valid_toggle);

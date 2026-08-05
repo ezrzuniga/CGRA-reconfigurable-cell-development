@@ -51,6 +51,7 @@ public:
         alu.operand_a(sig_alu_a);
         alu.operand_b(sig_alu_b);
         alu.enable(sig_alu_enable);
+        alu.issue_toggle(sig_issue_toggle);
         alu.result(sig_alu_result);
         alu.valid(sig_alu_valid);
         alu.valid_toggle(sig_alu_valid_toggle);
@@ -108,6 +109,10 @@ private:
     sc_signal<sc_uint<4>>     sig_alu_opcode;
     sc_signal<sc_int<DATA_W>> sig_alu_a, sig_alu_b, sig_alu_result;
     sc_signal<bool>           sig_alu_enable, sig_alu_valid, sig_alu_valid_toggle;
+    // Se invierte en cada despacho, para que la ALU recompute aunque la
+    // instruccion nueva coincida en (opcode, operandos) con la anterior.
+    // Ver el comentario de issue_toggle en la ALU correspondiente.
+    sc_signal<bool>            sig_issue_toggle;
 
     // -----------------------------------------------------------------------
     // Carga de configuracion: escribe una instruccion en la memoria interna.
@@ -171,6 +176,7 @@ private:
         sig_alu_a.write(a);
         sig_alu_b.write(b);
         sig_alu_enable.write(ins.opcode != OP_NOP);
+        sig_issue_toggle.write(!sig_issue_toggle.read());
     }
 
     // -----------------------------------------------------------------------

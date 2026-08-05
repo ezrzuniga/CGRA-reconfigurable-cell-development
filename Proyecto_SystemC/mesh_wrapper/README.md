@@ -15,18 +15,18 @@ del mesh real (`mesh/CGRA_Mesh_Heterogeneous.h`) y, para `PROGRAM_FULL_PIPELINE`
 la misma secuencia de programación de Enrutamiento/Memoria ya validada en
 `mesh/CGRA_Mesh_2x2_Heterogeneous_Test__TB.cpp`.
 
-**Alcance de esta carpeta**: mayormente standalone. Los testbenches
-`MeshWrapper_CSRDMA_Sim__TB` y `MeshWrapper_SumReduction__TB` no instancian
-`CSR_DMA`/`RiscvCore`/`MainMemory` reales — traen su propio módulo de test
-(`FakeCsrDma`) que imita el protocolo. La integración de verdad (con `CSR_DMA`/
-`RiscvCore`/`MainMemory` reales) vive en `../riscv_dma_main_mem_components/`
-(`RiscvDmaSystem__TB`), que instancia este mismo `MeshWrapper` sin modificarlo.
+**Alcance de esta carpeta**: mixto. Los testbenches `MeshWrapper_CSRDMA_Sim__TB` y
+`MeshWrapper_SumReduction__TB` no instancian `CSR_DMA`/`RiscvCore`/`MainMemory`
+reales — traen su propio módulo de test (`FakeCsrDma`) que imita el protocolo.
 
-**Excepción**: `MeshWrapper_MatMul__TB` (en esta misma carpeta) sí cablea el flujo
+`MeshWrapper_MatMul__TB`, `MeshWrapper_ExpVec__TB` y `MeshWrapper_Softmax__TB`, en
+cambio, sí cablean el flujo
 completo real `RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper` (mismo wiring que
-`RiscvDmaSystem__TB`, incluido el `MemoryRouter` fan-in que `MainMemory` necesita
-para aceptar CPU y DMA a la vez). Por eso su build enlaza también los `.cpp` de
-`../riscv_dma_main_mem_components/`.
+`../riscv_dma_main_mem_components/RiscvDmaSystem__TB`, incluido el `MemoryRouter`
+fan-in que `MainMemory` necesita para aceptar CPU y DMA a la vez). Por eso su build
+enlaza también los `.cpp` de `../riscv_dma_main_mem_components/`, y su verificación
+vive en `RiscvCore::test_matmul()` / `test_exp_vec()` / `test_softmax()` en vez de en el
+propio testbench. El exit code de ambos sale de `RiscvCore::all_passed()`.
 
 ## Requisitos
 - SystemC con TLM-2.0 (variable de entorno `SYSTEMC_HOME`, si no está en una ruta
@@ -50,13 +50,17 @@ El binario queda en `build/mesh_wrapper/`.
 ./MeshWrapper_CSRDMA_Sim__TB     # PROGRAM_VECTOR_ADD + PROGRAM_FULL_PIPELINE
 ./MeshWrapper_SumReduction__TB   # PROGRAM_SUM_REDUCTION (reducción por suma)
 ./MeshWrapper_MatMul__TB         # PROGRAM_MATMUL (mult. matricial 2x2) por el flujo completo real
+./MeshWrapper_ExpVec__TB         # PROGRAM_EXP_VEC (e^u por lane en Q4.12)
+./MeshWrapper_Softmax__TB        # PROGRAM_SOFTMAX (softmax 4 lanes, Vectorial + Escalar)
 ```
-Los tres generan un `.vcd` en el directorio desde el que se ejecutan, con las señales
+Los cinco generan un `.vcd` en el directorio desde el que se ejecutan, con las señales
 de control/borde del mesh interno más el estado de la PE (`wrapper.trace(tf)` /
 `cgra.trace(tf)` reenvía a `mesh_.trace(tf)`). Se pueden inspeccionar con
 `gtkwave mesh_wrapper_csr_dma_sim_wave.vcd` /
 `gtkwave mesh_wrapper_sum_reduction_wave.vcd` /
-`gtkwave mesh_wrapper_matmul_wave.vcd`.
+`gtkwave mesh_wrapper_matmul_wave.vcd` /
+`gtkwave mesh_wrapper_exp_vec_wave.vcd` /
+`gtkwave mesh_wrapper_softmax_wave.vcd`.
 
 `MeshWrapper_MatMul__TB`, además de la traza, verifica funcionalmente: corre la suite
 completa del `RiscvCore` (vector-add, full-pipeline y dos casos de matmul 2x2) contra
@@ -123,6 +127,139 @@ garantiza que el dato en los bordes se asiente y que el resultado propague por
 distinto del acumulador de `PROGRAM_SUM_REDUCTION`, que sí es no-idempotente y exige
 el patrón de "una instrucción nueva por elemento" de la sección anterior.
 
+### Cómo computa `e^u` (`run_exp_vec_dataflow`)
+
+Es el primer kernel del catálogo que evalúa una función trascendente, y el ISA no
+ofrece ninguna de las piezas obvias: no hay `exp`, no hay división, no hay punto
+flotante. Todo sale de la aritmética entera de `ALU_vector.h`, en punto fijo **Q4.12**
+(12 bits fraccionarios; `1.0` == `4096`).
+
+La identidad que lo hace posible es la *range reduction* base-2:
+
+```
+e^u = 2^(u·log2(e)) = 2^k · 2^f      con t = u·log2(e),  k = floor(t),  f = t − k ∈ [0,1)
+```
+
+que parte el problema en dos mitades que el ISA **sí** sabe hacer:
+
+- **`2^k` con `k ≤ 0` es exactamente un `OP_SRA`.** Y el punto clave: `ALU_vector` toma
+  el shamt de `b[i]`, o sea **por lane** ([`ALU_vector.h:53`](../pe/vector/ALU_vector.h#L53)).
+  Cada lane tiene su propio exponente, así que los 4 se desplazan cantidades distintas
+  en **una sola instrucción**. Sin esa propiedad el kernel no cerraría.
+- **`2^f` con `f ∈ [0,1)` es un polinomio grado 3** evaluado por Horner con
+  `OP_MUL`/`OP_SRA`/`OP_ADD`.
+
+`OP_SRA` es floor aritmético (no truncamiento hacia cero), así que funciona directo con
+`t` negativo: para `t = −3.7` da `k = −4` y `f = 0.3`, que es justo lo que hace falta
+para que `f` caiga en `[0,1)`. Por la misma razón el `AND` con la máscara fraccionaria
+extrae `f` en complemento a dos sin corrección extra.
+
+**Por qué Q4.12 y no Q16.16**: `OP_MUL` trunca a 32 bits (`r[i] = a[i]*b[i]` sobre
+`sc_int<32>`) — no hay `MULH`, así que el producto entero de dos `Qm.f` tiene que caber
+en 32 bits. En Q16.16 eso limitaría `|a·b| < 0.5`, inservible. En Q4.12 el peor `MUL`
+del kernel usa el 9% del rango de `int32` (~11× de margen).
+
+**Saturación de la entrada a `[−8, 0]`** (fases 2-3, branchless porque el ISA no tiene
+saltos): `max(u,C)` se hace explotando que `OP_SRA` por 31 difunde el bit de signo a
+los 32 bits, `d = u−C; m = d>>31; max = u − (d&m)` — 4 instrucciones, exacto. Contra la
+constante `0` el truco colapsa a dos: `min(x,0) = x & (x>>31)`. No es cosmético: sin la
+saturación un `u > 0` daría shift negativo y un `u < −10.8` daría `shift ≥ 16`, y como
+`ALU_vector` enmascara el shamt con `(DATA_W−1)`, ambos casos devolverían **en silencio**
+un valor absurdo en vez de saturar. El límite `−8` tampoco es arbitrario: `e^-8 = 3.4e-4`
+es ~1.4 LSB en Q4.12, debajo de eso el resultado es indistinguible de cero.
+
+**Horner rota por tres registros** (`r4 → r5 → r6 → r4`) en vez de acumular sobre uno.
+Motivo: la forma natural `p = p*f>>12 + c` se leería a sí misma, y eso la haría
+no-idempotente — habría que volver al patrón frágil de "exactamente 1 ciclo" de
+`PROGRAM_SUM_REDUCTION`. Rotando, **las 23 instrucciones del kernel escriben un registro
+que no leen**, así que todas son idempotentes y se puede usar el margen holgado de
+`SETTLE` ciclos del estilo de `run_matmul_dataflow`. Cuesta 3 instrucciones por término
+en vez de 2, a cambio de inmunidad total a los márgenes de tiempo.
+
+**Los coeficientes están ajustados contra la implementación, no contra el ideal.** El
+punto de partida fue un ajuste minimax de `2^f` sobre la matemática exacta (1.83 LSB de
+error máximo); el punto de llegada es ese mismo ajuste reoptimizado por descenso de
+coordenadas contra el pipeline entero **real**, incluyendo el truncamiento de cada
+`OP_SRA`: mismo conteo de instrucciones, 1.25 LSB. `c0` se dejó clavado en `4096` porque
+da el mismo error máximo y a cambio `e^0` sale exactamente `1.0` — un caso que no es un
+borde exótico, es el lane del máximo en cada softmax.
+
+**Grado 3 y no 4 a propósito**: con grado 4 el truncamiento del paso extra de Horner pesa
+más que el término adicional y el error **empeora** (2.56 LSB medidos). El polinomio no
+es el factor limitante, la aritmética de 12 bits sí.
+
+`MeshWrapper_ExpVec__TB` lo ejercita por el flujo completo real
+(`RiscvCore -> CSR_DMA -> MainMemory -> MeshWrapper`); la verificación vive en
+`RiscvCore::test_exp_vec()` y compara contra `expf()` con **tolerancia en LSB**, no por
+igualdad como el resto del catálogo. La tolerancia está puesta apenas por encima del
+peor caso medido a propósito: si un cambio futuro degrada la precisión, el test tiene
+que fallar, no absorberlo. Los 5 casos cubren rango típico, fracciones no
+representables, el piso de underflow, los dos casos de saturación y 4 exponentes
+distintos por lane; peor error observado **0.93 LSB**.
+
+### Cómo computa el softmax (`run_softmax_dataflow`)
+
+`y_i = e^(x_i − max) / Σ_j e^(x_j − max)`, en Q4.12. Es el único kernel del catálogo
+que reparte el cómputo entre **dos celdas** por razones arquitectónicas, con ida y
+vuelta real sobre el enlace interno Escalar↔Vectorial:
+
+| Fase | Celda | Qué hace |
+|------|-------|----------|
+| A | Vectorial | `max` de los 4 lanes, por butterfly (2 pasos) |
+| B | Vectorial | `u = x − max` (nunca positivo, por construcción) |
+| C | Vectorial | `e_i = exp(u_i)`, reusando `emit_exp_sequence` tal cual |
+| D | Vectorial | `S = Σ e_i`, por butterfly (2 pasos) |
+| E | Vectorial → Escalar | manda `S` por el borde oeste |
+| F | **Escalar** | `r = 1/S` por Newton-Raphson, devuelve `r` por el borde este |
+| G | Vectorial | `y_i = e_i · r >> 12` → borde este real |
+
+**Por qué el recíproco va en Escalar.** `S` es *un* número: calcularlo en Vectorial
+serían 4 lanes repitiendo el mismo trabajo. Y la salida de Escalar hace broadcast de
+lane 0 a las 4 lanes ([`PE_Scalar_Cell.h`](../pe/scalar/PE_Scalar_Cell.h)), que es
+exactamente la forma en que Vectorial necesita `r` de vuelta. La asimetría del enlace,
+que en otros kernels es una limitación, acá es la semántica correcta.
+
+**Por qué las reducciones NO van en Escalar.** La opción "obvia" para las dos
+reducciones cross-lane sería mandarlas a Escalar, que ya sabe acumular
+(`run_sum_reduction_dataflow`). No se hace, porque la dirección Vectorial→Escalar solo
+transporta lane 0: meterle los 4 lanes exigiría serializarlos de a uno, 4 viajes de
+ida y vuelta por reducción. El butterfly las hace en 2 pasos dentro de Vectorial y
+además deja el resultado **ya difundido** a los 4 lanes, que es como hace falta después:
+
+```
+paso 1: parejas (0,1) y (2,3)   ->  {A01, A01, A23, A23}
+paso 2: rotar 2 lanes           ->  {A,   A,   A,   A  }
+```
+
+La permutación de lanes la hace el wrapper releyendo el borde este y reescribiendo los
+dos bordes reales — marshaling puro, mismo criterio que `run_matmul_dataflow`; los
+máximos y las sumas los hace la ALU. El `out_reg(...)` de cada paso cumple doble
+función: expone el valor para que el wrapper lo permute y, por leer solo registros,
+es la instrucción "protectora" que puede quedar residente durante la reescritura.
+
+**El máximo branchless.** El ISA no tiene `MAX` ni saltos. `OP_SRA` por 31 difunde el
+bit de signo a los 32 bits, y con eso `max(a,b) = a − ((a−b) & ((a−b)>>31))` sale
+exacto en 4 instrucciones.
+
+**Por qué la resta del máximo hace viable la división.** No es solo estabilidad
+numérica. Normalmente el problema de un recíproco por Newton-Raphson es acotar `S`
+para elegir semilla, lo que pide un `CLZ` que este ISA no tiene. Acá sale gratis: el
+lane del máximo aporta `e^0` = exactamente `EXP_Q_ONE` (por eso se clavó `EXP_Q_C0` en
+`ONE`) y los otros 3 términos están en `(0,1]`, así que **`S ∈ [1,4]` siempre**.
+Verificado además sobre 50k vectores aleatorios. Sobre ese rango se normaliza a `[1,2]`
+con un único shift condicional — `OP_SLT` devuelve 0/1 y sirve **directo como shamt**,
+sin necesidad del salto que el ISA no tiene. Como Newton-Raphson duplica los bits
+correctos por iteración, arrancar de un rango 2× en vez de 4× ahorra iteraciones
+enteras: normalizar + 2 iteraciones da 1.01 LSB en 16 instrucciones, contra 1.05 LSB en
+23 sin normalizar.
+
+**Verificación** (`RiscvCore::test_softmax`, 6 casos por el flujo real): tolerancia en
+LSB contra el softmax en doble precisión, más dos invariantes estructurales que fallan
+de formas que una tolerancia sola no atrapa — `sum(y) == 1` (una permutación de lanes
+mal hecha puede dar `y_i` individualmente plausibles que no sumen 1) y monotonía
+(`x_i > x_j ⇒ y_i ≥ y_j`, que detecta un cruce de lanes "casualmente" cercano). Peor
+error observado **2.81 LSB** por lane y **4 LSB** en `sum(y)`.
+
 ## Mapa de registros
 
 Mismo mapa que `CSR_DMA` ya asume del lado `cgra_socket` (ver comentario en
@@ -157,6 +294,8 @@ tal cual como `CONFIG` (ver `csr_dma.cpp::send_configuration()`).
 | `3`   | `PROGRAM_FULL_PIPELINE`  | `e = a + b*2` | Las 4: `b` entra por el borde norte real de Enrutamiento, viaja por Memoria (round-trip NoC) y Enrutamiento otra vez hasta el borde norte (interno) de Escalar; Escalar calcula `b*2`; Vectorial suma su borde sur real (`a`) con `b*2` (borde oeste, interno) y expone el resultado en su borde este real. |
 | `4`   | `PROGRAM_SUM_REDUCTION`  | Reducción por suma: `total = seed + sum(v[0..6])` | Las 4: `INPUT_DATA_BUFFER` (32 bytes) se reinterpreta como 8 enteros de 32 bits — `word[0]` es el seed (mismo camino Enrutamiento→Memoria→Enrutamiento→Escalar que "b" en `PROGRAM_FULL_PIPELINE`) y `word[1..7]` son los 7 elementos a sumar. Escalar acumula: primero siembra `reg0 = seed`, después carga una instrucción **nueva por cada elemento** (`reg0 = reg0 + imm(v[i])`, un ciclo cada una — ver "Por qué una instrucción por elemento" abajo) y por último reenvía `reg0` a Vectorial, que lo expone en su borde este real. |
 | `5`   | `PROGRAM_MATMUL`         | Multiplicación matricial 2x2: `C = A * B` | Solo Vectorial (`(1,1)`), SIMD real por lane. `INPUT_DATA_BUFFER` (32 bytes) = 8 int32 row-major: `A = {A00,A01,A10,A11}` seguido de `B = {B00,B01,B10,B11}`; `OUTPUT_DATA_BUFFER` (16 bytes) = `C` aplanada row-major `{C00,C01,C10,C11}` en los 4 lanes del borde este real. La ALU vectorial hace las 8 multiplicaciones (4 lanes × 2 pasos) y las 4 sumas — ver "Cómo computa el matmul" abajo. |
+| `6`   | `PROGRAM_EXP_VEC`        | `e^u` elementwise, punto fijo Q4.12 | Solo Vectorial (`(1,1)`), SIMD real por lane. `INPUT_DATA_BUFFER` usa solo `word[0..3]` (los 4 valores de `u` en Q4.12; `word[4..7]` se ignoran); `OUTPUT_DATA_BUFFER` = `e^u` por lane. Primer kernel del catálogo que evalúa una función trascendente — el ISA no tiene `exp`, ni división, ni punto flotante. Ver "Cómo computa `e^u`" abajo. |
+| `7`   | `PROGRAM_SOFTMAX`        | `y_i = e^(x_i-max) / sum_j e^(x_j-max)`, Q4.12 | **Dos celdas.** Vectorial `(1,1)`: reducciones por butterfly (max y suma), resta del máximo, los 4 exponenciales y la normalización. Escalar `(1,0)`: el recíproco `1/S` por Newton-Raphson. Único kernel con ida y vuelta real sobre el enlace interno Escalar↔Vectorial. `INPUT_DATA_BUFFER` usa `word[0..3]` (x en Q4.12); `OUTPUT_DATA_BUFFER` = y por lane, con `sum(y) ≈ 1.0`. Ver "Cómo computa el softmax" abajo. |
 
 Cualquier otro valor genera `SC_REPORT_ERROR` (la transacción sigue respondiendo
 `TLM_OK_RESPONSE`, el catálogo simplemente no encontró un programa para ese índice).
@@ -294,6 +433,44 @@ Puntos clave:
   `../memory/PE_Memory_Mesh_Cell.h`. Por eso el operando que atraviesa Memoria en
   `PROGRAM_FULL_PIPELINE` (`b`) tiene que ser uniforme entre lanes: ni Memoria ni
   Escalar preservan 4 lanes independientes, solo lane 0.
+- **Bug real corregido en las 3 PEs: instrucciones consecutivas idénticas se perdían**
+  (`../pe/vector/PE_vector.h` + `ALU_vector.h`, y los pares equivalentes de `scalar/`
+  y `mac/`). Lo encontró `PROGRAM_SOFTMAX` con entrada `x = {1,1,1,1}`.
+
+  `issue()` escribe `sig_alu_opcode`/`operand_a`/`operand_b`, y la ALU es un
+  `SC_METHOD` sensible a esas tres señales. Pero `sc_signal::write()` **no genera
+  evento cuando el valor coincide con el actual**, y dos instrucciones consecutivas
+  pueden coincidir en `(opcode, a, b)` aunque escriban a registros destino
+  **distintos**. La secuencia de `exp` tiene exactamente ese par:
+
+  ```
+  T2 = SRA(T1, 12)      # t
+  T6 = SRA(T2, 12)      # k = floor(t)
+  ```
+
+  que colisiona cuando `T1 == T2 == 0`, o sea cuando `u == 0` — el lane del máximo de
+  **todo** softmax. Sin evento: la ALU no recomputa, `valid_toggle` no cambia,
+  `writeback()` no dispara, y el registro destino de la segunda instrucción conserva
+  el valor que tuviera de antes. El resultado es silenciosamente incorrecto y depende
+  de los datos, no del programa.
+
+  Solo lo expuso el caso "todos los lanes iguales" porque `sc_signal` compara el
+  `PE_VectorData` completo: basta que **un** lane difiera para que el evento se dispare
+  y los 4 se actualicen. Con los 4 lanes iguales, todos colisionan a la vez — por eso
+  los otros 5 casos de softmax pasaban.
+
+  Corregido agregando un puerto `issue_toggle` que la PE invierte en cada despacho y al
+  que la ALU también es sensible. Es el mismo mecanismo que `valid_toggle` ya aplicaba
+  entre la ALU y `writeback()`, pero una etapa antes, entre `issue()` y la ALU: el
+  defecto estaba en el único eslabón de la cadena que no lo tenía. Se arreglaron las
+  tres variantes (`vector`, `scalar`, `mac`) aunque el layout 2x2 de este wrapper no
+  instancie la MAC, porque el defecto es idéntico en las tres.
+
+  Las variantes de `../pe_hls/` **no** tienen este problema: usan un único
+  `SC_METHOD(tick)` sobre `clk.pos()` que llama a `alu_compute()` como función plana y
+  escribe el resultado en el mismo paso, sin `sc_signal` intermedia entre los operandos
+  y la escritura — no hay evento que perder.
+
 - **Bug real corregido en `PE_Routing_Cell::bridge_instr_in`** (`../pe/routing/PE_Routing_Cell.h`):
   ese método corre con cualquier cambio de `instr_in`, incluido `mesh.clear_instr()`
   (que escribe `valid=false, addr=0` por default-construction de `InstrIn`). La
