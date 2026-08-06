@@ -57,3 +57,68 @@ Saved `stats.txt` output from the runs `comparison_cpu_baseline.md` reports
 on (`<workload>_<cpu>_stats.txt`, `atomic` and `o3` for all 6 workloads) —
 kept for provenance, same spirit as the Vitis HLS `*_prj/` build outputs
 elsewhere in this repo.
+
+## CGRA-offload workloads (`*_cgra_gem5_workload.c`)
+
+Counterparts to the plain-CPU workloads above that actually run their
+kernel on the CGRA, from inside gem5, instead of comparing against numbers
+measured by a separate toolchain. All 6 done end-to-end — see each
+`comparison_gem5_cgra_*.md` (repo root) for the individual writeup.
+
+| File | Kernel | CGRA cycle constant source | `atomic` | `o3` |
+|---|---|---|---|---|
+| `vector_add4_cgra_gem5_workload.c` | vector_add4 spatial (SIMD) | `comparison_vector_add.md` §2.1 (33 cyc) | clean | clean |
+| `sum_reduction8_cgra_gem5_workload.c` | sum_reduction8 temporal + spatial (both) | `comparison_sum_reduction.md` §2.1 (141 / 154 cyc) | clean | clean |
+| `sum_reduction16_cgra_gem5_workload.c` | sum_reduction16 temporal + spatial (both, spatial = 3 stages) | `comparison_sum_reduction_n16.md` §3.1 (261 / 951 cyc) | clean | clean |
+| `max_reduction8_cgra_gem5_workload.c` | max_reduction8 temporal + spatial (both) | `comparison_max_reduction.md` §3.1 (302 / 579 cyc) | clean | clean |
+| `fir3tap_cgra_gem5_workload.c` | fir3tap temporal + spatial (both) | `comparison_fir_convolution.md` §2.1 (264 / 321 cyc) | clean | clean |
+| `matmul2x2_cgra_gem5_workload.c` | matmul2x2 temporal + spatial (both) | `comparison_matrix_multiplication.md` §2.1 (204 / 82 cyc) | clean | **crashes — see below** |
+
+**`o3` note on `matmul2x2`**: this one workload hits a reproducible
+pre-existing gem5 O3 CPU-model bug (`src/cpu/o3/inst_queue.cc:1523:
+panic: Dependency graph N ... not empty!`), isolated to GEMM's spatial
+design specifically (the largest single-phase instruction-memory program
+of any spatial design here) called repeatedly — not a CGRA-bridge
+correctness bug. See `comparison_gem5_cgra_matmul2x2.md` §2 for the full
+bisection. Use `--cpu atomic` for this one kernel; the other 5 are clean
+under both models.
+
+**How it works**: gem5 SE mode has no OS/page-table layer, so a compiled
+user binary can't reach a real memory-mapped device the way FS-mode Linux
+could. Instead, each `_cgra` workload calls a new gem5 pseudo-instruction,
+`m5_cgra_run(kernel_id, &args)` — the same mechanism `m5ops` already uses
+for `m5_exit`/`m5_dumpstats` (a trapped magic ARM64 instruction, decoded
+directly by gem5, no address-space plumbing needed). gem5's C++ handler
+(`gem5/src/cgra/cgra_kernels.{hh,cc}`, dispatched from a new case in
+`gem5/src/sim/pseudo_inst.{hh,cc}`) runs the kernel's **real**
+Vitis-HLS-synthesizable C++ model from `Proyecto_C/<kernel>_hls_c/` — the
+exact source that was actually synthesized/cosim'd for this repo's
+`comparison_*.md` docs, compiled here as ordinary host C++ (no HLS
+toolchain needed at gem5-build time; it only needs Xilinx's `ap_int.h`,
+available locally at `/home/rex/tools/Xilinx/Vitis/2024.2/include`) — for
+the correct output values, then stalls the calling CPU thread for that
+kernel's real cosim-measured cycle count (a per-kernel constant, not
+re-derived inside gem5) before returning control.
+
+### Building a `_cgra` workload
+
+```bash
+# 1. Assemble gem5's m5ops client stub for aarch64 (one-time; also
+#    auto-generates m5_cgra_run since it's added to M5OP_FOREACH)
+mkdir -p m5ops_arm64
+aarch64-linux-gnu-gcc -c -I/home/rex/gem5/include \
+    /home/rex/gem5/util/m5/src/abi/arm64/m5op.S -o m5ops_arm64/m5op.o
+
+# 2. Cross-compile and link the workload against it
+aarch64-linux-gnu-gcc -O0 -static -o /tmp/vector_add4_cgra_arm \
+    vector_add4_cgra_gem5_workload.c m5ops_arm64/m5op.o
+
+# 3. Run under gem5 SE mode exactly like the plain-CPU workloads
+/home/rex/gem5/build/ARM/gem5.opt --outdir=/tmp/m5out_cgra \
+    gem5_se_config.py --binary /tmp/vector_add4_cgra_arm --isa arm --cpu o3
+grep -E "numCycles|numInsts" /tmp/m5out_cgra/stats.txt
+```
+
+If `gem5/src/cgra/cgra_kernels.cc` or `gem5/src/sim/pseudo_inst.{hh,cc}`
+change, rebuild gem5 first: `cd /home/rex/gem5 && scons build/ARM/gem5.opt
+-j8`.

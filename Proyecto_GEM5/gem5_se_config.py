@@ -34,6 +34,9 @@ import os
 
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
+from gem5.components.cachehierarchies.classic.private_l1_shared_l2_cache_hierarchy import (
+    PrivateL1SharedL2CacheHierarchy,
+)
 from gem5.components.memory.single_channel import SingleChannelDDR3_1600
 from gem5.components.processors.cpu_types import CPUTypes, get_cpu_type_from_str
 from gem5.components.processors.simple_processor import SimpleProcessor
@@ -66,6 +69,15 @@ parser.add_argument(
     choices=["atomic", "timing", "minor", "o3"],
     help="Modelo de CPU a simular (default: atomic).",
 )
+parser.add_argument(
+    "--cache",
+    action="store_true",
+    help="Agrega jerarquia de cache privada L1 (32KiB I/D) + L2 compartida "
+         "(256KiB) en vez de NoCache() -- opt-in, no cambia el default para "
+         "no invalidar los numeros ya documentados en comparison_gem5_*.md "
+         "(que asumen NoCache()). Necesaria para hit/miss rate y latencia "
+         "de memoria real; sin esta bandera todo acceso va directo a DRAM.",
+)
 args = parser.parse_args()
 
 if not os.path.isfile(args.binary):
@@ -81,7 +93,12 @@ isa = get_isa_from_str(args.isa)
 #      modelar jerarquia de memoria para este experimento) -----------------
 processor = SimpleProcessor(cpu_type=cpu_type, num_cores=1, isa=isa)
 memory = SingleChannelDDR3_1600(size="256MiB")
-cache_hierarchy = NoCache()
+if args.cache:
+    cache_hierarchy = PrivateL1SharedL2CacheHierarchy(
+        l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB",
+    )
+else:
+    cache_hierarchy = NoCache()
 
 board = SimpleBoard(
     clk_freq="1GHz",
