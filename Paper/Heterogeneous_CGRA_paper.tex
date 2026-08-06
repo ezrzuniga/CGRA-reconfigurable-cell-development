@@ -333,7 +333,7 @@ Vitis HLS & 2024.1 & High-Level Synthesis (HLS) from SystemC to RTL (VHDL). \\
 %    \item \textbf{Integration:} $2\times2$ array with mesh NoC.
 %    \item \textbf{Verification:} Exhaustive testbench + randomized programs \cite{verification_cgra}.
 %    \item \textbf{FPGA synthesis:} Subject to availability (resources + $F_{\max}$).
-%    \item \textbf{Benchmarks:} Matrix multiplication, FFT, vector reduction.
+%    \item \textbf{Benchmarks:} Matrix multiplication, Sum-Reduction, vector reduction.
 %\end{itemize}
 %
 %Metrics in Table~\ref{tab:metricas_hls}.
@@ -372,7 +372,7 @@ Vitis HLS & 2024.1 & High-Level Synthesis (HLS) from SystemC to RTL (VHDL). \\
 %    \item \textbf{Integration:} $2\times2$ array with mesh NoC.
 %    \item \textbf{Verification:} Exhaustive testbench + randomized programs \cite{verification_cgra}.
 %    \item \textbf{FPGA synthesis:} Subject to availability (resources + $F_{\max}$).
-%    \item \textbf{Benchmarks:} Matrix multiplication, FFT, vector reduction.
+%    \item \textbf{Benchmarks:} Matrix multiplication, Sum-Reduction, vector reduction.
 %\end{itemize}
 %
 %Metrics in Table~\ref{tab:metricas_hls}.
@@ -449,33 +449,43 @@ Vitis HLS & 2024.1 & High-Level Synthesis (HLS) from SystemC to RTL (VHDL). \\
 % =========================================================
 \section{Experimental Plan and Methodology}%Eddy
 \label{sec:experimento}
+%%%%% %new
+
+
+
+
+
+
+%%%%% old
+
 \subsection{Testing and Stimulus}
+
 
 To test an electronic design, a testbench is needed, in charge of driving a stimulus into the design and facilitating monitoring of what happens in the design under test (DUT). 
 As has been done in other designs, and in the various CGRA development frameworks, it becomes necessary to have an algorithm that the architecture is capable of executing. 
-For this, one typically starts from so-called kernels: representative algorithms, typically coded in C (for example, FFT and GEMM), annotated with compiler directives on their loops, whose data-flow structure can be mapped onto a CGRA's PE array. 
+For this, one typically starts from so-called kernels: representative algorithms, typically coded in C (for example, Sum-Reduction and GEMM), annotated with compiler directives on their loops, whose data-flow structure can be mapped onto a CGRA's PE array. 
 This is, in fact, the approach followed by Morpher within the OpenCGRA ecosystem: starting from the C kernel, it generates the data-flow graph (DFG) and the scratchpad memory layout, and produces the test vectors that feed the simulation/emulation stage, which are used to verify functional correctness and obtain area and power estimates \cite{Juneja}. 
-The use of FFT as a reference kernel is also consistent with the CGRA literature oriented toward signal processing, where it recurrently appears alongside routines such as IDCT, FIR, and IIR \cite{Podobas}.
+The use of Sum-Reduction as a reference kernel is also consistent with the CGRA literature oriented toward signal processing, where it recurrently appears alongside routines such as IDCT, FIR, and IIR \cite{Podobas}.
 
 It is worth noting that even in well-established frameworks such as OpenCGRA, the authors themselves point out that the simulator relies on testbenches manually written by the user and does not automate test-data generation or end-to-end verification \cite{Juneja}. 
 This reinforces the relevance of proposing, from the outset, a structured and progressive testing flow such as the one proposed below.
 
-While a valuable goal is to achieve end-to-end execution of an algorithm such as FFT or GEMM compiled from start to finish (from the C program to the configuration bitstream and the CGRA's input data), given the time available for the project's development, the first objective targets algorithmically simpler tests. 
+While a valuable goal is to achieve end-to-end execution of an algorithm such as Sum-Reduction or GEMM compiled from start to finish (from the C program to the configuration bitstream and the CGRA's input data), given the time available for the project's development, the first objective targets algorithmically simpler tests. 
 The following steps are proposed:
 
 \begin{enumerate}
     \item \textbf{A single PE executing $c = a + b$ (constant) or $c = a \times b$.} This validates loading of the configuration word (config word), reading of registers/inputs, the ALU operation, and writing of the output result. It is, literally, the architecture's ``hello world.''
     \item \textbf{Chains of operations, in pipeline mode:} accumulated sum ($y = x_0 + x_1 + x_2 + \dots + x_n$) and successive-squaring powers ($x,\ x^2,\ x^4,\ x^8,\ \dots$).
-    \item \textbf{Simple MAC ($acc \mathrel{+}= a \times b$):} this is the base block of almost every real kernel (FFT, GEMM, convolutions), with this working correctly, the validation can scale toward more complex designs.
+    \item \textbf{Simple MAC ($acc \mathrel{+}= a \times b$):} this is the base block of almost every real kernel (Sum-Reduction, GEMM, convolutions), with this working correctly, the validation can scale toward more complex designs.
 \end{enumerate}
 
 Once these basic tests are passed, progress can be made toward typical benchmarks from the CGRA literature, such as MachSuite and PolyBench \cite{PolyBenchC,MachSuite}, which together with Wavelib and BEEBS make up the set of suites used by Morpher to evaluate its compilation flow \cite{Juneja}. 
-These suites provide kernel libraries (including FFT and GEMM) that can be mapped onto the CGRA through a compilation flow similar to the one described above.
+These suites provide kernel libraries (including Sum-Reduction and GEMM) that can be mapped onto the CGRA through a compilation flow similar to the one described above.
 
 
 \subsection{Monitoring}
 
-Since this project will be developed in SystemC, the aim is to leverage the language's own features to implement performance measurement. 
+This project will be developed in SystemC, the aim is to leverage the language's own features to implement performance measurement. 
 It is proposed to implement a monitor as an \texttt{SC\_MODULE} component that observes, non-intrusively, DUT elements such as signals and internal counters. 
 This separation between functional logic and measurement logic follows SystemC's own modular design principle, in which the monitor can be added to or removed from the testbench without modifying the module under analysis.
 
@@ -498,6 +508,240 @@ This applies both to the AMD Kria KV260 and the AMD Alveo U55C.
 Tied to design-space exploration, the plan is to generate variations of the CGRA's architectural design by modifying the number and type of PEs (\textit{processing elements}). 
 For example, changes in the distribution of PE types (more memory banks, more fixed-point ALUs, more floating-point ALUs), as well as different $n \times n$ array dimensions, aimed at optimizing the execution of vector instructions.
 This type of exploration is consistent with the diversity of CGRA architectures reported in the literature, where performance depends heavily on the composition and arrangement of the PEs \cite{Podobas}.
+
+
+
+\subsection{Results}
+
+This section presents the results obtained from the implementation of the CGRA with the proposed kernels and monitoring metrics from section \ref{sec:experimento}.
+
+
+
+
+
+\subsubsection{Sum-Reduction Kernel}
+
+For the sum-reduction kernel we did two comparison, one temporal implementation with our new MAC cell and other spatial implementation with 4 scalar cells. 
+Both of the solutions were implemented under the same hardware considerations, using a Kria K26 SoM as reference with a 250 MHz clock target.
+The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}, where the new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
+
+%The sum-reduction kernel showed a good performance in both the temporal and spatial implementations, but the temporal implementation had a better resource utilization as shown in the table \ref{tab:resource_util_sumReduction}. 
+%Since the idea of the temporal implementation is to reduce the number of PEs and use them multiple times, the resources are better utilized, while the spatial implementation uses more PEs, in this 3.2x more LUTs and 3.37x more FFs. 
+
+
+\begin{table}[htbp]
+\centering
+\caption{Post-synthesis resource utilization for Sum-Reduction kernel.}
+\label{tab:resource_util_sumReduction}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.18\linewidth}p{0.18\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
+\toprule
+\textbf{Resource} & \textbf{MAC Cell - Temporal} & \textbf{Scalar Cell - Spatial} & \textbf{Spatial/Temporal} \\
+\midrule
+LUT & 1205 & 3857 & 3.20$\times$ \\
+FF & 1551 & 5230 & 3.37$\times$ \\
+DSP & 3 & 12 & 4.00$\times$ \\
+SRL & 0 & 20 & -- \\
+BRAM & 0 & 0 & -- \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+
+Regarding the performance metrics, the table \ref{tab:perf_metrics_sumReduction} shows that the temporal implementation with the MAC cell shows a better performance since this kind cell is designed to perform the sum-reduction operation in a more efficiente way that a normal scalar cell. 
+With this results is possible to confirm the importance of having a heterogeneous CGRA with specialized cells for specific operations, since this allows to have a better performance and a better resource utilization.
+
+
+\begin{table}[htbp]
+\centering
+\caption{Performance metrics from measured sum-reduction execution.}
+\label{tab:perf_metrics_sumReduction}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.26\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.26\linewidth}@{}}
+\toprule
+\textbf{Metric} & \textbf{MAC Cell - Temporal} & \textbf{Scalar Cell - Spatial} & \textbf{Spatial/Temporal} \\
+\midrule
+Operations per second (OP/s) & 19.63 MOP/s & 17.97 MOP/s & 0.92$\times$ \\
+Average latency per operation & 50.95 ns/op & 55.65 ns/op & 1.09$\times$ \\
+Utilization rate (\%) & 79.7\% & 47.8\% & 0.60$\times$ \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+
+%\begin{table}[htbp]
+%\centering
+%\caption{Performance metrics from measured sum-reduction execution.}
+%\label{tab:perf_metrics_sumReduction}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}p{0.26\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.26\linewidth}@{}}
+%\toprule
+%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Spatial/Temporal} \
+%\midrule
+%Operations per second (OP/s) & 19.63 MOP/s & 17.97 MOP/s & 0.92
+%×
+%× \
+%Average latency per operation & 50.95 ns/op & 55.65 ns/op & 1.09
+%×
+%× \
+%Utilization rate (%) & 79.7% & 47.8% & 0.60
+%×
+%× \
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+
+
+
+
+
+
+%\subsubsection{1. Test Setup}
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Temporal vs. spatial sum-reduction setup.}
+%\label{tab:sum_setup}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}p{0.26\linewidth}p{0.34\linewidth}p{0.34\linewidth}@{}}
+%\toprule
+%\textbf{Item} & \textbf{Temporal} & \textbf{Spatial} \\
+%\midrule
+%Mesh & \texttt{CGRA\_Mesh\_Static\_C<1,1,32,1,PE\_MAC\_State>} & \texttt{CGRA\_Mesh\_Static\_C<2,2,32,1,PE\_Scalar\_State$\times$4>} \\
+%Cell count & 1 & 4 \\
+%\texttt{NUM\_PHASES} & 8 & 1 \\
+%\texttt{INSTR\_MEM\_SIZE} & 3 & 3 \\
+%Program shape & 1 cell reused 8$\times$, each phase: \texttt{acc += v[phase]} & 4 cells, 1 pass, 3-level parallel adder tree \\
+%\texttt{cgra\_run} FSM iterations (idealized C model) & 27 & 6 \\
+%Test vectors & \texttt{\{6,-2,9,4,0,7,-5,3\}}$\rightarrow$22, \texttt{\{100,-55,30,7,-12,4,-9,15\}}$\rightarrow$80 & same \\
+%Correctness & PASS (csim, g++ standalone, cosim) & PASS (csim, g++ standalone, cosim) \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%\subsubsection{2. Raw Measurements}
+%
+%\paragraph{2.1 Per-transaction RTL cycle counts (cosim, actual simulated hardware)}
+%Pulled from \texttt{result.transaction.rpt} --- every transaction the testbench issues to the top module. \texttt{prog\_valid} transactions are cheap instruction pokes; the \texttt{start=true} transaction is the real reduction and is unambiguous in both traces (it is the one that costs far more than the others):
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Per-transaction cycle counts from cosimulation traces.}
+%\label{tab:transaction_cycles}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}lccc@{}}
+%\toprule
+%\textbf{Design} & \textbf{\# \texttt{prog\_valid} transactions} & \textbf{Cost each} & \textbf{\texttt{start=true} transaction cost} \\
+%\midrule
+%Temporal & 3 & 12 cycles & \textbf{141 cycles} \\
+%Spatial & 12 & 14 cycles & \textbf{154 cycles} \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%\paragraph{2.2 Timing}
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Timing comparison.}
+%\label{tab:timing_compare}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}lcc@{}}
+%\toprule
+%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} \\
+%\midrule
+%Clock target & 4.000 ns & 4.000 ns \\
+%Clock achieved (post-synthesis, Vivado) & 2.891 ns & 2.891 ns \\
+%Timing met & Yes & Yes \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%Identical achieved clock period for both: the comparison below is a clean cycle-count (and therefore wall-clock) comparison, not confounded by a faster/slower clock on either side.
+%
+%\paragraph{2.3 Resource utilization (post-synthesis, Vivado --- authoritative numbers)}
+%
+%
+%
+%\paragraph{2.4 Per-cell synthesis figures (single instance, HLS estimate)}
+%The most direct apples-to-apples comparison: one \texttt{pe\_mac\_step} vs. one \texttt{pe\_scalar\_step}, both with \texttt{DATA\_W=32, VLEN=1, NUM\_REGS=8, INSTR\_MEM\_SIZE=3}.
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Single-cell HLS estimate comparison.}
+%\label{tab:per_cell_hls}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}lcc@{}}
+%\toprule
+%\textbf{Metric} & \textbf{\texttt{pe\_mac\_step} (temporal cell)} & \textbf{\texttt{pe\_scalar\_step} (spatial cell, $\times$4)} \\
+%\midrule
+%Latency & 4 cycles (16.0 ns) & \textbf{23 cycles (92.0 ns)} \\
+%Initiation interval (II) & 5 & 24 \\
+%FF & 641 & 2222 \\
+%LUT & 1162 & 2391 \\
+%DSP & 3 & 3 \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%A single \texttt{pe\_scalar\_step} costs \textbf{$\sim$5.75$\times$ more cycles} and roughly \textbf{3.5$\times$ more FF / 2$\times$ more LUT} than a single \texttt{pe\_mac\_step} --- despite doing strictly less arithmetic (\texttt{ADD} only, vs. \texttt{pe\_mac\_step}'s full ALU plus multiply-accumulate). This per-cell inefficiency, not the tree-vs-chain mapping choice itself, is the direct cause of the counterintuitive result in Section~3.
+%
+%\subsubsection{3. Derived Metrics}
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Derived comparison metrics.}
+%\label{tab:derived_metrics}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}p{0.42\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.19\linewidth}@{}}
+%\toprule
+%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Ratio (spatial/temporal)} \\
+%\midrule
+%Real wall-clock time (\texttt{cycles $\times$ 2.891 ns}) & 407.6 ns & 445.2 ns & \textbf{1.09$\times$ (slower)} \\
+%Cycles per input element ($n=8$) & 17.6 & 19.25 & 1.09$\times$ \\
+%LUT $\times$ cycles (area-delay product) & 169,905 & 593,978 & 3.50$\times$ \\
+%FF $\times$ cycles & 218,691 & 805,420 & 3.68$\times$ \\
+%"Cell-cycles" (cycles $\times$ cell count --- rough switching-activity proxy) & 141 & 616 & 4.37$\times$ \\
+%LUT utilization of target device & 1.03\% & 3.29\% & 3.20$\times$ \\
+%FF utilization of target device & 0.66\% & 2.23\% & 3.37$\times$ \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%
+
+
+
+
+
+
+
 
 \subsection{Preliminary Results}
 \label{sec:results}

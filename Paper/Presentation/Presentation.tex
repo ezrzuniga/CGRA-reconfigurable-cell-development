@@ -1,0 +1,196 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{amsmath}
+
+\title{Development of a Heterogeneous Reconfigurable CGRA Cell}
+\subtitle{Avance de resultados y analisis de desempeno}
+\author{
+Duarte Sanchez David \and
+Jimenez Ulate Eddy \and
+Ruiz Rivera Jeffrey \and
+Esquivel Arias Fabian \and
+Zuniga Ramirez Jose Eduardo
+}
+\institute{Escuela de Ingenieria en Electronica \\ Instituto Tecnologico de Costa Rica}
+\date{2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Motivacion}
+\begin{itemize}
+  \item Las CGRA ofrecen un punto intermedio entre flexibilidad (FPGA) y eficiencia (ASIC).
+  \item En arreglos homogeneos hay subutilizacion de recursos cuando la carga no coincide con el tipo de PE.
+  \item Propuesta: CGRA heterogenea con celdas especializadas para mejorar uso de recursos y desempeno.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Objetivo del trabajo}
+\begin{itemize}
+  \item Disenar y validar una celda reconfigurable heterogenea para CGRA.
+  \item Integrar:
+  \begin{itemize}
+    \item Celdas de ruteo
+    \item Celdas de memoria distribuida
+    \item Celda escalar
+    \item Celda vectorial
+    \item Celda MAC
+  \end{itemize}
+  \item Evaluar comportamiento funcional y metricas de rendimiento mediante SystemC + Vitis HLS.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Arquitectura propuesta (2x2)}
+\begin{itemize}
+  \item Topologia base: malla $2\times2$ (escalable).
+  \item Interconexion NoC con credit-based flow control.
+  \item Interfaz tipo RISC-V (CSR/DMA) para configuracion y ejecucion.
+  \item Enfoque modular para explorar variantes temporales y espaciales.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Metodologia experimental}
+\begin{itemize}
+  \item Modelado y simulacion funcional en SystemC.
+  \item Flujo HLS (Vitis 2024.1):
+  \[
+  csim \rightarrow csynth \rightarrow cosim \rightarrow export\_design
+  \]
+  \item Caso de estudio principal: \textbf{sum-reduction}.
+  \item Comparacion entre mapeo:
+  \begin{itemize}
+    \item Temporal (1 celda MAC reutilizada)
+    \item Espacial (4 celdas escalares)
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Resultados funcionales preliminares}
+\begin{itemize}
+  \item Suite de regresion:
+  \begin{itemize}
+    \item 19 testbenches SystemC
+    \item 139 aserciones
+    \item 0 fallos funcionales
+  \end{itemize}
+  \item Sum-reduction end-to-end: \textbf{PASS}.
+  \item Validacion cruzada HLS (csim): \textbf{PASS}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Uso de recursos (post-synthesis)}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Recurso} & \textbf{Temporal (MAC)} & \textbf{Espacial (Scalar)} & \textbf{Espacial/Temporal} \\
+\midrule
+LUT  & 1205 & 3857 & 3.20$\times$ \\
+FF   & 1551 & 5230 & 3.37$\times$ \\
+DSP  & 3    & 12   & 4.00$\times$ \\
+SRL  & 0    & 20   & -- \\
+BRAM & 0    & 0    & -- \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+\end{frame}
+
+\begin{frame}{Metricas especiales (sum-reduction)}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{@{}p{0.40\linewidth}ccc@{}}
+\toprule
+\textbf{Metrica} & \textbf{Temporal} & \textbf{Espacial} & \textbf{Espacial/Temporal} \\
+\midrule
+Operations per second (OP/s) & 19.63 MOP/s & 17.97 MOP/s & 0.92$\times$ \\
+Latencia promedio por operacion & 50.95 ns/op & 55.65 ns/op & 1.09$\times$ \\
+Tasa de utilizacion & 79.7\% & 47.8\% & 0.60$\times$ \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+\end{frame}
+
+\begin{frame}{Latencia medida en cosim}
+\begin{itemize}
+  \item Costo transaccion \texttt{start=true}:
+  \begin{itemize}
+    \item Temporal: 141 ciclos
+    \item Espacial: 154 ciclos
+  \end{itemize}
+  \item Ambos cumplen timing con reloj logrado de 2.891 ns.
+  \item Resultado clave:
+  \begin{itemize}
+    \item En este benchmark, temporal resulta ligeramente mas rapido y considerablemente menor en area.
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Interpretacion tecnica}
+\begin{itemize}
+  \item El numero ideal de iteraciones de FSM no explica por si solo el rendimiento real.
+  \item El costo por etapa/celda tras HLS afecta fuertemente la latencia final.
+  \item Conclusiones para este caso:
+  \begin{itemize}
+    \item Temporal: mejor eficiencia de area y mejor tiempo total.
+    \item Espacial: mayor paralelismo potencial, pero con mayor costo de recursos.
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Estado de linea base RISC-V (gem5)}
+\begin{itemize}
+  \item Se prepara comparacion con baseline software RISC-V (RV64GC) en gem5 (SE mode).
+  \item Modelos CPU considerados:
+  \begin{itemize}
+    \item Atomic
+    \item Timing
+    \item Minor
+    \item O3
+  \end{itemize}
+  \item Metrica principal: ciclos (\texttt{numCycles}) e instrucciones (\texttt{numInsts}).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusiones}
+\begin{itemize}
+  \item La arquitectura heterogenea propuesta es funcional y reproducible.
+  \item Sum-reduction confirma que especializacion de celda importa tanto como el estilo de mapeo.
+  \item Para el caso evaluado, la version temporal con celda MAC ofrece mejor balance desempeno/area.
+  \item Siguiente paso: ampliar benchmark y cerrar comparacion con baseline RISC-V en gem5.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Trabajo futuro}
+\begin{itemize}
+  \item Escalar casos de prueba (tamano de problema y kernels).
+  \item Profundizar en analisis de energia y area-delay product.
+  \item Integrar resultados completos de gem5 para comparar HW/SW.
+  \item Afinar mapeo y scheduling HLS por tipo de celda.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\centering
+\Huge Gracias
+\end{frame}
+
+\end{document}
