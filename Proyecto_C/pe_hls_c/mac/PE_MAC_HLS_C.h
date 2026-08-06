@@ -43,9 +43,9 @@ struct PE_MAC_State {
 
 namespace pe_mac_hls_c_detail {
 
-template <int DATA_W, int VLEN, int NUM_REGS>
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline PE_VectorData<DATA_W, VLEN> select_src(
-    const PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s, ap_uint<3> sel,
+    const PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s, ap_uint<3> sel,
     ap_uint<5> reg_idx, ap_int<DATA_W> imm,
     const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
     const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
@@ -93,8 +93,8 @@ inline PE_VectorData<DATA_W, VLEN> alu_compute(
     return r;
 }
 
-template <int DATA_W, int VLEN, int NUM_REGS>
-inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s,
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                        const PE_Instruction<DATA_W>& ins, PE_VectorData<DATA_W, VLEN> r)
 {
     if (ins.opcode == OP_MAC) {

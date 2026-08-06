@@ -54,7 +54,7 @@ parser.add_argument(
     "--isa",
     type=str,
     default="riscv",
-    choices=["riscv", "x86"],
+    choices=["riscv", "x86", "arm"],
     help="ISA simulada (default: riscv, para que coincida con el core "
          "RISC-V real del proyecto CGRA)."
          "y con la ISA para la que compilaste --binary.",
