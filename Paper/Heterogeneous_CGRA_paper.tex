@@ -29,11 +29,20 @@ Costa Rica Institute of Technology \\
 % Loosen line breaking to avoid overfull boxes in two-column layout
 \sloppy
 
+
+
+
+%-----------------------------------------------
+%       Abstract
+%-----------------------------------------------
+
 \begin{abstract}
 
-Coarse-Grained Reconfigurable Arrays (CGRAs) provide an effective trade-off between the programmability of FPGAs and the efficiency of ASIC-like acceleration, but homogeneous arrays often under-utilize functional units when workload characteristics are non-uniform. 
-This work presents a heterogeneous CGRA cell architecture composed of five specialized elements: routing cells with non-blocking FIFOs, distributed-memory cells, multi-precision scalar cells (int8/int16/int32), float32 vector cells, and dedicated MAC cells, integrated in a $2\times2$ mesh with a RISC-V CSR/DMA control path. 
-The design flow combines SystemC-based functional development and validation with Vitis HLS synthesis. Experimental evaluation includes temporal and spatial mappings of GEMM and sum-reduction kernels. For GEMM, the spatial mapping reaches higher throughput (33.74 MOP/s vs 13.56 MOP/s) and lower latency per operation (29.64 ns/op vs 73.72 ns/op), at the cost of higher resource usage (up to $4.58\times$ FF and $4.00\times$ DSP). 
+Coarse-Grained Reconfigurable Arrays (CGRAs) are gaining interest in the industry due to the flexibility they provide and the facility to program them. 
+There different architectures of CGRAs, being the most common the homogeneous CGRA but these present a problem of underutilization of resources when the workload is not uniform.
+This works presents a heterogeneous CGRA cell architecture composed of five different elements: a routing cell, distribuited memory cell, scalar processing element (PE), vector PE and a MAC PE.
+The design was implemented in SystemC and validated with Vitis HLS, using two main kernels: GEMM and sum-reduction.
+For GEMM, the spatial mapping reaches higher throughput (33.74 MOP/s vs 13.56 MOP/s) and lower latency per operation (29.64 ns/op vs 73.72 ns/op), at the cost of higher resource usage (up to 4.58$\times$ FF and 4.00$\times$ DSP). 
 For sum-reduction, the temporal MAC-based mapping achieves better efficiency, with higher utilization (79.7\% vs 47.8\%) and lower latency (50.95 ns/op vs 55.65 ns/op), while also requiring fewer resources. 
 These results support the central claim that heterogeneous, workload-aware CGRA composition improves performance-resource trade-offs compared with uniform PE deployment.
 
@@ -43,8 +52,12 @@ These results support the central claim that heterogeneous, workload-aware CGRA 
 coarse-grained reconfigurable architecture (CGRA), heterogeneous CGRA, spatial CGRA, reconfigurable computing.
 \end{IEEEkeywords}
 
+
+%-----------------------------------------------
+%       Introduction
+%-----------------------------------------------
+
 \section{Introduction}
-%The introduction should motivate the problem, explain its importance, and define the objectives of the work. Include context, research questions, and main contributions.
 
 
 The reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
@@ -60,12 +73,12 @@ CGRAs have the advantage of being one to two orders of magnitude more efficient 
 
 The development of a reconfigurable CGRA cell is of great importance not only for its relevance in HPC, but also for its adoption in Machine-Learning applications, image processing, and computer vision,
 communications, and other areas \cite{dvhetero}. Therefore, the objective of this work is to develop a heterogeneous CGRA with different kind of processing elements such as a scalar and vector processing cells, memory banks and a MAC (Multiply-Accumulate) unit. 
-%tentatively featuring data-routing cells,
-%cells with distributed memory banks, scalar processing cells, and vector processing cells, capable of executing programs using the RISC-V instruction set, with the ability to execute 8, 16, and 32-bit logic.
 
-%The importance of using this instruction set is that it is an open standard, facilitating its adoption since it requires no license payments. This is an instruction set based on simplicity,
-%making hardware design simpler and its implementation more direct \cite{riscv}.
 
+
+%-----------------------------------------------
+%       Background and Related Work
+%-----------------------------------------------
 
 \section{Background and Related Work}
 In recent years, CGRAs have gained significant prominence as hardware accelerators due to their ability to offer an exceptional balance between software flexibility and the high performance of application-specific hardware \cite{LeiboLiu,Podobas}. 
@@ -83,21 +96,12 @@ They highlight the need for context-memory-aware mapping to ensure energy-effici
 Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
 
 
-
-%Recent research has demonstrated the advantages of tightly integrating RISC-V cores with CGRA arrays to overcome the traditional Von Neumann bottleneck. 
-%For example, \cite{granja} explore the integration of a CGRA accelerator coupled to a high-performance RISC-V CVA6 core focused on cloud-edge ecosystems, while \cite{GuoweiZhu} propose DVHetero, a comprehensive framework for the design and validation of heterogeneous SoCs based on this combination.
-
-%At the level of practical implementation, these architectures materialize in cutting-edge open-source efforts; repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level, while projects such as OpenEdgeCGRA (ESL-EPFL) provide complete open-hardware platforms. 
-%In the latter, the architecture is composed of a configurable two-dimensional mesh of Processing Elements (PEs), or reconfigurable cells, that interact in a toroidal fashion and share registers to maximize instruction-level parallelism with minimal memory overhead. Another notable project is OpenCGRA, developed by PNNL (\textit{Pacific Northwest National Laboratory}), which generates reconfigurable processors in a parameterizable way, allowing the hardware to be designed via code — including mesh size, cell type, and how cells communicate with each other — after which functionality is tested using Python and Verilator, and finally the design is exported to a standard hardware description code (HDL) such as Verilog.
-
-%For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. 
-%They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. 
-%Within this framework, the design and development of a new reconfigurable CGRA cell is grounded in the need to optimize local interconnects, deterministic access to intermediate operands, and the versatility of its cycle-level operations — challenges that remain areas of active exploration at the frontier of heterogeneous accelerator design.
-
+%-----------------------------------------------
+%       SoTA Analysis
+%-----------------------------------------------
 
 \section{Analysis of Existing Solutions (SOTA)} %Jose
 \label{sec:sota}
-%%%%%%%%%% new
 
 Nowadays there are different types of CGRAs, you can classify them by their elements in heterogeneous or homogeneous, also depending on how you use structure the hardware and the handling of the data, they can be classified as temporal or spatial. 
 Examples of homogeneous CGRAs are the HyCUBE, DySER, TRAM and OpenCGRA \cite{Blocks2022, TRAM, OpenCGRA} which have an array of homogeneous or equal PEs, while examples of heterogeneous CGRAs are Plasticine and HETA \cite{plasticine2017, HETA} which combine different PE.
@@ -133,79 +137,11 @@ For example the HETA CGRA is good when the physical space is a concern \cite{HET
 
 
 
+%-----------------------------------------------
+%       Proposed Solution and Second-Level Architecture
+%-----------------------------------------------
 
-
-%%%%%%%%%% old 
-
-
-%Currently, there are different types of CGRAs, which can have an array of homogeneous PEs, as is the case with the HyCUBE and DySER CGRAs \cite{Blocks2022}, or they can be heterogeneous, such as Plasticine, which has two types of units, PCUs and PMUs \cite{plasticine2017}. 
-%Another important characteristic to highlight is the type of precision these devices can support, where many of them are restricted to processing only integer operations, making them more general-purpose, while others do add the advantage of floating point for more specialized processes \cite{exploration_tradeoffs}.
-
-%CGRA systems are no longer seen as an isolated element; today they are presented as a heterogeneous part of an architecture system \cite{dvhetero}.
-%Furthermore, CGRAs have become highly important in HPC (\textit{High Performance Computing}) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
-
-
-
-%Table \ref{tab:comparativa_sota} shows a comparison of three types of CGRA; the construction of these devices can vary,
-%generating different applications and \textit{trade-offs} where they are used according to the application.
-
-
-
-
-%The design of optimal solutions requires rigorous scrutiny of the alternatives available in the scientific literature. This section evaluates the strengths and weaknesses of the predominant approaches in the state of the art (SOTA), delimiting their technical feasibility scenarios.
-%
-%\subsection{Comparative Study of Current Proposals}
-%Current solutions present fundamental trade-offs between flexibility, efficiency, and implementation cost:
-%
-%\begin{itemize}
-%    \item \textbf{General-Purpose Processor (GPP) Based Approach:} Stands out for its high programming flexibility and mature development toolchains. However, it presents critical weaknesses in real-time environments due to limited determinism and inefficient power consumption under massive data loads. It is only viable in scenarios where power and latency constraints are secondary.
-%    \item \textbf{Dedicated Accelerator (ASIC) Based Approach:} Offers maximum performance per unit area and minimal power consumption. However, its absolute rigidity prevents reconfiguration in response to algorithmic updates, in addition to incurring development costs that are unviable for low-volume production.
-%    \item \textbf{Programmable Logic (FPGAs / Reconfigurable Architectures) Based Approach:} Represents a balanced middle ground. It allows bit-level optimization and massive parallelism. Its main disadvantage lies in high design complexity, long compilation times, and complex shared-memory management.
-%\end{itemize}
-%
-%To concisely illustrate these trade-offs, Table~\ref{tab:comparativa_sota} summarizes the technological feasibility criteria found in the literature.
-%
-%\begin{table}[htbp]
-%\caption{Comparative matrix of state-of-the-art solutions}
-%\label{tab:comparativa_sota}
-%\centering
-%\scriptsize
-%\setlength{\tabcolsep}{3pt}
-%\resizebox{\columnwidth}{!}{%
-%  \begin{tabular}{@{}l p{1.9cm} p{1.9cm} p{1.9cm}@{}}
-%  \toprule
-%  \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} \\
-%  \midrule
-%  Proposal A \cite{adres2004} & Low latency, spatial optimization. & Hardware rigidity, high design time. & Fixed, stable domains. \\
-%  \addlinespace
-%  Proposal B \cite{hycube2017} & High flexibility, agile reconfiguration. & High resource consumption, \textit{overhead}. & Non-critical dynamic environments. \\
-%  \addlinespace
-%  Proposal C \cite{plasticine2017} & Massive per-cycle processing (OP/s). & Restrictive power consumption. & Fixed infrastructure/servers. \\
-%  \bottomrule
-%  \end{tabular}%
-%}
-%\end{table}
-%
-%The design of these systems is no longer only necessary at the \textit{hardware} level; it is also relevant to take their \textit{software} counterpart into account \cite{plasticine2017}. Cases such as the one presented in \cite{dvhetero} prioritize validation, mapping, and routing as problems just as important as the \textit{hardware} side.
-
-
-
-%
-%\subsection{List of Observed Challenges}
-%From the systematic analysis of the SOTA, the following open technical challenges emerge, justifying the development of a new alternative:
-%\begin{enumerate}
-%    \item[\textbf{D1.}] \textbf{Structural Rigidity:} Inability of current accelerators to adapt to dynamic variations in the data domain without severely compromising \textit{timing}.
-%    \item[\textbf{D2.}] \textbf{Embedded Resource Efficiency:} Degradation of processing performance per unit area or cell when data sizes are scaled up.
-%    \item[\textbf{D3.}] \textbf{Temporal Determinism:} Interconnect latency bottlenecks that prevent guaranteeing strict real-time constraints.
-%\end{enumerate}
-%
-% =========================================================
-% NEW INTEGRATION: SECOND-LEVEL SOLUTION PROPOSAL
-% =========================================================
 \section{Proposed Solution and Second-Level Architecture}
-
-
-%%%%% new
 
 
 Architectures like the homogeneous CGRA present a challenge where there is under-utilization of resources like PEs and interconnects \cite{adres2004, hycube2017}. 
@@ -220,11 +156,11 @@ For example the HETA architecture supports scalar operations but doesn't mention
 This work presents a heterogeneous CGRA with different PE types, routing cells and distributed memory cells. This design is proposed in order to have specialized cells according to the necessity of the workload, having a specialized element for a wider range of operations with less elements. The elements of the CGRA are as follows:
 
 \begin{itemize}
-    \item \textbf{Routing:} FIFOs for dynamic, non-blocking flow.
-    \item \textbf{Distributed memory:} Local SRAM banks (1–4 KB).
-    \item \textbf{Scalar processing unit:} Multi-precision ALU (int8/16/32) + hardware loops.
-    \item \textbf{Vector processing unit:} float32 SIMD (4–8 lanes) for up to 8 simultaneous elements.
-    \item \textbf{MAC processing unit:} Multiply-Accumulate unit for high-throughput operations.
+    \item \textbf{Routing:} statically-configured combinational switch (4 stored contexts).
+    \item \textbf{Distributed memory:} local dual-port SRAM banks (2~KB per cell in the current model, parametrizable).
+    \item \textbf{Scalar processing unit:} fixed 32-bit RV32I+MUL ALU with a single 16-instruction program.
+    \item \textbf{Vector processing unit:} int32 SIMD ALU with 4 fixed lanes.
+    \item \textbf{MAC processing unit:} multiply-accumulate unit with a persistent per-lane accumulator for high-throughput operations.
 \end{itemize}
 
 With these elements, we are introducing a new heterogeneous CGRA architecture that can be used for scalar operations and vector operations, with a better utilization of the resources and a better performance.
@@ -232,79 +168,44 @@ Currently no other architecture has been found that combines scalar and vector o
 
 
 
-
-
-
-%%%%% old
-
-%This work presents a \textbf{heterogeneous reconfigurable cell} for CGRA \cite{cgra_repo}, overcoming homogeneous architectures with under-utilization under heterogeneous workloads \cite{adres2004, hycube2017}. It introduces \textbf{four specialized cell types} in a single \textit{fabric}:
-%\begin{enumerate}
-%    \item \textbf{Routing:} FIFOs for dynamic, non-blocking flow.
-%    \item \textbf{Distributed memory:} Local SRAM banks (1–4 KB) eliminate bottlenecks.
-%    \item \textbf{Scalar processing:} Multi-precision ALU (int8/16/32) + hardware loops.
-%    \item \textbf{Vector processing:} float32 SIMD (4–8 lanes) for 4–8 simultaneous elements.
-%\end{enumerate}
-%
-%Table~\ref{tab:desafios_soluciones} maps SOTA challenges to solutions.
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{SOTA challenges and proposed solutions.}
-%\label{tab:desafios_soluciones}
-%\normalsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.07\textwidth}p{0.33\textwidth}p{0.55\textwidth}@{}}
-%	\textbf{ID} & \textbf{Challenge} & \textbf{Solution} \\
-%\midrule
-%C1 & Homogeneous PEs $\to$ under-utilization & 4 specialized cells (routing, mem., scalar, vector) \\
-%C2 & Routing overhead $>30\%$ area & Dedicated routing cells with FIFOs \\
-%C3 & Centralized memory $\to$ bottlenecks & Local distributed SRAM (1--4 KB) \\
-%C4 & RISC-V config. latency & CSR + DMA; per-context partial config. \\
-%C5 & Simultaneous multi-precision & Scalar ALU int8/16/32; float32 VALU \\
-%C9 & NoC $\to$ bottleneck & 2D mesh, 32 b links, credit-based FIFOs \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-
-
-%%%%%%% new
-
 \subsection{Architectural Proposal}
 \label{sec:architectural_proposal}
 
-This architecture proposal is shown in the figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case is a basic array of 2x2 but this could be expanded according to the necessity.
+This architecture proposal is shown in the figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case is a basic array of 2x3 but this could be expanded according to the necessity.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\columnwidth]{images/lvl2_diagram.png}
+    \includegraphics[width=1.01\columnwidth]{images/lvl2_diagram.png}
     \caption{Second-level architecture diagram generated with artificial intelligence.}
     \label{fig:diagrama_2nivel_png}
 \end{figure}
 
 \subsubsection{Routing Cell}
-First-class citizen (not static multiplexers): 4–8-entry FIFOs $\times$ 32 b per port; $4\times4$ crossbar (1 cycle, multicast); credit-based control; 4 contexts (1-cycle switch). Routing overhead $<15\%$ area (vs. $\sim30\%$ in HyCUBE \cite{hycube2017}).
+Implemented as a purely combinational switch: 8 ports (4 mesh + 4 local), each output selecting any of the 8 inputs (or none) via a per-context 4-bit selector.
+Concurrent readers of the same source are served as copies rather than arbitrated, giving inherent multicast fan-out. 
+Four contexts are stored per cell, each loaded in a single clock edge; which context is active is chosen combinationally. 
 
 \subsubsection{Distributed Memory Cell}
-1–4 KB dual-port SRAM (FPGA BRAM); controller (direct/indirect/stride); NoC interface (1–2 cycles); local DMA (host-free block transfers). Eliminates centralized contention.
+Dual-port SRAM (2~KB per cell in the current instantiation, configurable via a template parameter); direct and strided access modes ; a local DMA engine performs host-free block transfers between SRAM and the NoC. 
+Four independently configurable access contexts are supported. This design still eliminates centralized memory contention by giving each cell its own local bank.
 
 \subsubsection{Scalar Cell}
-int8/16/32 ALU (4 int8 SIMD ops/cycle); 16 $\times$ 32 b registers; HW loops (counter + predication); 4 contexts; 32 b credit-based NoC interface.
+Integraded by a 32-bit ALU (RV32I integer/logic ops plus MUL) with a 8~$\times$~32~b register file and a single 16-instruction program memory that the program counter loops through. 
 
 \subsubsection{Vector Cell}
-4–8-lane float32 SIMD VALU (add, MAC, reduce); 8 vector registers (128/256 b); strided load/store; 4 contexts; 128 b NoC (burst mode). Will consume $\sim3\times$ DSP, delivering $\sim4\times$ float32 throughput \cite{exploration_tradeoffs}.
+A 4-lane int32 SIMD VALU (add, sub, logic, shifts, compare, MUL,  the same op set as the Scalar ALU, applied per lane) with 8~$\times$~128~b vector registers and a single 16-instruction program memory.
 
-\subsubsection{NoC Router}
-2D mesh, 32 b links; credits + 4-flit FIFO; round-robin arbitration; 1 cycle/hop; CSR/DMA host port (cell config., DMA transfers, result readout).
+\subsubsection{MAC Cell}
+This PE uses a VALU op set and 8~$\times$~128~b register file and a dedicated MAC opcode.
+Each lane's product is computed the same way as MUL, then added in the writeback stage into a persistent per-lane accumulator (4~$\times$~32~b) that survives \texttt{rst} and is addressable like any other operand via dedicated source/destination selectors. 
 
-\subsubsection{RISC-V Interface}
-Dedicated CSR (cell config., context, start/stop); 1-channel DMA; interrupts/flags; 4 custom instructions (cgra\_config/start/wait/read). Reduces config. latency \cite{cgra_risc, dvhetero}.
 
 
 \subsection{Development Tools and Environment}
 
 The development of this heterogeneous CGRA starts with the implementation of SystemC to verify the functionality of the architecture and its elements. 
 Afterwards, the SystemC model is translated so it can be used in Vitis 2024.1 and generate a RTL code and get the metrics of the design.
+Also there will be a sofware validation using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA will be modeled in SystemC.
 
 In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in the table \ref{tab:herramientas}.
 
@@ -320,6 +221,7 @@ In order to ensure strict reproducibility of the design and simulation tests, th
 \midrule
 SystemC & 3.0.1 & Modeling and simulation of the CGRA architecture functionality. \\
 Vitis HLS & 2024.1 & High-Level Synthesis (HLS) from SystemC to RTL (VHDL). \\
+GEM5 & v25.1 & Simulation of the RISC-V core and CSR/DMA interface, integrated with the SystemC CGRA model. \\
 %Xilinx Vivado Design Suite & 2024.1 & Logic synthesis and timing analysis. \\
 %ModelSim / Questa Advanced & 2025.1 & Cycle-accurate RTL functional simulation. \\
 \bottomrule
@@ -329,140 +231,13 @@ Vitis HLS & 2024.1 & High-Level Synthesis (HLS) from SystemC to RTL (VHDL). \\
 
 
 
+%-----------------------------------------------
+%       Experimental Plan and Methodology
+%-----------------------------------------------
 
-
-
-
-
-%\begin{itemize}
-%    \item \textbf{RTL (VHDL):} 4 cells + basic NoC router.
-%    \item \textbf{Integration:} $2\times2$ array with mesh NoC.
-%    \item \textbf{Verification:} Exhaustive testbench + randomized programs \cite{verification_cgra}.
-%    \item \textbf{FPGA synthesis:} Subject to availability (resources + $F_{\max}$).
-%    \item \textbf{Benchmarks:} Matrix multiplication, Sum-Reduction, vector reduction.
-%\end{itemize}
-%
-%Metrics in Table~\ref{tab:metricas_hls}.
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Evaluation metrics (HLS + FPGA flow).}
-%\label{tab:metricas_hls}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.35\linewidth}p{0.20\linewidth}p{0.45\linewidth}@{}}
-%\toprule
-%\textbf{Metric} & \textbf{Unit} & \textbf{Tool} \\
-%\midrule
-%FPGA resources & LUT/FF/DSP/BRAM & Vitis HLS / Vivado 2023.1 \\
-%$F_{\max}$ & MHz & Vivado Timing \\
-%Latency & cycles & C/RTL Co-simulation (HLS) \\
-%Throughput & OP/s, GFlop/s & Analytical analysis ($F_{\max}$ + latency) \\
-%Power & mW & Vivado Power \\
-%SW speedup & $\times$ & SystemC vs. RISC-V (C++) \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-
-
-
-%%%%%% old
-
-%\subsubsection{Architectural Novelty}
-%Unprecedented combination: (a) routing as a primary cell with FIFOs, (b) per-cell distributed memory, (c) integer-float multi-precision in differentiated cells, (d) native RISC-V coupling (RV32IMAF) via CSR + DMA. None of the reviewed architectures (ADRES, HyCUBE, Plasticine, etc.) integrate these 4 features simultaneously.
-
-%\subsubsection{Scope and Deliverables}
-%\begin{itemize}
-%    \item \textbf{RTL (VHDL):} 4 cells + basic NoC router.
-%    \item \textbf{Integration:} $2\times2$ array with mesh NoC.
-%    \item \textbf{Verification:} Exhaustive testbench + randomized programs \cite{verification_cgra}.
-%    \item \textbf{FPGA synthesis:} Subject to availability (resources + $F_{\max}$).
-%    \item \textbf{Benchmarks:} Matrix multiplication, Sum-Reduction, vector reduction.
-%\end{itemize}
-%
-%Metrics in Table~\ref{tab:metricas_hls}.
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Evaluation metrics (HLS + FPGA flow).}
-%\label{tab:metricas_hls}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.35\linewidth}p{0.20\linewidth}p{0.45\linewidth}@{}}
-%\toprule
-%\textbf{Metric} & \textbf{Unit} & \textbf{Tool} \\
-%\midrule
-%FPGA resources & LUT/FF/DSP/BRAM & Vitis HLS / Vivado 2023.1 \\
-%$F_{\max}$ & MHz & Vivado Timing \\
-%Latency & cycles & C/RTL Co-simulation (HLS) \\
-%Throughput & OP/s, GFlop/s & Analytical analysis ($F_{\max}$ + latency) \\
-%Power & mW & Vivado Power \\
-%SW speedup & $\times$ & SystemC vs. RISC-V (C++) \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-
-%\subsection{Second-Level Architecture: Components}
-%$2\times2$ mesh topology with NoC (credit-based control). Fig.~\ref{fig:diagrama_2nivel_png} shows the diagram.
-%
-%\begin{figure}[htbp]
-%    \centering
-%    \includegraphics[width=0.9\columnwidth]{images/lvl2_diagram.png}
-%    \caption{Second-level architecture diagram generated with artificial intelligence.}
-%    \label{fig:diagrama_2nivel_png}
-%\end{figure}
-%\subsubsection{Routing Cell}
-%First-class citizen (not static multiplexers): 4–8-entry FIFOs $\times$ 32 b per port; $4\times4$ crossbar (1 cycle, multicast); credit-based control; 4 contexts (1-cycle switch). Routing overhead $<15\%$ area (vs. $\sim30\%$ in HyCUBE \cite{hycube2017}).
-%
-%\subsubsection{Distributed Memory Cell}
-%1–4 KB dual-port SRAM (FPGA BRAM); controller (direct/indirect/stride); NoC interface (1–2 cycles); local DMA (host-free block transfers). Eliminates centralized contention.
-%
-%\subsubsection{Scalar Cell}
-%int8/16/32 ALU (4 int8 SIMD ops/cycle); 16 $\times$ 32 b registers; HW loops (counter + predication); 4 contexts; 32 b credit-based NoC interface.
-%
-%\subsubsection{Vector Cell}
-%4–8-lane float32 SIMD VALU (add, MAC, reduce); 8 vector registers (128/256 b); strided load/store; 4 contexts; 128 b NoC (burst mode). Will consume $\sim3\times$ DSP, delivering $\sim4\times$ float32 throughput \cite{exploration_tradeoffs}.
-%
-%\subsubsection{NoC Router}
-%2D mesh, 32 b links; credits + 4-flit FIFO; round-robin arbitration; 1 cycle/hop; CSR/DMA host port (cell config., DMA transfers, result readout).
-%
-%\subsubsection{RISC-V Interface}
-%Dedicated CSR (cell config., context, start/stop); 1-channel DMA; interrupts/flags; 4 custom instructions (cgra\_config/start/wait/read). Reduces config. latency (challenge C4) \cite{cgra_risc, dvhetero}.
-
-%\begin{table*}[htbp]
-%\centering
-%\caption{Component summary.}
-%\label{tab:resumen_componentes}
-%\small
-%\begin{tabular}{@{}p{0.22\textwidth}p{0.30\textwidth}p{0.42\textwidth}@{}}
-%\toprule
-%\textbf{Component} & \textbf{Function} & \textbf{Key parameters} \\
-%\midrule
-%Routing & Interconnect + buffering & FIFOs 4–8 $\times$ 32 b; $4\times4$ crossbar; 4 contexts \\
-%Memory & Distributed SRAM & 1–4 KB dual-port; DMA; 1–2 cycles \\
-%Scalar & Multi-precision integer & int8/16/32; 16 reg.; HW loops; 4 contexts \\
-%Vector & float32 SIMD & 4–8 lanes; 8 reg.; MAC; 4 contexts \\
-%NoC Router & Mesh transport & 32 b; credits; 1 cycle/hop; round-robin \\
-%RISC-V & Host-accelerator & CSR + DMA + custom ISA; RV32IMAF \\
-%\bottomrule
-%\end{tabular}
-%\end{table*}
-
-% =========================================================
-% NEW INTEGRATION: EXPERIMENTAL PLAN
-% =========================================================
 \section{Experimental Plan and Methodology}%Eddy
 \label{sec:experimento}
-%%%%% %new
 
-
-
-
-
-
-%%%%% old
 
 \subsection{Testing and Stimulus}
 
@@ -488,6 +263,8 @@ The following steps are proposed:
 Once these basic tests are passed, progress can be made toward typical benchmarks from the CGRA literature, such as MachSuite and PolyBench \cite{PolyBenchC,MachSuite}, which together with Wavelib and BEEBS make up the set of suites used by Morpher to evaluate its compilation flow \cite{Juneja}. 
 These suites provide kernel libraries (including Sum-Reduction and GEMM) that can be mapped onto the CGRA through a compilation flow similar to the one described above.
 
+For the software validation it is planed to use the softmax kernel. 
+This will be executed using GEM5 to simulate the interaction between a RISC-V core and the CGRA. 
 
 \subsection{Monitoring}
 
@@ -495,7 +272,7 @@ This project will be developed in SystemC, the aim is to leverage the language's
 It is proposed to implement a monitor as an \texttt{SC\_MODULE} component that observes, non-intrusively, DUT elements such as signals and internal counters. 
 This separation between functional logic and measurement logic follows SystemC's own modular design principle, in which the monitor can be added to or removed from the testbench without modifying the module under analysis.
 
-It is proposed that the monitor compute, at minimum, the following metrics:
+It is proposed that the monitor compute, at minimum, the following metrics when evaluating the HDL post-synthesis:
 
 \begin{itemize}
     \item \textbf{Operations per second (OP/s):} ratio between the total number of operations executed by the DUT and the total execution time.
@@ -515,8 +292,16 @@ Additionally, other metrics that will be taken into account are the quantity of:
 \end{itemize}
 These are necessary to measure the resource utilization of each design and are obtained from Vitis 2024.1 after the synthesis of the design.
 
-%Additionally, once the design reaches a stage suitable for FPGA or ASIC synthesis, it will be possible to measure power, area, and \textit{timing} metrics using the corresponding EDA tools. 
-%This applies both to the AMD Kria KV260 and the AMD Alveo U55C.
+
+Regarding the performance metrics when trying to evaluate the software integration with the CGRA, the following metrics will be taken into account for the specified kernel (softmax function):
+\begin{itemize}
+    \item \textbf{Test cases passed:} number of test cases that passed successfully.
+    \item \textbf{Worst per-lane error (LSB):} the worst-case error in least significant bits (LSB) across all lanes.
+    \item \textbf{Maximum sum deviation (LSB):} the maximum deviation from the expected sum in LSB.
+    \item \textbf{Output probability sum range:} the range of the sum of output probabilities, which should be close to 1 for valid softmax outputs.
+\end{itemize}
+
+
 
 
 \subsection{Architectural Exploration}
@@ -527,13 +312,14 @@ This type of exploration is consistent with the diversity of CGRA architectures 
 
 
 
+
+
+%-----------------------------------------------
+%       Results and Discussion
+%-----------------------------------------------
 \section{Results and Discussion}
 
 This section presents the results obtained from the implementation of the CGRA with the proposed kernels and monitoring metrics from section \ref{sec:experimento}. 
-%Elements like L, , , BRAM (Block RAM) and SRL (Shift Register LUT) are used to measure the resource utilization of the design.
-
-
-
 
 
 
@@ -607,8 +393,6 @@ Spatial & 16 & 2 cycles & \textbf{82 cycles} & 4 (whole matrix) \\
 
 
 
-
-
 \subsection{Sum-Reduction Kernel}
 
 For the sum-reduction kernel we did two comparison, one temporal implementation with our new MAC cell and other spatial implementation with 4 scalar cells. 
@@ -636,11 +420,8 @@ Test vectors & \texttt{\{6,-2,9,4,0,7,-5,3\}} = 22, \texttt{\{100,-55,30,7,-12,4
 \end{table}
 
 
-The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}. The new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
-
-%The sum-reduction kernel showed a good performance in both the temporal and spatial implementations, but the temporal implementation had a better resource utilization as shown in the table \ref{tab:resource_util_sumReduction}. 
-%Since the idea of the temporal implementation is to reduce the number of PEs and use them multiple times, the resources are better utilized, while the spatial implementation uses more PEs, in this 3.2x more LUTs and 3.37x more FFs. 
-
+The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}. 
+The new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
 
 \begin{table}[htbp]
 \centering
@@ -686,13 +467,60 @@ Utilization rate (\%) & 79.7 & 47.8 & 0.60$\times$ \\
 \end{table}
 
 
+\subsubsection{Softmax Kernel}
+
+For the validation of the softmax kernel, the proposed heterogeneous CGRA was tested using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA was modeled in SystemC.
+In this validation, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation.
+There were six test cases executed, with different 
+
+The softmax kernel was also validated end-to-end on the proposed heterogeneous CGRA. 
+In this experiment, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation. 
+Six representative test cases were executed with different test cases like uniform inputs, dominant-lane cases, negative fractional inputs, and a saturation scenario with input spread beyond the useful exponential range. 
+In the table \ref{tab:softmax_validation} the summary of the validation is shown, where all the test cases passed successfully, with an error below the acceptance threshold
+
+
+\begin{table}[htbp]
+\centering
+\caption{Validation summary for end-to-end softmax execution.}
+\label{tab:softmax_validation}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.42\linewidth}p{0.24\linewidth}p{0.24\linewidth}@{}}
+\toprule
+\textbf{Metric} & \textbf{Observed} & \textbf{Acceptance / Comment} \\
+\midrule
+Test cases passed & 6/6 & All passed \\
+Worst per-lane error (LSB) & 2.81 & $< 6.00$ LSB \\
+Maximum sum deviation (LSB) & 4.00 & $\leq 8.00$ LSB \\
+Output probability sum range & 0.999023 -- 0.999512 & Close to 1 \\
+Ordering preserved & Yes & In all test cases \\
+Dominant-lane case & Passed & Stable behavior \\
+Saturation case & Passed & Stable under large spread \\
+%Execution flow & End-to-end PASS & RISC-V $\rightarrow$ CSR/DMA $\rightarrow$ MainMemory $\rightarrow$ MeshWrapper \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+These results show that the proposed heterogeneous organization can correctly support more complex nonlinear kernels beyond GEMM and sum-reduction, while maintaining good numerical accuracy under both nominal and extreme input conditions.
+
+
+%-----------------------------------------------
+%       Conclusions
+%-----------------------------------------------
+
 \section{Conclusions}
 
 In this work we propose a heterogeneous CGRA with diffent types of cells, including a new MAC PE that haven't been mention in past works. 
 This work shows that having different types of cells in a CGRA architecture can translate in a better performance. 
 The design of a CGRA depends on the type of workload that is going to be executed, but for general purposes the heterogeneous architecture with specialized cells present a better solution for performance.
 Also the type of architecture: spatial or temporal is very important to take into consideration because of the space available to implement the GGRA, the spatial is going to use more resources. 
+It is important to confirm not only the hardware functionality but also the software integration with the CGRA, since this is a key point to have a complete solution.
 
+
+%-----------------------------------------------
+%       Future Work
+%-----------------------------------------------
 
 \section{Future Work}
 
@@ -702,227 +530,9 @@ Also adding more variety of PEs can improve the performance of the CGRA, since d
 In terms of validation, the CGRA can be tested with more complex kernels and also can be emulated in a FPGA to get more accurate results.
 
 
-
-
-
-
-
-%\begin{table}[htbp]
-%\centering
-%\caption{Performance metrics from measured sum-reduction execution.}
-%\label{tab:perf_metrics_sumReduction}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.26\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.26\linewidth}@{}}
-%\toprule
-%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Spatial/Temporal} \
-%\midrule
-%Operations per second (OP/s) & 19.63 MOP/s & 17.97 MOP/s & 0.92
-%×
-%× \
-%Average latency per operation & 50.95 ns/op & 55.65 ns/op & 1.09
-%×
-%× \
-%Utilization rate (%) & 79.7% & 47.8% & 0.60
-%×
-%× \
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-
-
-
-
-
-
-%\subsubsection{1. Test Setup}
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Temporal vs. spatial sum-reduction setup.}
-%\label{tab:sum_setup}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.26\linewidth}p{0.34\linewidth}p{0.34\linewidth}@{}}
-%\toprule
-%\textbf{Item} & \textbf{Temporal} & \textbf{Spatial} \\
-%\midrule
-%Mesh & \texttt{CGRA\_Mesh\_Static\_C<1,1,32,1,PE\_MAC\_State>} & \texttt{CGRA\_Mesh\_Static\_C<2,2,32,1,PE\_Scalar\_State$\times$4>} \\
-%Cell count & 1 & 4 \\
-%\texttt{NUM\_PHASES} & 8 & 1 \\
-%\texttt{INSTR\_MEM\_SIZE} & 3 & 3 \\
-%Program shape & 1 cell reused 8$\times$, each phase: \texttt{acc += v[phase]} & 4 cells, 1 pass, 3-level parallel adder tree \\
-%\texttt{cgra\_run} FSM iterations (idealized C model) & 27 & 6 \\
-%Test vectors & \texttt{\{6,-2,9,4,0,7,-5,3\}}$\rightarrow$22, \texttt{\{100,-55,30,7,-12,4,-9,15\}}$\rightarrow$80 & same \\
-%Correctness & PASS (csim, g++ standalone, cosim) & PASS (csim, g++ standalone, cosim) \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%\subsubsection{2. Raw Measurements}
-%
-%\paragraph{2.1 Per-transaction RTL cycle counts (cosim, actual simulated hardware)}
-%Pulled from \texttt{result.transaction.rpt} --- every transaction the testbench issues to the top module. \texttt{prog\_valid} transactions are cheap instruction pokes; the \texttt{start=true} transaction is the real reduction and is unambiguous in both traces (it is the one that costs far more than the others):
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Per-transaction cycle counts from cosimulation traces.}
-%\label{tab:transaction_cycles}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}lccc@{}}
-%\toprule
-%\textbf{Design} & \textbf{\# \texttt{prog\_valid} transactions} & \textbf{Cost each} & \textbf{\texttt{start=true} transaction cost} \\
-%\midrule
-%Temporal & 3 & 12 cycles & \textbf{141 cycles} \\
-%Spatial & 12 & 14 cycles & \textbf{154 cycles} \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%\paragraph{2.2 Timing}
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Timing comparison.}
-%\label{tab:timing_compare}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}lcc@{}}
-%\toprule
-%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} \\
-%\midrule
-%Clock target & 4.000 ns & 4.000 ns \\
-%Clock achieved (post-synthesis, Vivado) & 2.891 ns & 2.891 ns \\
-%Timing met & Yes & Yes \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%Identical achieved clock period for both: the comparison below is a clean cycle-count (and therefore wall-clock) comparison, not confounded by a faster/slower clock on either side.
-%
-%\paragraph{2.3 Resource utilization (post-synthesis, Vivado --- authoritative numbers)}
-%
-%
-%
-%\paragraph{2.4 Per-cell synthesis figures (single instance, HLS estimate)}
-%The most direct apples-to-apples comparison: one \texttt{pe\_mac\_step} vs. one \texttt{pe\_scalar\_step}, both with \texttt{DATA\_W=32, VLEN=1, NUM\_REGS=8, INSTR\_MEM\_SIZE=3}.
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Single-cell HLS estimate comparison.}
-%\label{tab:per_cell_hls}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}lcc@{}}
-%\toprule
-%\textbf{Metric} & \textbf{\texttt{pe\_mac\_step} (temporal cell)} & \textbf{\texttt{pe\_scalar\_step} (spatial cell, $\times$4)} \\
-%\midrule
-%Latency & 4 cycles (16.0 ns) & \textbf{23 cycles (92.0 ns)} \\
-%Initiation interval (II) & 5 & 24 \\
-%FF & 641 & 2222 \\
-%LUT & 1162 & 2391 \\
-%DSP & 3 & 3 \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%A single \texttt{pe\_scalar\_step} costs \textbf{$\sim$5.75$\times$ more cycles} and roughly \textbf{3.5$\times$ more FF / 2$\times$ more LUT} than a single \texttt{pe\_mac\_step} --- despite doing strictly less arithmetic (\texttt{ADD} only, vs. \texttt{pe\_mac\_step}'s full ALU plus multiply-accumulate). This per-cell inefficiency, not the tree-vs-chain mapping choice itself, is the direct cause of the counterintuitive result in Section~3.
-%
-%\subsubsection{3. Derived Metrics}
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Derived comparison metrics.}
-%\label{tab:derived_metrics}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.42\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.19\linewidth}@{}}
-%\toprule
-%\textbf{Metric} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Ratio (spatial/temporal)} \\
-%\midrule
-%Real wall-clock time (\texttt{cycles $\times$ 2.891 ns}) & 407.6 ns & 445.2 ns & \textbf{1.09$\times$ (slower)} \\
-%Cycles per input element ($n=8$) & 17.6 & 19.25 & 1.09$\times$ \\
-%LUT $\times$ cycles (area-delay product) & 169,905 & 593,978 & 3.50$\times$ \\
-%FF $\times$ cycles & 218,691 & 805,420 & 3.68$\times$ \\
-%"Cell-cycles" (cycles $\times$ cell count --- rough switching-activity proxy) & 141 & 616 & 4.37$\times$ \\
-%LUT utilization of target device & 1.03\% & 3.29\% & 3.20$\times$ \\
-%FF utilization of target device & 0.66\% & 2.23\% & 3.37$\times$ \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%
-
-
-
-
-
-
-
-%
-%\subsection{Preliminary Results}
-%\label{sec:results}
-%
-%This subsection reports what has actually been measured against the plan of Sec.~\ref{sec:experimento}, distinguishing completed results from work still in progress, consistent with the ``preliminary'' scope of this milestone.
-%
-%\subsubsection{Functional Verification}
-%The table \ref{tab:test_results} summarizes the regression suite: 19 SystemC testbenches covering every module described in \ref{sec:architectural_proposal} individually plus three integration levels (mesh, mesh wrapper/CSR-DMA, RISC-V-facing system), totaling 139 individual pass/fail assertions with \textbf{zero failures}. One additional testbench (MAC-cell sum-reduction) currently fails to \emph{build} due to a missing standard-library header, a build-pipeline issue rather than a design defect; it is tracked as a known, easily-fixable gap rather than hidden from this count.
-%
-%\begin{table}[htbp]
-%\centering
-%\caption{Regression suite results (SystemC testbenches).}
-%\label{tab:test_results}
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.46\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.14\linewidth}@{}}
-%\toprule
-%\textbf{Scope} & \textbf{TBs} & \textbf{Asserts} & \textbf{Result} \\
-%\midrule
-%Cell-level (scalar, vector, MAC, memory, routing) & 12 & 79 & 12/12 PASS \\
-%Mesh integration (1$\times$1, heterogeneous 2$\times$2, smoke/complex) & 4 & 51 & 4/4 PASS \\
-%CSR/DMA wrapper + sum-reduction dataflow & 2 & 16 & 2/2 PASS \\
-%RISC-V-facing system integration & 1 & 1 & 1/1 PASS \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
-%
-%\subsubsection{End-to-End Sum-Reduction Demonstration}
-%The mesh's routing, memory, scalar, and vector cells jointly execute $total = seed + \sum_{i=0}^{6} v_i$, driven entirely through the RISC-V-facing CSR/DMA bridge (no direct cell access from the testbench). Across three rounds with distinct signs and magnitudes, all outputs match the expected totals exactly. Counting the fixed-latency instruction-load/relay chain in the source (routing~$\to$~memory~$\to$~routing~$\to$~scalar~$\to$~vector, excluding the bounded DMA-completion poll), the dataflow completes in 27 fixed cycles plus at most 20 polling cycles (two single-element DMA transfers, each bounded at 10 cycles), i.e.\ $\leq$47 cycles per round at the simulated clock period --- an upper bound derived from the source, not yet from an instrumented cycle counter.
-%
-%\subsubsection{HLS Cross-Validation}
-%The arithmetic kernel of the sum-reduction benchmark was re-implemented as a standalone Vitis HLS C function and validated in C-simulation (\texttt{csim}) against the same three golden rounds used in the SystemC testbench, with an exact match on all outputs. This confirms the arithmetic contract is synthesis-tool-portable before committing to a full \texttt{csynth}/\texttt{cosim} run, whose resource and timing figures are not yet available and are deferred to the final report.
-%
-%\subsubsection{RISC-V Baseline Characterization}
-%To contextualize the CGRA's expected benefit, the same sum-reduction kernel is being characterized as a compiled RISC-V (RV64GC) binary under gem5's system-call-emulation mode, comparing in-order (Atomic, Timing, Minor) and out-of-order (O3) CPU models via cycle counts in \texttt{stats.txt}. At the time of writing, the gem5 build is in progress; cycle-count results will be reported in the final article alongside the CGRA and HLS figures above.
-
-%\subsection{Development Tools and Environment}
-%In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in Table~\ref{tab:herramientas}.
-%
-%\begin{table}[htbp]
-%\caption{Development Tools and Environment Versions}
-%\label{tab:herramientas}
-%\centering
-%\scriptsize
-%\begin{adjustbox}{max width=\columnwidth}
-%\begin{tabular}{@{}p{0.38\linewidth}p{0.18\linewidth}p{0.42\linewidth}@{}}
-%\toprule
-%\textbf{Tool / Software} & \textbf{Version} & \textbf{Purpose in the Experiment} \\
-%\midrule
-%SystemC & 3.0.1 & Modeling and simulation of the CGRA architecture. \\
-%Xilinx Vivado Design Suite & 2025.2 & Logic synthesis and \textit{timing} analysis. \\
-%ModelSim / Questa Advanced & 2025.1 & Cycle-accurate RTL functional simulation. \\
-%\bottomrule
-%\end{tabular}
-%\end{adjustbox}
-%\end{table}
+%-----------------------------------------------
+%       AI Tool Usage Declaration
+%-----------------------------------------------
 
 \section*{AI Tool Usage Declaration}
 For this work, Artificial Intelligence was used to help structure the document, as well as for a grammar and spelling review of the document. 
