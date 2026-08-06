@@ -21,18 +21,23 @@
 
 #include "../pe_isa_hls_c.h"
 
-template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
+// Mismo concepto que PE_SCALAR_NUM_CONTEXTS / RC_NUM_CONTEXTS.
+static const int PE_VECTOR_NUM_CONTEXTS = 4;
+
+template <int DATA_W = 32, int VLEN = 8, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
 struct PE_Vector_State {
     typedef PE_VectorData<DATA_W, VLEN> Link;
     typedef PE_Instruction<DATA_W>      Instr;
 
-    Instr instr_mem[INSTR_MEM_SIZE];
-    Link  reg_file[NUM_REGS];
+    Instr instr_mem[PE_VECTOR_NUM_CONTEXTS][INSTR_MEM_SIZE];
+    ap_uint<2> active_ctx;
+
+    Link  reg_file[NUM_REGS];  // NUM_REGS(8) x VLEN(8) x DATA_W(32) = 8 x 256b con los defaults
     ap_uint<16> pc;
 
     Link out_N, out_S, out_E, out_W;
 
-    PE_Vector_State() : pc(0) {}
+    PE_Vector_State() : active_ctx(0), pc(0) {}
 };
 
 namespace pe_vector_hls_c_detail {
@@ -59,9 +64,15 @@ inline PE_VectorData<DATA_W, VLEN> select_src(
     }
 }
 
+// Opcodes OP_F* (ver pe_isa_hls_c.h): cada lane se reinterpreta como
+// IEEE-754 float32 (f32_from_bits/f32_to_bits, bit_cast puro, no
+// conversion numerica), se opera en float, y el resultado se vuelve a
+// empaquetar como el mismo patron de bits en el lane ap_int<DATA_W> de
+// salida -- el wire de la malla sigue siendo entero (ver el comentario
+// grande en pe_isa_hls_c.h). Solo tiene efecto real con DATA_W=32.
 template <int DATA_W, int VLEN>
 inline PE_VectorData<DATA_W, VLEN> alu_compute(
-    ap_uint<4> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
+    ap_uint<5> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
 {
     PE_VectorData<DATA_W, VLEN> r;
     for (int i = 0; i < VLEN; ++i) {
@@ -79,6 +90,15 @@ inline PE_VectorData<DATA_W, VLEN> alu_compute(
             case OP_SLT:  r[i] = (a[i] < b[i]) ? 1 : 0; break;
             case OP_SLTU: r[i] = (ap_uint<DATA_W>(a[i]) < ap_uint<DATA_W>(b[i])) ? 1 : 0; break;
             case OP_MUL:  r[i] = a[i] * b[i]; break;
+            case OP_FADD:
+                r[i] = (DATA_W == 32) ? ap_int<DATA_W>(f32_to_bits(f32_from_bits(a[i].to_int()) + f32_from_bits(b[i].to_int()))) : ap_int<DATA_W>(0);
+                break;
+            case OP_FSUB:
+                r[i] = (DATA_W == 32) ? ap_int<DATA_W>(f32_to_bits(f32_from_bits(a[i].to_int()) - f32_from_bits(b[i].to_int()))) : ap_int<DATA_W>(0);
+                break;
+            case OP_FMUL:
+                r[i] = (DATA_W == 32) ? ap_int<DATA_W>(f32_to_bits(f32_from_bits(a[i].to_int()) * f32_from_bits(b[i].to_int()))) : ap_int<DATA_W>(0);
+                break;
             default:      r[i] = 0; break;
         }
     }
@@ -106,11 +126,16 @@ inline void writeback(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s
 
 } // namespace pe_vector_hls_c_detail
 
+// Mismo esquema slot=ctx*INSTR_MEM_SIZE+addr que pe_scalar_program (ver el
+// comentario grande alli): programar activa el contexto de inmediato.
 template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline void pe_vector_program(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                                ap_uint<8> slot, const PE_Instruction<DATA_W>& instr)
 {
-    s.instr_mem[slot.to_uint() % INSTR_MEM_SIZE] = instr;
+    unsigned ctx  = (slot.to_uint() / INSTR_MEM_SIZE) % PE_VECTOR_NUM_CONTEXTS;
+    unsigned addr = slot.to_uint() % INSTR_MEM_SIZE;
+    s.instr_mem[ctx][addr] = instr;
+    s.active_ctx = ctx;
 }
 
 // PE_vector no tiene acumulador -- no-op (ver PE_Scalar_HLS_C.h).
@@ -129,7 +154,7 @@ inline void pe_vector_step(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZ
     }
     if (!enable) return;
 
-    PE_Instruction<DATA_W> ins = s.instr_mem[s.pc.to_uint() % INSTR_MEM_SIZE];
+    PE_Instruction<DATA_W> ins = s.instr_mem[s.active_ctx.to_uint() % PE_VECTOR_NUM_CONTEXTS][s.pc.to_uint() % INSTR_MEM_SIZE];
 
     PE_VectorData<DATA_W, VLEN> a = pe_vector_hls_c_detail::select_src(s, ins.src_a, ins.reg_a, ins.imm, in_N, in_S, in_E, in_W);
     PE_VectorData<DATA_W, VLEN> b = pe_vector_hls_c_detail::select_src(s, ins.src_b, ins.reg_b, ins.imm, in_N, in_S, in_E, in_W);

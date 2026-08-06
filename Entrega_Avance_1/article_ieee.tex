@@ -169,7 +169,7 @@ Combinación inédita: (a) routing como celda primaria con FIFOs, (b) memoria di
 
 \subsubsection{Alcance y Entregables}
 \begin{itemize}
-    \item \textbf{RTL (VHDL):} 4 celdas + router NoC básico.
+    \item \textbf{RTL:} 4 celdas + router NoC básico, modelados en C/C++ (Vitis HLS) con SystemC como referencia de comportamiento, no en VHDL escrito a mano -- Vitis HLS 2024.1 genera el RTL/IP de síntesis a partir de ese modelo (\texttt{csynth\_design}).
     \item \textbf{Integración:} Arreglo $2\times2$ con NoC en malla.
     \item \textbf{Verificación:} Testbench exhaustivo + programas aleatorios \cite{verification_cgra}.
     \item \textbf{Síntesis FPGA:} Segun disponibilidad (recursos + $F_{\max}$).

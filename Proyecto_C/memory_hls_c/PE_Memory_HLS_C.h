@@ -55,7 +55,12 @@ struct MemContextRegisters {
 
 enum MemCellFSMState { MEM_ST_IDLE, MEM_ST_BURST };
 
-template <int DATA_W = 32, int VLEN = 4, int SIZE_WORDS = 512>
+// Default subido a 1024 palabras (4KB) para caer dentro del rango "1-4KB"
+// reclamado en el diagrama de Avance 1 (antes 512 palabras = 2KB, el limite
+// inferior del rango, no un punto dentro de el). El unico consumidor real
+// hoy (CGRA_Hetero_2x2_Demo_Top_C.h) fija su propio SIZE_WORDS explicito --
+// ver el comentario alli sobre por que se subio tambien.
+template <int DATA_W = 32, int VLEN = 8, int SIZE_WORDS = 1024>
 struct PE_Memory_State {
     typedef PE_VectorData<DATA_W, VLEN> Link;
 

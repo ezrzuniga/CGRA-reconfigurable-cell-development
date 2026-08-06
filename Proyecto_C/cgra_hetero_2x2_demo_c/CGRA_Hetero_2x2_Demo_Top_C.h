@@ -33,12 +33,22 @@
 static const int HETERO_ROWS = 2;
 static const int HETERO_COLS = 2;
 static const int HETERO_DATA_W = 32;
-static const int HETERO_VLEN = 1;
-static const int HETERO_SIZE_WORDS = 64;
+// Subido de 1 a 8: con VLEN=1 ninguna celda de esta malla corria realmente
+// en modo vectorial pese a que el diagrama/articulo de Avance 1 reclaman
+// "SIMD float32 4-8 lanes" para la celda Vectorial y "8 Reg. Vectoriales de
+// 256b" (8x32bx8lanes=256b, solo cierra con VLEN=8). Como Link=PE_VectorData
+// <DATA_W,VLEN> es el wire unico y homogeneo de TODA la malla (ver seccion
+// 2.5 de project.md), este VLEN aplica por igual a las 4 celdas -- Routing y
+// Memoria no le dan uso especial (siguen operando por palabra via lane 0 /
+// combinacional), pero deben compartir el mismo tipo de wire.
+static const int HETERO_VLEN = 8;
+// Subido de 64 a 512 palabras (2KB): dentro del rango "1-4KB" reclamado,
+// antes muy por debajo incluso del piso.
+static const int HETERO_SIZE_WORDS = 512;
 
 typedef Routing_Cell_State<HETERO_DATA_W, HETERO_VLEN>                     HeteroRoutingCell;
 typedef PE_Memory_State<HETERO_DATA_W, HETERO_VLEN, HETERO_SIZE_WORDS>     HeteroMemoryCell;
-typedef PE_Scalar_State<HETERO_DATA_W, HETERO_VLEN, 8, 4>                  HeteroScalarCell;
+typedef PE_Scalar_State<HETERO_DATA_W, HETERO_VLEN, 16, 4>                 HeteroScalarCell;
 typedef PE_Vector_State<HETERO_DATA_W, HETERO_VLEN, 8, 4>                  HeteroVectorCell;
 
 typedef CGRA_Mesh_Static_C<HETERO_ROWS, HETERO_COLS, HETERO_DATA_W, HETERO_VLEN,

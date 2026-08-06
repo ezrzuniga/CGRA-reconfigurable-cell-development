@@ -46,16 +46,67 @@ struct RC_Config {
 
 static const int RC_NUM_CONTEXTS = 4;
 
-template <int DATA_W = 32, int VLEN = 4>
+// Profundidad de las colas de entrada por puerto. 4 flits por FIFO, mismo
+// numero que RC_NUM_CONTEXTS por convencion del proyecto (no hay relacion
+// funcional entre ambos).
+static const int RC_FIFO_DEPTH = 4;
+
+// Cola circular de un puerto: retiene hasta RC_FIFO_DEPTH valores que
+// llegaron y todavia no fueron consumidos por ninguna salida. `count` es lo
+// que credit_* expone hacia afuera como espacio libre (RC_FIFO_DEPTH -
+// count) -- ver el comentario de credit-based flow control en
+// routing_cell_step().
+template <int DATA_W, int VLEN>
+struct RC_Fifo {
+    typedef PE_VectorData<DATA_W, VLEN> Link;
+
+    Link       buf[RC_FIFO_DEPTH];
+    ap_uint<3> head;
+    ap_uint<3> count;
+
+    RC_Fifo() : head(0), count(0) {}
+
+    bool full() const  { return count.to_uint() >= RC_FIFO_DEPTH; }
+    bool empty() const { return count.to_uint() == 0; }
+
+    void push(const Link& v) {
+        if (full()) return;  // credito agotado: el productor no deberia haber enviado
+        ap_uint<3> tail = (head + count) % RC_FIFO_DEPTH;
+        buf[tail.to_uint()] = v;
+        count = count + 1;
+    }
+
+    Link peek() const { return empty() ? Link() : buf[head.to_uint()]; }
+
+    void pop() {
+        if (empty()) return;
+        head = (head + 1) % RC_FIFO_DEPTH;
+        count = count - 1;
+    }
+
+    void reset() { head = 0; count = 0; }
+};
+
+template <int DATA_W = 32, int VLEN = 8>
 struct Routing_Cell_State {
     typedef PE_VectorData<DATA_W, VLEN> Link;
 
     RC_Config  config_bank[RC_NUM_CONTEXTS];
     ap_uint<2> active_ctx;
 
+    // Colas de entrada (una por direccion de malla) + credito disponible de
+    // cada una, expuesto como campo publico de estado (no como puerto de
+    // cell_step: ese contrato es compartido por las 5 celdas y no lleva
+    // credit_* -- ver el comentario grande en routing_cell_step()).
+    RC_Fifo<DATA_W, VLEN> fifo_N, fifo_S, fifo_E, fifo_W;
+    ap_uint<3> credit_N, credit_S, credit_E, credit_W;
+
     Link out_N, out_S, out_E, out_W;
 
-    Routing_Cell_State() : active_ctx(0) {}
+    Routing_Cell_State()
+        : active_ctx(0),
+          credit_N(RC_FIFO_DEPTH), credit_S(RC_FIFO_DEPTH),
+          credit_E(RC_FIFO_DEPTH), credit_W(RC_FIFO_DEPTH) {}
 };
 
 // Mismo empaquetado que make_routing_config_instr_hls (pe_hls/routing/
@@ -118,6 +169,29 @@ inline void routing_cell_program(Routing_Cell_State<DATA_W, VLEN>& s,
 template <int DATA_W, int VLEN>
 inline void routing_cell_clear_acc(Routing_Cell_State<DATA_W, VLEN>&) {}
 
+// Un ciclo del switch-box, ahora mediado por las 4 colas de entrada en vez
+// de leer in_N/S/E/W directo hacia el crossbar:
+//
+//   1. Empuja lo que llega este ciclo a la cola de cada puerto (si hay
+//      espacio -- credito).
+//   2. El crossbar lee la CABEZA de cada cola (no el input crudo) para
+//      calcular las 4 salidas -- mismo mux combinacional de antes, mismo
+//      soporte multicast (dos salidas pueden leer la misma cabeza sin
+//      conflicto).
+//   3. Cada cola cuya cabeza fue efectivamente consumida por al menos una
+//      salida avanza (pop) recien al final del ciclo.
+//   4. credit_X = espacio libre restante en la cola X, recalculado al
+//      final -- esta es la señal de "control de creditos": un productor
+//      corriente arriba puede leerla (via el campo publico del estado) para
+//      decidir si le queda permitido enviar el proximo ciclo.
+//
+// Cuando una cola arranca vacia y se le hace push+pop en el mismo llamado
+// (caso estable, sin contencion), el dato sigue apareciendo en la salida en
+// el mismo ciclo en que llego -- mismo comportamiento observable que la
+// version puramente combinacional anterior. La cola solo introduce latencia
+// real (mas de 1 ciclo) cuando una entrada recibe datos mas rapido de lo
+// que el crossbar los consume, que es exactamente el caso que el
+// buffering+creditos existe para manejar sin perder datos.
 template <int DATA_W, int VLEN>
 inline void routing_cell_step(Routing_Cell_State<DATA_W, VLEN>& s, bool rst, bool enable,
                                const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
@@ -125,17 +199,53 @@ inline void routing_cell_step(Routing_Cell_State<DATA_W, VLEN>& s, bool rst, boo
 {
     if (rst) {
         for (int i = 0; i < RC_NUM_CONTEXTS; i++) s.config_bank[i] = RC_Config();
+        s.fifo_N.reset(); s.fifo_S.reset(); s.fifo_E.reset(); s.fifo_W.reset();
+        s.credit_N = s.credit_S = s.credit_E = s.credit_W = RC_FIFO_DEPTH;
+        s.out_N = s.out_S = s.out_E = s.out_W = PE_VectorData<DATA_W, VLEN>();
+        // A diferencia de pe_scalar_step/pe_vector_step/pe_mac_step (donde
+        // rst solo reinicia `pc`, dejando registros/memoria intactos), aca
+        // rst SI debe cortar el ciclo por completo: las colas son estado
+        // persistente nuevo (no existian en la version combinacional
+        // original) y si el push de abajo corriera en el mismo llamado que
+        // el reset, dejaria un residuo (el input de ese mismo ciclo, tipicamente
+        // 0) encolado por delante de cualquier dato real que llegue despues.
+        return;
     }
     if (!enable) {
         s.out_N = s.out_S = s.out_E = s.out_W = PE_VectorData<DATA_W, VLEN>();
         return;
     }
 
+    s.fifo_N.push(in_N);
+    s.fifo_S.push(in_S);
+    s.fifo_E.push(in_E);
+    s.fifo_W.push(in_W);
+
+    PE_VectorData<DATA_W, VLEN> head_N = s.fifo_N.peek();
+    PE_VectorData<DATA_W, VLEN> head_S = s.fifo_S.peek();
+    PE_VectorData<DATA_W, VLEN> head_E = s.fifo_E.peek();
+    PE_VectorData<DATA_W, VLEN> head_W = s.fifo_W.peek();
+
     const RC_Config& cfg = s.config_bank[s.active_ctx.to_uint() % RC_NUM_CONTEXTS];
-    s.out_N = routing_cell_hls_c_detail::select(cfg.sel_N, in_N, in_S, in_E, in_W);
-    s.out_S = routing_cell_hls_c_detail::select(cfg.sel_S, in_N, in_S, in_E, in_W);
-    s.out_E = routing_cell_hls_c_detail::select(cfg.sel_E, in_N, in_S, in_E, in_W);
-    s.out_W = routing_cell_hls_c_detail::select(cfg.sel_W, in_N, in_S, in_E, in_W);
+    s.out_N = routing_cell_hls_c_detail::select(cfg.sel_N, head_N, head_S, head_E, head_W);
+    s.out_S = routing_cell_hls_c_detail::select(cfg.sel_S, head_N, head_S, head_E, head_W);
+    s.out_E = routing_cell_hls_c_detail::select(cfg.sel_E, head_N, head_S, head_E, head_W);
+    s.out_W = routing_cell_hls_c_detail::select(cfg.sel_W, head_N, head_S, head_E, head_W);
+
+    bool consumed_N = (cfg.sel_N == RC_FROM_N) || (cfg.sel_S == RC_FROM_N) || (cfg.sel_E == RC_FROM_N) || (cfg.sel_W == RC_FROM_N);
+    bool consumed_S = (cfg.sel_N == RC_FROM_S) || (cfg.sel_S == RC_FROM_S) || (cfg.sel_E == RC_FROM_S) || (cfg.sel_W == RC_FROM_S);
+    bool consumed_E = (cfg.sel_N == RC_FROM_E) || (cfg.sel_S == RC_FROM_E) || (cfg.sel_E == RC_FROM_E) || (cfg.sel_W == RC_FROM_E);
+    bool consumed_W = (cfg.sel_N == RC_FROM_W) || (cfg.sel_S == RC_FROM_W) || (cfg.sel_E == RC_FROM_W) || (cfg.sel_W == RC_FROM_W);
+
+    if (consumed_N) s.fifo_N.pop();
+    if (consumed_S) s.fifo_S.pop();
+    if (consumed_E) s.fifo_E.pop();
+    if (consumed_W) s.fifo_W.pop();
+
+    s.credit_N = RC_FIFO_DEPTH - s.fifo_N.count.to_uint();
+    s.credit_S = RC_FIFO_DEPTH - s.fifo_S.count.to_uint();
+    s.credit_E = RC_FIFO_DEPTH - s.fifo_E.count.to_uint();
+    s.credit_W = RC_FIFO_DEPTH - s.fifo_W.count.to_uint();
 }
 
 // Overloads genericos para el dispatch de la malla heterogenea.

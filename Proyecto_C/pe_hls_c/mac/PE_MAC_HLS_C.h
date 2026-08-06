@@ -24,12 +24,17 @@
 
 #include "../pe_isa_hls_c.h"
 
+// Mismo concepto que PE_SCALAR_NUM_CONTEXTS / PE_VECTOR_NUM_CONTEXTS.
+static const int PE_MAC_NUM_CONTEXTS = 4;
+
 template <int DATA_W = 32, int VLEN = 1, int NUM_REGS = 8, int INSTR_MEM_SIZE = 4>
 struct PE_MAC_State {
     typedef PE_VectorData<DATA_W, VLEN> Link;
     typedef PE_Instruction<DATA_W>      Instr;
 
-    Instr instr_mem[INSTR_MEM_SIZE];
+    Instr instr_mem[PE_MAC_NUM_CONTEXTS][INSTR_MEM_SIZE];
+    ap_uint<2> active_ctx;
+
     Link  reg_file[NUM_REGS];
     ap_uint<16> pc;
     Link  acc;
@@ -38,7 +43,7 @@ struct PE_MAC_State {
     // cuando writeback() lo escribe.
     Link out_N, out_S, out_E, out_W;
 
-    PE_MAC_State() : pc(0) {}
+    PE_MAC_State() : active_ctx(0), pc(0) {}
 };
 
 namespace pe_mac_hls_c_detail {
@@ -66,9 +71,14 @@ inline PE_VectorData<DATA_W, VLEN> select_src(
     }
 }
 
+// Mismo bit-reinterpret que PE_Vector_HLS_C.h (ver el comentario grande en
+// pe_isa_hls_c.h): OP_FMUL/OP_FMAC calculan a*b en float32; el += del
+// acumulador para OP_FMAC (float, no entero) se resuelve en writeback(),
+// igual que OP_MAC ya resolvia el += entero alli mismo (la ALU nunca conoce
+// el acumulador).
 template <int DATA_W, int VLEN>
 inline PE_VectorData<DATA_W, VLEN> alu_compute(
-    ap_uint<4> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
+    ap_uint<5> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
 {
     PE_VectorData<DATA_W, VLEN> r;
     for (int i = 0; i < VLEN; ++i) {
@@ -87,6 +97,10 @@ inline PE_VectorData<DATA_W, VLEN> alu_compute(
             case OP_SLTU: r[i] = (ap_uint<DATA_W>(a[i]) < ap_uint<DATA_W>(b[i])) ? 1 : 0; break;
             case OP_MUL:
             case OP_MAC:  r[i] = a[i] * b[i]; break;
+            case OP_FMUL:
+            case OP_FMAC:
+                r[i] = (DATA_W == 32) ? ap_int<DATA_W>(f32_to_bits(f32_from_bits(a[i].to_int()) * f32_from_bits(b[i].to_int()))) : ap_int<DATA_W>(0);
+                break;
             default:      r[i] = 0; break;
         }
     }
@@ -99,6 +113,16 @@ inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s,
 {
     if (ins.opcode == OP_MAC) {
         for (int i = 0; i < VLEN; ++i) s.acc[i] = s.acc[i] + r[i];
+        r = s.acc;
+    } else if (ins.opcode == OP_FMAC) {
+        // r ya trae a*b en bits float (calculado en alu_compute); el += es
+        // en float, no en entero -- reinterpretar+sumar+reempaquetar, igual
+        // patron que el resto de OP_F* (ver pe_isa_hls_c.h).
+        for (int i = 0; i < VLEN; ++i) {
+            float acc_f = f32_from_bits(s.acc[i].to_int());
+            float prod_f = f32_from_bits(r[i].to_int());
+            s.acc[i] = ap_int<DATA_W>(f32_to_bits(acc_f + prod_f));
+        }
         r = s.acc;
     } else if (ins.dst == DST_ACC) {
         s.acc = r;
@@ -123,13 +147,19 @@ inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s,
 } // namespace pe_mac_hls_c_detail
 
 // Escritura directa a instr_mem: sin fetch/ALU/avance de pc, no compite con
-// la ejecucion del datapath. Un unico slot por llamada (addr(PE) la resuelve
-// quien orquesta la malla, ver mesh_program() en CGRA_Mesh_Static_C.h).
+// la ejecucion del datapath. Mismo esquema slot=ctx*INSTR_MEM_SIZE+addr que
+// pe_scalar_program/pe_vector_program (ver el comentario grande en
+// PE_Scalar_HLS_C.h): programar activa el contexto de inmediato. GEMM 2x2
+// (unico consumidor real de esta celda hoy) siempre programa slots 0..3, que
+// caen todos en ctx=0 -- comportamiento identico al de antes de este campo.
 template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline void pe_mac_program(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                             ap_uint<8> slot, const PE_Instruction<DATA_W>& instr)
 {
-    s.instr_mem[slot.to_uint() % INSTR_MEM_SIZE] = instr;
+    unsigned ctx  = (slot.to_uint() / INSTR_MEM_SIZE) % PE_MAC_NUM_CONTEXTS;
+    unsigned addr = slot.to_uint() % INSTR_MEM_SIZE;
+    s.instr_mem[ctx][addr] = instr;
+    s.active_ctx = ctx;
 }
 
 // Reset directo del acumulador, bypass de instr_mem.
@@ -154,7 +184,7 @@ inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
     }
     if (!enable) return;
 
-    PE_Instruction<DATA_W> ins = s.instr_mem[s.pc.to_uint() % INSTR_MEM_SIZE];
+    PE_Instruction<DATA_W> ins = s.instr_mem[s.active_ctx.to_uint() % PE_MAC_NUM_CONTEXTS][s.pc.to_uint() % INSTR_MEM_SIZE];
 
     PE_VectorData<DATA_W, VLEN> a = pe_mac_hls_c_detail::select_src(s, ins.src_a, ins.reg_a, ins.imm, in_N, in_S, in_E, in_W);
     PE_VectorData<DATA_W, VLEN> b = pe_mac_hls_c_detail::select_src(s, ins.src_b, ins.reg_b, ins.imm, in_N, in_S, in_E, in_W);
