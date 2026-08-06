@@ -202,8 +202,8 @@ For example the HETA CGRA is good when the physical space is a concern \cite{HET
 %%%%% new
 
 
-Architectures like the homogeneous CGRA present a challenge where there is under-utilization of resources like PEs and interconnects \cite{adres2004, hycube2017}. S
-ince all PEs are identical and have general-purpose capabilities, a large fraction of functional units remain idle during execution \cite{HETA}. 
+Architectures like the homogeneous CGRA present a challenge where there is under-utilization of resources like PEs and interconnects \cite{adres2004, hycube2017}. 
+Since all PEs are identical and have general-purpose capabilities, a large fraction of functional units remain idle during execution \cite{HETA}. 
 In addition, the uniform interconnects can leave many routes unused \cite{dvhetero}.
 This kind of architecture has the advantage of being simple to design and implement, but that same simplicity is a limitation when high parallelism and throughput are required. 
 Such architectures are not energy-efficient and have low performance \cite{Blocks2022}.
@@ -267,7 +267,7 @@ Currently no other architecture has been found that combines scalar and vector o
 \subsection{Architectural Proposal}
 \label{sec:architectural_proposal}
 
-This architecture proposal is shown in the figura \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case is a basic array of 2x2 but this could be expanded according to the necessity.
+This architecture proposal is shown in the figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case is a basic array of 2x2 but this could be expanded according to the necessity.
 
 \begin{figure}[htbp]
     \centering
@@ -499,8 +499,18 @@ It is proposed that the monitor compute, at minimum, the following metrics:
 
 These metrics are printed to the console via \texttt{SC\_REPORT\_INFO}.
 
-Additionally, once the design reaches a stage suitable for FPGA or ASIC synthesis, it will be possible to measure power, area, and \textit{timing} metrics using the corresponding EDA tools. 
-This applies both to the AMD Kria KV260 and the AMD Alveo U55C.
+Additionally, other metrics that will be taken into account are:
+\begin{itemize}
+    \item LUT (Look-Up Table)
+    \item FF (Flip-Flops)
+    \item DSP (Digital Signal Processing)
+    \item BRAM (Block RAM)
+    \item SRL (Shift Register LUT)
+\end{itemize}
+These are necessary to measure the resource utilization of each design and are obtained from Vitis 2024.1 after the synthesis of the design.
+
+%Additionally, once the design reaches a stage suitable for FPGA or ASIC synthesis, it will be possible to measure power, area, and \textit{timing} metrics using the corresponding EDA tools. 
+%This applies both to the AMD Kria KV260 and the AMD Alveo U55C.
 
 
 \subsection{Architectural Exploration}
@@ -513,7 +523,8 @@ This type of exploration is consistent with the diversity of CGRA architectures 
 
 \section{Results and Discussion}
 
-This section presents the results obtained from the implementation of the CGRA with the proposed kernels and monitoring metrics from section \ref{sec:experimento}.
+This section presents the results obtained from the implementation of the CGRA with the proposed kernels and monitoring metrics from section \ref{sec:experimento}. 
+%Elements like L, , , BRAM (Block RAM) and SRL (Shift Register LUT) are used to measure the resource utilization of the design.
 
 
 
@@ -678,7 +689,10 @@ Also the type of architecture: spatial or temporal is very important to take int
 
 \section{Future Work}
 
-T
+This work is first the first step in the development of a heterogeneous CGRA, so there is still work that can be done to improve the architecture and validation of the design. 
+The architecture can be increased in complexity by implementing a large number of PEs, this needs a more complex communication between the different cells but improving the capacity of the CGRA.
+Also adding more variety of PEs can improve the performance of the CGRA, since depending of the workload, the more suitable PE can be used to improve the performance. 
+In terms of validation, the CGRA can be tested with more complex kernels and also can be emulated in a FPGA to get more accurate results.
 
 
 
