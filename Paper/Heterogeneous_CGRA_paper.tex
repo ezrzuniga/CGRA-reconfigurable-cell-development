@@ -563,7 +563,8 @@ BRAM & 0 & 0 & -- \\
 \end{adjustbox}
 \end{table}
 
-Regarding the performance of each comfiguration, the table \ref{tab:perf_metrics_gemm} shows that the temporal implementation has a better performance than the spatial implementation.
+Regarding the performance of each configuration, the table \ref{tab:perf_metrics_gemm} shows that the spacial implementation has a better performance than the temporal implementation.
+The quantity of operations per second is higher in the spatial implementation and has a lower latency per operation, since the PEs are the same, the spatial has the advantage because it has more parallelism available.
 
 \begin{table}[htbp]
 \centering
@@ -924,7 +925,8 @@ In terms of validation, the CGRA can be tested with more complex kernels and als
 %\end{table}
 
 \section*{AI Tool Usage Declaration}
-For this work, Artificial Intelligence was used to help structure the document, as well as for a grammar and spelling review of the document. The tables were algo generated using AI tools aswell as the figures.
+For this work, Artificial Intelligence was used to help structure the document, as well as for a grammar and spelling review of the document. 
+The tables were also generated using AI tools aswell as the figures.
 
 
 \bibliographystyle{IEEEtran}
