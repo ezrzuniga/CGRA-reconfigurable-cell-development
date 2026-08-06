@@ -30,7 +30,13 @@ Costa Rica Institute of Technology \\
 \sloppy
 
 \begin{abstract}
-Coarse-Grained Reconfigurable Arrays (CGRAs) offer an efficient middle ground between the flexibility of FPGAs and the performance of ASICs, but most existing designs rely on homogeneous arrays of general-purpose processing elements (PEs), leaving functional units and interconnects under-utilized when the workload does not match their fixed capabilities. Heterogeneous proposals such as HETA and Plasticine improve resource usage but remain limited to either scalar or vector operations, not both. This work presents a heterogeneous CGRA cell composed of five specialized element types: routing cells with non-blocking FIFOs, distributed SRAM memory cells, a multi-precision scalar unit (int8/16/32), a float32 SIMD vector unit, and a dedicated Multiply-Accumulate (MAC) unit, organized in a $2\times2$ mesh with a RISC-V-facing CSR/DMA interface. The architecture is being developed in SystemC and validated through a progressive testbench flow, from single-PE operations to an end-to-end sum-reduction dataflow, before translation to RTL via Vitis HLS. As preliminary results, the regression suite comprises 19 SystemC testbenches and 139 assertions with zero failures, and an end-to-end sum-reduction benchmark executes correctly end-to-end through the RISC-V-facing CSR/DMA bridge; the arithmetic kernel was also cross-validated in Vitis HLS C-simulation with an exact match against the SystemC results. Work in progress includes full HLS synthesis and timing/resource metrics, a RISC-V (RV64GC) baseline characterization in gem5 for comparison, and broader benchmarking using MachSuite and PolyBench kernels. This paper reports the architectural proposal, methodology, and these preliminary results as an intermediate milestone toward the complete design.
+
+Coarse-Grained Reconfigurable Arrays (CGRAs) provide an effective trade-off between the programmability of FPGAs and the efficiency of ASIC-like acceleration, but homogeneous arrays often under-utilize functional units when workload characteristics are non-uniform. 
+This work presents a heterogeneous CGRA cell architecture composed of five specialized elements: routing cells with non-blocking FIFOs, distributed-memory cells, multi-precision scalar cells (int8/int16/int32), float32 vector cells, and dedicated MAC cells, integrated in a $2\times2$ mesh with a RISC-V CSR/DMA control path. 
+The design flow combines SystemC-based functional development and validation with Vitis HLS synthesis. Experimental evaluation includes temporal and spatial mappings of GEMM and sum-reduction kernels. For GEMM, the spatial mapping reaches higher throughput (33.74 MOP/s vs 13.56 MOP/s) and lower latency per operation (29.64 ns/op vs 73.72 ns/op), at the cost of higher resource usage (up to $4.58\times$ FF and $4.00\times$ DSP). 
+For sum-reduction, the temporal MAC-based mapping achieves better efficiency, with higher utilization (79.7\% vs 47.8\%) and lower latency (50.95 ns/op vs 55.65 ns/op), while also requiring fewer resources. 
+These results support the central claim that heterogeneous, workload-aware CGRA composition improves performance-resource trade-offs compared with uniform PE deployment.
+
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -918,7 +924,7 @@ In terms of validation, the CGRA can be tested with more complex kernels and als
 %\end{table}
 
 \section*{AI Tool Usage Declaration}
-For this work, Artificial Intelligence was used to help structure the document, as well as for a grammar and spelling review of the document.
+For this work, Artificial Intelligence was used to help structure the document, as well as for a grammar and spelling review of the document. The tables were algo generated using AI tools aswell as the figures.
 
 
 \bibliographystyle{IEEEtran}
