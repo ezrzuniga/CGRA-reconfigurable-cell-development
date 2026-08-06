@@ -468,29 +468,30 @@ Utilization rate (\%) & 79.7 & 47.8 & 0.60$\times$ \\
 \end{table}
 
 Regarding the software validation for this kernel, GEM5 was used to simulate the interaction between an ARM core and the CGRA. 
-The table \ref{tab:gem5_rtl_cycles_sumReduction} shows the cycle counts for the implementation, which are matching the RTL cosimulation results. 
-With this result is possible to confirm that the drivers to interact with the CGRA are working correctly.
+The table \ref{tab:gem5_results_sumReduction} shows the cycle counts for the implementation, which are matching the RTL cosimulation results. 
+With this results is possible to confirm that the drivers to interact with the CGRA are working correctly.
 
-\begin{table}[htbp]
-\centering
-\caption{GEM5/RTL co-simulation cycle counts for the sum-reduction kernel.}
-\label{tab:gem5_rtl_cycles_sumReduction}
-\scriptsize
-\begin{adjustbox}{max width=\columnwidth}
-\begin{tabular}{@{}p{0.31\linewidth}p{0.30\linewidth}p{0.31\linewidth}@{}}
-\toprule
-\textbf{Design} & \textbf{Cycles} & \textbf{Matches RTL cosim?}  \\
-\midrule
-Temporal CGRA & 141 & Yes --- exact match  \\
-Spatial CGRA & 154 & Yes --- exact match  \\
-Both designs, one round (141+154) & 295 & derived  \\
-Both designs, both rounds & 590 & derived  \\
-\bottomrule
-\end{tabular}
-\end{adjustbox}
-\end{table}
+%\begin{table}[htbp]
+%\centering
+%\caption{GEM5/RTL co-simulation cycle counts for the sum-reduction kernel.}
+%\label{tab:gem5_rtl_cycles_sumReduction}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}p{0.31\linewidth}p{0.30\linewidth}p{0.31\linewidth}@{}}
+%\toprule
+%\textbf{Design} & \textbf{Cycles} & \textbf{Matches RTL cosim?}  \\
+%\midrule
+%Temporal CGRA & 141 & Yes --- exact match  \\
+%Spatial CGRA & 154 & Yes --- exact match  \\
+%Both designs, one round (141+154) & 295 & derived  \\
+%Both designs, both rounds & 590 & derived  \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
 
 Also the table \ref{tab:gem5_results_sumReduction} shows the results of the GEM5 co-simulation for the sum-reduction kernel, where the output of the operation was the expected one.
+With this results is possible to confirm that the drivers to interact with the CGRA are working correctly.
 
 \begin{table}[htbp]
 \centering
