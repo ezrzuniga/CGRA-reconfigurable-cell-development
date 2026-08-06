@@ -511,7 +511,7 @@ This type of exploration is consistent with the diversity of CGRA architectures 
 
 
 
-\subsection{Results}
+\section{Results and Discussion}
 
 This section presents the results obtained from the implementation of the CGRA with the proposed kernels and monitoring metrics from section \ref{sec:experimento}.
 
@@ -519,11 +519,106 @@ This section presents the results obtained from the implementation of the CGRA w
 
 
 
-\subsubsection{Sum-Reduction Kernel}
+
+\subsection{GEMM Kernel}
+
+The GEMM (General Matrix-Matrix Multiplication) kernel was implemented in two ways using the MAC cell, the temporal implementation and spatial implementation. 
+The first one uses a single MAC cell to perform the operation, while the other one uses 4 MAC cells in total to do the same operation. 
+The table \ref{tab:resource_util_GEMM} shows the resource utilization of both implementations, where as expected, the temporal implementation is cheaper in resources than the spatial implementation. 
+
+\begin{table}[htbp]
+\centering
+\caption{Post-synthesis resource utilization (Vivado) for temporal vs. spatial implementations.}
+\label{tab:resource_util_GEMM}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.18\linewidth}p{0.18\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
+\toprule
+\textbf{Resource} & \textbf{Temporal} & \textbf{Spatial} & \textbf{Spatial/Temporal} \\
+\midrule
+LUT & 1199 & 4467 & 3.73$\times$ \\
+FF & 1551 & 7098 & 4.58$\times$ \\
+DSP & 3 & 12 & 4.00$\times$ \\
+SRL & 0 & 0 & -- \\
+BRAM & 0 & 0 & -- \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+Regarding the performance of each comfiguration, the table \ref{tab:perf_metrics_gemm} shows that the temporal implementation has a better performance than the spatial implementation.
+
+\begin{table}[htbp]
+\centering
+\caption{Performance metrics from measured 2$\times$2 GEMM execution.}
+\label{tab:perf_metrics_gemm}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.26\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.26\linewidth}@{}}
+\toprule
+\textbf{Metric} & \textbf{MAC Cell - Temporal} & \textbf{MAC Cell - Spatial} & \textbf{Spatial/Temporal} \\
+\midrule
+Operations per second (MOP/s) & 13.56  & 33.74  & 2.49$\times$ \\
+Average latency per operation (ns/op) & 73.72  & 29.64 & 0.40$\times$ \\
+Utilization rate (\%) & 58.6 & 71.9 & 1.23$\times$ \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+
+The downside of the temporal implementation is the necessity to have a start=true transaction for each invocation, while the spatial implementation only needs one invocation. 
+This represents a total of 204 cycles vs 82 cycles of the spatial implementation, in the table \ref{tab:rtl_transaction_cycles_gemm} are the values of each implementation.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-transaction RTL cycle counts from cosimulation (actual simulated hardware).}
+\label{tab:rtl_transaction_cycles_gemm}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.17\linewidth}p{0.20\linewidth}p{0.16\linewidth}p{0.24\linewidth}p{0.17\linewidth}@{}}
+\toprule
+\textbf{Design} & \textbf{\# prog\_valid transactions} & \textbf{Cost each} & \textbf{start=true transaction cost} & \textbf{Outputs per start=true} \\
+\midrule
+Temporal & 3 & 12 cycles & \textbf{51 cycles} & 1 ($C[i][j]$) \\
+Spatial & 16 & 2 cycles & \textbf{82 cycles} & 4 (whole matrix) \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+
+
+
+
+\subsection{Sum-Reduction Kernel}
 
 For the sum-reduction kernel we did two comparison, one temporal implementation with our new MAC cell and other spatial implementation with 4 scalar cells. 
 Both of the solutions were implemented under the same hardware considerations, using a Kria K26 SoM as reference with a 250 MHz clock target.
-The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}, where the new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
+The setup for this validation is shown in the table \ref{tab:sum_setup}.
+
+\begin{table}[htbp]
+\centering
+\caption{Temporal vs. spatial sum-reduction setup.}
+\label{tab:sum_setup}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.22\linewidth}p{0.48\linewidth}p{0.26\linewidth}@{}}
+\toprule
+\textbf{Item} & \textbf{Temporal} & \textbf{Spatial} \\
+\midrule
+Mesh & \texttt{MAC PE} & \texttt{Scalar PE} $\times$ 4 \\
+Cell count & 1 & 4 \\
+\texttt{NUM\_PHASES} & 8 & 1 \\
+\texttt{INSTR\_MEM\_SIZE} & 3 & 3 \\
+Test vectors & \texttt{\{6,-2,9,4,0,7,-5,3\}} = 22, \texttt{\{100,-55,30,7,-12,4,-9,15\}} = 80 & same \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+
+The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}. The new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
 
 %The sum-reduction kernel showed a good performance in both the temporal and spatial implementations, but the temporal implementation had a better resource utilization as shown in the table \ref{tab:resource_util_sumReduction}. 
 %Since the idea of the temporal implementation is to reduce the number of PEs and use them multiple times, the resources are better utilized, while the spatial implementation uses more PEs, in this 3.2x more LUTs and 3.37x more FFs. 
@@ -537,7 +632,7 @@ The results of these implementations are shown in the table \ref{tab:resource_ut
 \begin{adjustbox}{max width=\columnwidth}
 \begin{tabular}{@{}p{0.18\linewidth}p{0.18\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
 \toprule
-\textbf{Resource} & \textbf{MAC Cell - Temporal} & \textbf{Scalar Cell - Spatial} & \textbf{Spatial/Temporal} \\
+\textbf{Resource} & \textbf{MAC PE - Temporal} & \textbf{Scalar PE - Spatial} & \textbf{Spatial/Temporal} \\
 \midrule
 LUT & 1205 & 3857 & 3.20$\times$ \\
 FF & 1551 & 5230 & 3.37$\times$ \\
@@ -562,20 +657,28 @@ With this results is possible to confirm the importance of having a heterogeneou
 \begin{adjustbox}{max width=\columnwidth}
 \begin{tabular}{@{}p{0.26\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.26\linewidth}@{}}
 \toprule
-\textbf{Metric} & \textbf{MAC Cell - Temporal} & \textbf{Scalar Cell - Spatial} & \textbf{Spatial/Temporal} \\
+\textbf{Metric} & \textbf{MAC PE - Temporal} & \textbf{Scalar PE - Spatial} & \textbf{Spatial/Temporal} \\
 \midrule
-Operations per second (OP/s) & 19.63 MOP/s & 17.97 MOP/s & 0.92$\times$ \\
-Average latency per operation & 50.95 ns/op & 55.65 ns/op & 1.09$\times$ \\
-Utilization rate (\%) & 79.7\% & 47.8\% & 0.60$\times$ \\
+Operations per second (MOP/s) & 19.63 & 17.97 & 0.92$\times$ \\
+Average latency per operation (ns/op) & 50.95  & 55.65  & 1.09$\times$ \\
+Utilization rate (\%) & 79.7 & 47.8 & 0.60$\times$ \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
 \end{table}
 
 
+\section{Conclusions}
+
+In this work we propose a heterogeneous CGRA with diffent types of cells, including a new MAC PE that haven't been mention in past works. 
+This work shows that having different types of cells in a CGRA architecture can translate in a better performance. 
+The design of a CGRA depends on the type of workload that is going to be executed, but for general purposes the heterogeneous architecture with specialized cells present a better solution for performance.
+Also the type of architecture: spatial or temporal is very important to take into consideration because of the space available to implement the GGRA, the spatial is going to use more resources. 
 
 
+\section{Future Work}
 
+T
 
 
 
@@ -742,42 +845,42 @@ Utilization rate (\%) & 79.7\% & 47.8\% & 0.60$\times$ \\
 
 
 
-
-\subsection{Preliminary Results}
-\label{sec:results}
-
-This subsection reports what has actually been measured against the plan of Sec.~\ref{sec:experimento}, distinguishing completed results from work still in progress, consistent with the ``preliminary'' scope of this milestone.
-
-\subsubsection{Functional Verification}
-The table \ref{tab:test_results} summarizes the regression suite: 19 SystemC testbenches covering every module described in \ref{sec:architectural_proposal} individually plus three integration levels (mesh, mesh wrapper/CSR-DMA, RISC-V-facing system), totaling 139 individual pass/fail assertions with \textbf{zero failures}. One additional testbench (MAC-cell sum-reduction) currently fails to \emph{build} due to a missing standard-library header, a build-pipeline issue rather than a design defect; it is tracked as a known, easily-fixable gap rather than hidden from this count.
-
-\begin{table}[htbp]
-\centering
-\caption{Regression suite results (SystemC testbenches).}
-\label{tab:test_results}
-\scriptsize
-\begin{adjustbox}{max width=\columnwidth}
-\begin{tabular}{@{}p{0.46\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.14\linewidth}@{}}
-\toprule
-\textbf{Scope} & \textbf{TBs} & \textbf{Asserts} & \textbf{Result} \\
-\midrule
-Cell-level (scalar, vector, MAC, memory, routing) & 12 & 79 & 12/12 PASS \\
-Mesh integration (1$\times$1, heterogeneous 2$\times$2, smoke/complex) & 4 & 51 & 4/4 PASS \\
-CSR/DMA wrapper + sum-reduction dataflow & 2 & 16 & 2/2 PASS \\
-RISC-V-facing system integration & 1 & 1 & 1/1 PASS \\
-\bottomrule
-\end{tabular}
-\end{adjustbox}
-\end{table}
-
-\subsubsection{End-to-End Sum-Reduction Demonstration}
-The mesh's routing, memory, scalar, and vector cells jointly execute $total = seed + \sum_{i=0}^{6} v_i$, driven entirely through the RISC-V-facing CSR/DMA bridge (no direct cell access from the testbench). Across three rounds with distinct signs and magnitudes, all outputs match the expected totals exactly. Counting the fixed-latency instruction-load/relay chain in the source (routing~$\to$~memory~$\to$~routing~$\to$~scalar~$\to$~vector, excluding the bounded DMA-completion poll), the dataflow completes in 27 fixed cycles plus at most 20 polling cycles (two single-element DMA transfers, each bounded at 10 cycles), i.e.\ $\leq$47 cycles per round at the simulated clock period --- an upper bound derived from the source, not yet from an instrumented cycle counter.
-
-\subsubsection{HLS Cross-Validation}
-The arithmetic kernel of the sum-reduction benchmark was re-implemented as a standalone Vitis HLS C function and validated in C-simulation (\texttt{csim}) against the same three golden rounds used in the SystemC testbench, with an exact match on all outputs. This confirms the arithmetic contract is synthesis-tool-portable before committing to a full \texttt{csynth}/\texttt{cosim} run, whose resource and timing figures are not yet available and are deferred to the final report.
-
-\subsubsection{RISC-V Baseline Characterization}
-To contextualize the CGRA's expected benefit, the same sum-reduction kernel is being characterized as a compiled RISC-V (RV64GC) binary under gem5's system-call-emulation mode, comparing in-order (Atomic, Timing, Minor) and out-of-order (O3) CPU models via cycle counts in \texttt{stats.txt}. At the time of writing, the gem5 build is in progress; cycle-count results will be reported in the final article alongside the CGRA and HLS figures above.
+%
+%\subsection{Preliminary Results}
+%\label{sec:results}
+%
+%This subsection reports what has actually been measured against the plan of Sec.~\ref{sec:experimento}, distinguishing completed results from work still in progress, consistent with the ``preliminary'' scope of this milestone.
+%
+%\subsubsection{Functional Verification}
+%The table \ref{tab:test_results} summarizes the regression suite: 19 SystemC testbenches covering every module described in \ref{sec:architectural_proposal} individually plus three integration levels (mesh, mesh wrapper/CSR-DMA, RISC-V-facing system), totaling 139 individual pass/fail assertions with \textbf{zero failures}. One additional testbench (MAC-cell sum-reduction) currently fails to \emph{build} due to a missing standard-library header, a build-pipeline issue rather than a design defect; it is tracked as a known, easily-fixable gap rather than hidden from this count.
+%
+%\begin{table}[htbp]
+%\centering
+%\caption{Regression suite results (SystemC testbenches).}
+%\label{tab:test_results}
+%\scriptsize
+%\begin{adjustbox}{max width=\columnwidth}
+%\begin{tabular}{@{}p{0.46\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.14\linewidth}@{}}
+%\toprule
+%\textbf{Scope} & \textbf{TBs} & \textbf{Asserts} & \textbf{Result} \\
+%\midrule
+%Cell-level (scalar, vector, MAC, memory, routing) & 12 & 79 & 12/12 PASS \\
+%Mesh integration (1$\times$1, heterogeneous 2$\times$2, smoke/complex) & 4 & 51 & 4/4 PASS \\
+%CSR/DMA wrapper + sum-reduction dataflow & 2 & 16 & 2/2 PASS \\
+%RISC-V-facing system integration & 1 & 1 & 1/1 PASS \\
+%\bottomrule
+%\end{tabular}
+%\end{adjustbox}
+%\end{table}
+%
+%\subsubsection{End-to-End Sum-Reduction Demonstration}
+%The mesh's routing, memory, scalar, and vector cells jointly execute $total = seed + \sum_{i=0}^{6} v_i$, driven entirely through the RISC-V-facing CSR/DMA bridge (no direct cell access from the testbench). Across three rounds with distinct signs and magnitudes, all outputs match the expected totals exactly. Counting the fixed-latency instruction-load/relay chain in the source (routing~$\to$~memory~$\to$~routing~$\to$~scalar~$\to$~vector, excluding the bounded DMA-completion poll), the dataflow completes in 27 fixed cycles plus at most 20 polling cycles (two single-element DMA transfers, each bounded at 10 cycles), i.e.\ $\leq$47 cycles per round at the simulated clock period --- an upper bound derived from the source, not yet from an instrumented cycle counter.
+%
+%\subsubsection{HLS Cross-Validation}
+%The arithmetic kernel of the sum-reduction benchmark was re-implemented as a standalone Vitis HLS C function and validated in C-simulation (\texttt{csim}) against the same three golden rounds used in the SystemC testbench, with an exact match on all outputs. This confirms the arithmetic contract is synthesis-tool-portable before committing to a full \texttt{csynth}/\texttt{cosim} run, whose resource and timing figures are not yet available and are deferred to the final report.
+%
+%\subsubsection{RISC-V Baseline Characterization}
+%To contextualize the CGRA's expected benefit, the same sum-reduction kernel is being characterized as a compiled RISC-V (RV64GC) binary under gem5's system-call-emulation mode, comparing in-order (Atomic, Timing, Minor) and out-of-order (O3) CPU models via cycle counts in \texttt{stats.txt}. At the time of writing, the gem5 build is in progress; cycle-count results will be reported in the final article alongside the CGRA and HLS figures above.
 
 %\subsection{Development Tools and Environment}
 %In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in Table~\ref{tab:herramientas}.
