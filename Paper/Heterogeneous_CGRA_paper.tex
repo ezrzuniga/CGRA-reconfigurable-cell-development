@@ -469,7 +469,6 @@ Utilization rate (\%) & 79.7 & 47.8 & 0.60$\times$ \\
 
 Regarding the software validation for this kernel, GEM5 was used to simulate the interaction between an ARM core and the CGRA. 
 The table \ref{tab:gem5_results_sumReduction} shows the cycle counts for the implementation, which are matching the RTL cosimulation results. 
-With this results is possible to confirm that the drivers to interact with the CGRA are working correctly.
 
 %\begin{table}[htbp]
 %\centering
@@ -519,13 +518,9 @@ With this results is possible to confirm that the drivers to interact with the C
 \subsubsection{Softmax Kernel}
 
 For the validation of the softmax kernel, the proposed heterogeneous CGRA was tested using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA was modeled in SystemC.
-In this validation, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation.
-There were six test cases executed, with different 
+In this validation, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation. 
 
-The softmax kernel was also validated end-to-end on the proposed heterogeneous CGRA. 
-In this experiment, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation. 
-Six representative test cases were executed with different test cases like uniform inputs, dominant-lane cases, negative fractional inputs, and a saturation scenario with input spread beyond the useful exponential range. 
-In the table \ref{tab:softmax_validation} the summary of the validation is shown, where all the test cases passed successfully, with an error below the acceptance threshold
+The softmax kernel was also validated end-to-end on the proposed heterogeneous CGRA. Six representative test cases were executed with different inputs flavors: uniform inputs, dominant-lane cases, negative fractional inputs, and a saturation scenario with input spread beyond the useful exponential range to verify the CGRA accuracy in computation terms of such algorithm. In the table \ref{tab:softmax_validation} the summary of the validation is shown, where all the test cases passed successfully, with an error below the acceptance threshold
 
 
 \begin{table}[htbp]
