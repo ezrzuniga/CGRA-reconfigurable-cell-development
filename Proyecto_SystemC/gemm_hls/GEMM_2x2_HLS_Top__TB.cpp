@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <string>
 #include "GEMM_2x2_HLS_Top.h"
-#include "../pe/test_util.h"
+#include "../pe_hls/test_util.h"
 
 struct GemmCase {
     const char* label;

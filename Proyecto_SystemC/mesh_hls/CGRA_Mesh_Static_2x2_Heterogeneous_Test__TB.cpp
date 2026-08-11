@@ -15,7 +15,7 @@
 #include "../memory_hls/PE_Memory_HLS_Cell.h"
 #include "../pe_hls/scalar/PE_Scalar_Cell_HLS.h"
 #include "../pe_hls/vector/PE_Vector_Cell_HLS.h"
-#include "../pe/test_util.h"
+#include "../pe_hls/test_util.h"
 
 static const int ROWS = 2;
 static const int COLS = 2;

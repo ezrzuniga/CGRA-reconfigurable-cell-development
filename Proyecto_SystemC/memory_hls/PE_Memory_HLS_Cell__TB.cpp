@@ -6,7 +6,7 @@
 
 #include <systemc.h>
 #include "PE_Memory_HLS_Cell.h"
-#include "../pe/test_util.h"
+#include "../pe_hls/test_util.h"
 
 typedef PE_VectorData<32, 4> Link;
 

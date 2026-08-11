@@ -6,8 +6,8 @@
 #ifndef PE_ROUTING_CELL_HLS_H
 #define PE_ROUTING_CELL_HLS_H
 
-#include "../../pe/pe_isa.h"
-#include "../../pe/routing/Routing_Cell.h"
+#include "../pe_isa.h"
+#include "Routing_Cell.h"
 
 // Mismo empaquetado que make_routing_config_instr en pe/routing/PE_Routing_Cell.h
 // (N,S,E,W,LN,LS,LE,LW, nibble mas significativo primero), reimplementado aca

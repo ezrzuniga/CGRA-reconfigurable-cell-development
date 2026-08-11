@@ -36,7 +36,7 @@
 #include <string>
 #include <cstddef>
 #include <utility>
-#include "../pe/pe_isa.h"
+#include "../pe_hls/pe_isa.h"
 
 namespace cgra_mesh_static_detail {
 
