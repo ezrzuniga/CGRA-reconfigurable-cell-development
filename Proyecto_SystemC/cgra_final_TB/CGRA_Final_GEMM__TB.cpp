@@ -86,10 +86,21 @@ static Instr nop_instr() { return Instr(); }
 // registrado (Vectorial/Escalar, 1 ciclo) y A por hasta 2 saltos MAC-a-MAC
 // (1 ciclo cada uno), asi que P11 en particular necesita margen para 2
 // saltos de A (via P10) y 2 de B (via P01) antes de que su propio MAC pueda
-// leerlos. 8 slots dan ese margen a todas las celdas por igual:
-//   addr 0: P00/P10 relevan A un salto hacia el este (P01/P11).
-//   addr 2: P01 releva B un salto hacia el sur (P11) -- ya tiene su propio B
-//           (desde Escalar) listo desde addr1, con margen de sobra.
+// leerlos. Ademas, un borde real recien escrito por el testbench (in_W/in_N)
+// no se ve reflejado en el primer ciclo de la ventana: sc_signal::write()
+// hecho fuera de un proceso de reloj (en sc_main, entre dos advance_cycles())
+// solo se aplica en la fase de update del PROXIMO sc_start(), asi que
+// cualquier lector (Routing_Cell::route() combinacional, o el propio in_N/in_W
+// de una celda) todavia ve el valor de la ventana anterior en el slot 0 y
+// recien el nuevo en el slot 1 -- confirmado instrumentando PE_MAC_HLS::tick()
+// con el pc/in_W/in_N real. Por eso cada relay que depende de un borde real
+// arranca en addr1 (no addr0), un ciclo mas tarde que lo que sugeriria un
+// relay "combinacional de 0 ciclos" en el papel. 8 slots dan margen de sobra
+// a todas las celdas por igual con este corrimiento:
+//   addr 1: P00/P10 relevan A (borde real ya estable) un salto hacia el este
+//           (P01/P11).
+//   addr 2: P00 releva B (su propio N, estable desde addr2) hacia P10; P01
+//           releva B (su propio N, estable desde addr2) hacia P11.
 //   addr 4: MAC de P00/P01/P10 (A y B con margen de al menos 1 ciclo cada uno).
 //   addr 5: MAC de P11 (el operando mas lento, B via Escalar->P01->P11, dos
 //           saltos registrados, recien esta listo desde addr3).
@@ -100,23 +111,18 @@ static void build_gemm_program(Instr prog[2][2][PROG_SLOTS]) {
             for (int s = 0; s < PROG_SLOTS; s++)
                 prog[i][j][s] = nop_instr();
 
-    prog[0][0][0] = mov_instr(SRC_WEST, DST_EAST);                   // A -> P01
-    prog[0][0][1] = mov_instr(SRC_NORTH, DST_SOUTH);                 // B -> P10
+    prog[0][0][1] = mov_instr(SRC_WEST, DST_EAST);                   // A -> P01
+    prog[0][0][2] = mov_instr(SRC_NORTH, DST_SOUTH);                 // B -> P10
     prog[0][0][4] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
     prog[0][0][6] = mov_instr(SRC_ACC, DST_WEST);   // -> Routing(1,0) ctx1 -> out_W[1]
 
-    prog[0][1][1] = mov_instr(SRC_NORTH, DST_EAST);  // DEBUG: exponer B crudo (de Escalar) por out_E[1]
     prog[0][1][2] = mov_instr(SRC_NORTH, DST_SOUTH);                 // B -> P11
     prog[0][1][4] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
     prog[0][1][6] = mov_instr(SRC_ACC, DST_EAST);   // -> out_E[1]
 
-    // DEBUG: P10 reprogramada como "contador de PC visible" -- cada
-    // direccion escribe su propio indice por DST_SOUTH (borde real), para
-    // poder leer el PC de las celdas MAC ciclo a ciclo desde afuera.
-    for (int s = 0; s < PROG_SLOTS; s++) {
-        Instr counter; counter.opcode = OP_MOV; counter.src_a = SRC_IMM; counter.imm = s; counter.dst = DST_SOUTH;
-        prog[1][0][s] = counter;
-    }
+    prog[1][0][1] = mov_instr(SRC_WEST, DST_EAST);                   // A -> P11
+    prog[1][0][4] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
+    prog[1][0][6] = mov_instr(SRC_ACC, DST_SOUTH);  // -> out_S[1] (borde real directo)
 
     prog[1][1][5] = mac_instr(SRC_WEST, SRC_NORTH, DST_ACC);
     prog[1][1][7] = mov_instr(SRC_ACC, DST_EAST);   // -> out_E[2]
@@ -264,8 +270,14 @@ static bool run_case(Mesh& mesh, sc_signal<bool>& rst, sc_signal<bool>& enable, 
     feed_k_step(rst, enable, in_N, in_W, out_E, out_S, tc.A[0][1], tc.A[1][1], tc.B[1][0], tc.B[1][1]);
 
     // C[0][0]: P00 no toca ningun borde real -- exponerlo via Routing(1,0) ctx1.
+    // Igual que un borde real recien escrito (ver build_gemm_program), un config
+    // de Routing recien cargado tampoco se ve reflejado en el ciclo inmediato
+    // siguiente al load_instr(): bridge_instr_in() -> config_bank (clk.pos()) ->
+    // route() combinacional es la misma cadena de un ciclo extra. Un solo caso
+    // (el primero) lo delata porque ctx1 arranca en su default (RC_NONE) --
+    // los casos siguientes reutilizan un ctx1 que ya quedo asentado desde antes.
     mesh.load_instr(1, 0, 1, routing_relay_out());
-    advance_cycles(1);
+    advance_cycles(2);
     mesh.clear_instr(1, 0);
 
     int32_t got[2][2] = {
