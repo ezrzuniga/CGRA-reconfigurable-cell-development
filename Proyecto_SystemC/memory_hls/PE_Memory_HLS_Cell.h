@@ -24,8 +24,8 @@
 #define PE_MEMORY_HLS_CELL_H
 
 #include <systemc.h>
-#include "../pe/pe_isa.h"
-#include "../memory/Access_controller.h"
+#include "../pe_hls/pe_isa.h"
+#include "Access_controller.h"
 
 enum MemCellField {
     MEM_FIELD_SRC_ADDR = 0,

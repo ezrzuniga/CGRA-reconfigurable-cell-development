@@ -16,7 +16,7 @@
 #define PE_MAC_HLS_H
 
 #include <systemc.h>
-#include "../../pe/pe_isa.h"
+#include "../pe_isa.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
 class PE_MAC_HLS : public sc_core::sc_module {

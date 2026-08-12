@@ -52,13 +52,9 @@ find_library(
 
 enable_testing()
 
-add_subdirectory(pe)
-add_subdirectory(mesh)
-add_subdirectory(mesh_wrapper)
-add_subdirectory(riscv_dma_main_mem_components)
-add_subdirectory(memory)
-
 add_subdirectory(pe_hls)
 add_subdirectory(mesh_hls)
 add_subdirectory(memory_hls)
 add_subdirectory(gemm_hls)
+add_subdirectory(cgra_final)
+add_subdirectory(cgra_final_TB)

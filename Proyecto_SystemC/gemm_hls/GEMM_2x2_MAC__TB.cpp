@@ -9,7 +9,7 @@
 #include <string>
 #include <sstream>
 #include "GEMM_2x2_Mesh.h"
-#include "../pe/test_util.h"
+#include "../pe_hls/test_util.h"
 
 static const int ROWS = GEMM_ROWS;
 static const int COLS = GEMM_COLS;
