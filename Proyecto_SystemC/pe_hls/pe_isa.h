@@ -1,9 +1,14 @@
 // pe_isa.h
-// ISA compartido por las 3 variantes de PE (scalar/vector/mac): opcodes,
-// formato de instruccion, y el tipo de dato vectorial. Inspirado en RISC-V
-// (mismos mnemonics: ADD/SUB/AND/OR/XOR) pero adaptado para que una
-// instruccion pueda operar directo sobre los 4 vecinos de malla de la PE
-// (Norte/Sur/Este/Oeste) ademas del banco de registros y un inmediato.
+// ISA compartida por toda la CGRA final (celdas scalar/vector/mac/routing/
+// memory en pe_hls/ y memory_hls/): opcodes, formato de instruccion, y el
+// tipo de dato vectorial. Inspirado en RISC-V (mismos mnemonics:
+// ADD/SUB/AND/OR/XOR) pero adaptado para que una instruccion pueda operar
+// directo sobre los 4 vecinos de malla de la PE (Norte/Sur/Este/Oeste)
+// ademas del banco de registros y un inmediato.
+//
+// Vive dentro de pe_hls/ (no en un pe/ compartido con la malla runtime): el
+// arbol _hls es autocontenido de cara a la implementacion FPGA, sin
+// dependencias fuera de pe_hls/mesh_hls/memory_hls/gemm_hls/cgra_final.
 
 #ifndef PE_ISA_H
 #define PE_ISA_H
@@ -28,7 +33,7 @@ enum PE_Opcode {
     OP_SLT  = 10,  // 1 si a < b con signo, si no 0
     OP_SLTU = 11,  // 1 si a < b sin signo, si no 0
     OP_MUL  = 12,  // bits bajos de a * b
-    OP_MAC  = 13   // acc += a * b (acumulador interno del PE, ver pe/mac/)
+    OP_MAC  = 13   // acc += a * b (acumulador interno del PE, ver pe_hls/mac/)
 };
 
 // Origen de un operando: registro interno, uno de los 4 vecinos de malla de

@@ -8,21 +8,10 @@
 // RC.out_L_X <-> PE.in_X, sin convenciones ad-hoc ni puertos "unicos" que
 // obliguen a la PE a fingir que solo tiene una direccion de salida.
 //
-// (Version anterior: un unico puerto L para las 4 direcciones de la PE.
-// Se descarto tras el test de integracion con PE_Scalar_Cell: obligaba a
-// una convencion fragil -- solo un par N/S/E/W de la PE "contaba", y la PE
-// tenia que usar siempre DST_ALL para que el dato apareciera ahi. Con
-// PE_scalar::writeback() dejando los puertos no escritos con el valor del
-// ciclo anterior, un DST_NORTH real en vez de DST_ALL habria hecho que la
-// celda de enrutamiento leyera basura sin darse cuenta. El diseno de 4
-// puertos locales elimina ese riesgo: cada direccion de la PE tiene su
-// propio par in/out en la celda, y solo se lee la que la config activa.)
-//
 // Para cada una de las 8 salidas, un selector estatico de 4 bits escoge
 // entre las otras 7 entradas o "ninguna" (NONE). El wire de datos es
-// PE_VectorData<DATA_W,VLEN>, el mismo tipo que ya usa
-// CGRA_Mesh_Heterogeneous y PE_Base, para que esta celda pueda insertarse
-// entre PE y malla sin adaptadores.
+// PE_VectorData<DATA_W,VLEN>, el mismo tipo que ya usa la malla y PE_Base,
+// para que esta celda pueda insertarse entre PE y malla sin adaptadores.
 //
 // Config: banco de RC_NUM_CONTEXTS (4) contextos, cada uno cargado por
 // separado via config_in (mismo patron addr->ctx que instr_mem de los PE,
@@ -32,6 +21,9 @@
 // config_in. El mux de cada salida es combinacional sobre el contexto
 // activo. No hay arbitraje: dos salidas pueden leer la misma entrada sin
 // conflicto (es una copia, no una reserva de recurso).
+//
+// Ya es sintetizable tal cual (sin wait() temporizado, sin TLM) -- por eso
+// pe_hls/routing/PE_Routing_Cell_HLS.h la reusa sin modificar.
 
 #ifndef ROUTING_CELL_H
 #define ROUTING_CELL_H

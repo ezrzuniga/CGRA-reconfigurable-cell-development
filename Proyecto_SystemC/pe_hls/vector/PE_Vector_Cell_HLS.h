@@ -7,7 +7,7 @@
 #ifndef PE_VECTOR_CELL_HLS_H
 #define PE_VECTOR_CELL_HLS_H
 
-#include "../../pe/pe_isa.h"
+#include "../pe_isa.h"
 #include "PE_vector_HLS.h"
 
 template <int DATA_W = 32, int VLEN = 4, int NUM_REGS = 8, int INSTR_MEM_SIZE = 16>
