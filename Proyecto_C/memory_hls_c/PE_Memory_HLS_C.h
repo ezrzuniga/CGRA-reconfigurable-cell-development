@@ -1,8 +1,9 @@
 // PE_Memory_HLS_C.h
 // Transliteracion a C/C++ puro de memory_hls/PE_Memory_HLS_Cell.h: SRAM +
 // motor de rafaga como arreglo fijo + FSM de 2 estados, sin TLM/sc_module.
-// Proyecto_SystemC/memory/Access_controller.h se reusa TAL CUAL -- ya es
-// C++ puro, sin dependencia de SystemC, nada que portar.
+// memory_hls/Access_controller.h se reusa TAL CUAL -- ya era C++ puro, sin
+// dependencia de SystemC, nada que portar; solo se copio a este directorio
+// (Access_controller_C.h) para que Proyecto_C no dependa del arbol SystemC.
 //
 // Convenio de campos identico al original (MemCellField,
 // make_memory_field_instr): `slot` (el mismo parametro generico de
@@ -24,7 +25,7 @@
 #define PE_MEMORY_HLS_C_H
 
 #include "../pe_hls_c/pe_isa_hls_c.h"
-#include "../../Proyecto_SystemC/memory/Access_controller.h"
+#include "Access_controller_C.h"
 
 enum MemCellField {
     MEM_FIELD_SRC_ADDR = 0,
@@ -59,8 +60,19 @@ template <int DATA_W = 32, int VLEN = 4, int SIZE_WORDS = 512>
 struct PE_Memory_State {
     typedef PE_VectorData<DATA_W, VLEN> Link;
 
+    // La SRAM SI se queda como RAM de verdad (BRAM de doble puerto): es la
+    // memoria "grande" de la celda (SIZE_WORDS=512 por defecto) y el motor de
+    // rafaga hace como mucho una lectura y una escritura por ciclo, asi que 2
+    // puertos alcanzan y particionarla seria un desperdicio enorme de flops --
+    // es justo el caso opuesto al de instr_mem/reg_file de un PE.
     ap_int<DATA_W>       sram[SIZE_WORDS];
+#pragma HLS BIND_STORAGE variable=sram type=RAM_2P impl=BRAM
+
+    // Los 4 contextos de DMA si son memoria de configuracion (se escriben por
+    // el canal lateral y se leen enteros de una al disparar la rafaga):
+    // registros, como en el resto de las celdas.
     MemContextRegisters  contexts[4];
+#pragma HLS ARRAY_PARTITION variable=contexts complete dim=1
 
     MemCellFSMState state;
     uint32_t        active_context;
@@ -71,7 +83,11 @@ struct PE_Memory_State {
     Link out_N, out_S, out_E, out_W;
 
     PE_Memory_State() : state(MEM_ST_IDLE), active_context(0), dir(0), busy(false), done(false) {
-        for (int i = 0; i < SIZE_WORDS; i++) sram[i] = 0;
+    sram_init_loop:
+        for (int i = 0; i < SIZE_WORDS; i++) {
+#pragma HLS PIPELINE II=1
+            sram[i] = 0;
+        }
     }
 };
 
@@ -128,6 +144,10 @@ inline void memory_step(PE_Memory_State<DATA_W, VLEN, SIZE_WORDS>& s, bool rst, 
                          const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                          const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+    // Una palabra por ciclo de rafaga: 1 lectura de sram + 1 escritura, que es
+    // exactamente lo que da un RAM_2P con II=1.
+#pragma HLS INLINE
+#pragma HLS PIPELINE II=1
     (void)in_N; (void)in_S; (void)in_E;  // puerto NoC unico: solo in_W/out_W
 
     if (rst) {

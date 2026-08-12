@@ -57,10 +57,17 @@ namespace cgra_hls_c_detail {
 template <int DATA_W, int VLEN, int COLS, int ROWS>
 struct MeshDrive {
     bool rst;
+    // Los 4 bordes de la malla se presentan enteros en el mismo ciclo (cada
+    // celda de borde lee el suyo): registros, no RAM -- si no, presentar una
+    // fase costaria COLS+ROWS ciclos de lectura en vez de uno.
     PE_VectorData<DATA_W, VLEN> bound_in_N[COLS];
     PE_VectorData<DATA_W, VLEN> bound_in_S[COLS];
     PE_VectorData<DATA_W, VLEN> bound_in_W[ROWS];
     PE_VectorData<DATA_W, VLEN> bound_in_E[ROWS];
+#pragma HLS ARRAY_PARTITION variable=bound_in_N complete dim=1
+#pragma HLS ARRAY_PARTITION variable=bound_in_S complete dim=1
+#pragma HLS ARRAY_PARTITION variable=bound_in_W complete dim=1
+#pragma HLS ARRAY_PARTITION variable=bound_in_E complete dim=1
 
     MeshDrive() : rst(false) {}
 };
@@ -75,11 +82,16 @@ inline void present_phase(
     const PE_VectorData<DATA_W, VLEN> in_W[NUM_PHASES][ROWS],
     const PE_VectorData<DATA_W, VLEN> in_E[NUM_PHASES][ROWS])
 {
+#pragma HLS INLINE
+present_cols_loop:
     for (int c = 0; c < COLS; c++) {
+#pragma HLS UNROLL
         d.bound_in_N[c] = in_N[phase][c];
         d.bound_in_S[c] = in_S[phase][c];
     }
+present_rows_loop:
     for (int r = 0; r < ROWS; r++) {
+#pragma HLS UNROLL
         d.bound_in_W[r] = in_W[phase][r];
         d.bound_in_E[r] = in_E[phase][r];
     }
@@ -136,6 +148,12 @@ void cgra_run(
     int phase = 0;
     ap_uint<16> cnt = 0;
 
+    // cgra_cycle_loop NO lleva PIPELINE: es la FSM de control, y cada iteracion
+    // depende del estado que dejo la anterior (pc de las PEs, acumuladores,
+    // salidas de la malla via el snapshot). Un ciclo de malla por iteracion ya
+    // es el objetivo -- el paralelismo esta ADENTRO de mesh_step (las ROWS*COLS
+    // PEs en paralelo, ver la nota de pragmas en CGRA_Mesh_Static_C.h), no
+    // entre iteraciones de este bucle.
 cgra_cycle_loop:
     for (;;) {
         mesh_step(mesh, curr.rst, /*enable=*/true,
@@ -181,6 +199,10 @@ cgra_cycle_loop:
                 typedef PE_VectorData<DATA_W, VLEN> Link;
                 Link all_out_N[ROWS][COLS], all_out_S[ROWS][COLS];
                 Link all_out_E[ROWS][COLS], all_out_W[ROWS][COLS];
+#pragma HLS ARRAY_PARTITION variable=all_out_N complete dim=0
+#pragma HLS ARRAY_PARTITION variable=all_out_S complete dim=0
+#pragma HLS ARRAY_PARTITION variable=all_out_E complete dim=0
+#pragma HLS ARRAY_PARTITION variable=all_out_W complete dim=0
                 mesh_read_outputs(mesh, all_out_N, all_out_S, all_out_E, all_out_W);
 
                 for (int c = 0; c < COLS; c++) {

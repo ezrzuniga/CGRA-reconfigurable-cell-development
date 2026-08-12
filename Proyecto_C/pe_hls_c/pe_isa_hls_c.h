@@ -75,12 +75,26 @@ struct PE_InstrIn {
 // Dato vectorial: VLEN lanes independientes de ap_int<DATA_W>. Wire unico de
 // la malla (GEMM 2x2 solo usa VLEN=1, pero se mantiene generico por
 // consistencia con pe_isa.h).
+//
+// ARRAY_PARTITION complete sobre `lane`: es EL pragma que decide si la CGRA
+// tiene paralelismo de lanes o no. Sin el, Vitis HLS puede mapear los VLEN
+// lanes a una RAM de 1-2 puertos y la ALU SIMD de cada PE se serializa a
+// 1 lane por ciclo (VLEN=4 -> 4x mas latencia por instruccion). Particionado
+// completo, los VLEN lanes son registros independientes y el bucle por lane de
+// alu_compute() se desenrolla a VLEN ALUs fisicas en paralelo -- que es
+// exactamente el modelo de un PE vectorial de CGRA. Va dentro del struct para
+// que aplique a TODAS las instancias de Link (puertos, registros, snapshots de
+// la malla), no solo a una declaracion suelta.
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VectorData {
     ap_int<DATA_W> lane[VLEN];
+#pragma HLS ARRAY_PARTITION variable=lane complete dim=1
 
     PE_VectorData() {
-        for (int i = 0; i < VLEN; i++) lane[i] = 0;
+        for (int i = 0; i < VLEN; i++) {
+#pragma HLS UNROLL
+            lane[i] = 0;
+        }
     }
 
     ap_int<DATA_W>& operator[](int idx) { return lane[idx]; }

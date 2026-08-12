@@ -39,6 +39,28 @@
 // Disciplina de registro sin cambios: cada celda lee las salidas
 // out_N/S/E/W de sus vecinos TAL COMO QUEDARON al final del ciclo anterior
 // (snapshot "viejo" tomado antes de correr a nadie este ciclo).
+//
+// NOTA DE PRAGMAS / MAPEO A CGRA (por que PIPELINE+UNROLL y no DATAFLOW):
+// dentro de un mesh_step() las ROWS*COLS celdas son COMPLETAMENTE
+// independientes entre si -- todas leen el mismo snapshot viejo y ninguna ve
+// el resultado de otra. Eso es ILP puro a nivel de malla, y el mapeo natural
+// es "una PE fisica por posicion, todas disparando en el mismo flanco":
+// snapshot_all()/step_all() son fold expressions, o sea que ya vienen
+// desenrolladas en tiempo de compilacion por el propio C++ (no hay un for-loop
+// que Vitis pueda ver, y por eso no llevan #pragma HLS UNROLL), y mesh_step()
+// lleva PIPELINE II=1 para que el ciclo de malla completo sea una sola
+// iteracion de pipeline.
+//
+// DATAFLOW deliberadamente NO se usa aca, y conviene dejar dicho por que: el
+// modelo de DATAFLOW es una cadena de tareas productor/consumidor conectadas
+// por canales, cada una corriendo a su propio ritmo. Esta malla es lo
+// contrario -- un unico paso lock-step donde todas las celdas avanzan juntas y
+// se comunican por un snapshot compartido, no por FIFOs. Ponerle DATAFLOW no
+// solo no ganaria nada: violaria la disciplina de registro que hace que la
+// malla sea ciclo-a-ciclo equivalente al modelo SystemC. El lugar donde
+// DATAFLOW SI tendria sentido en este proyecto es un nivel mas arriba (un top
+// que solape "cargar operandos del host" con "correr N ciclos de malla" con
+// "sacar resultados"), no dentro del paso de malla.
 
 #ifndef CGRA_MESH_STATIC_C_H
 #define CGRA_MESH_STATIC_C_H
@@ -117,6 +139,7 @@ inline void snapshot_one(CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, CellTs...>
                           PE_VectorData<DATA_W, VLEN> old_out_E[ROWS][COLS],
                           PE_VectorData<DATA_W, VLEN> old_out_W[ROWS][COLS])
 {
+#pragma HLS INLINE
     constexpr int r = I / COLS;
     constexpr int c = I % COLS;
     auto& cell = Getter<I, 0, CellTs...>::get(mesh.pe);
@@ -152,6 +175,7 @@ inline void step_one(CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, CellTs...>& me
                       const PE_VectorData<DATA_W, VLEN> bound_in_W[ROWS],
                       const PE_VectorData<DATA_W, VLEN> bound_in_E[ROWS])
 {
+#pragma HLS INLINE
     constexpr int r = I / COLS;
     constexpr int c = I % COLS;
     typedef PE_VectorData<DATA_W, VLEN> Link;
@@ -186,6 +210,7 @@ inline void program_one(CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, CellTs...>&
                          ap_uint<8> pe_row, ap_uint<8> pe_col, ap_uint<8> slot,
                          const PE_Instruction<DATA_W>& instr)
 {
+#pragma HLS INLINE
     constexpr int r = I / COLS;
     constexpr int c = I % COLS;
     if (pe_row.to_uint() % ROWS == static_cast<unsigned>(r) &&
@@ -227,10 +252,21 @@ inline void mesh_step(CGRA_Mesh_Static_C<ROWS, COLS, DATA_W, VLEN, CellTs...>& m
                        const PE_VectorData<DATA_W, VLEN> bound_in_W[ROWS],
                        const PE_VectorData<DATA_W, VLEN> bound_in_E[ROWS])
 {
+#pragma HLS INLINE
+#pragma HLS PIPELINE II=1
     typedef PE_VectorData<DATA_W, VLEN> Link;
 
+    // El snapshot es el "registro de interconexion" de la malla: las 4*ROWS*COLS
+    // entradas se leen todas en el mismo ciclo (cada celda lee 4). Particionado
+    // completo = una red de registros con acceso paralelo, que es lo que hace
+    // falta para que las ROWS*COLS PEs disparen juntas; sin esto Vitis lo
+    // mapearia a RAM y serializaria la malla entera.
     Link old_out_N[ROWS][COLS], old_out_S[ROWS][COLS];
     Link old_out_E[ROWS][COLS], old_out_W[ROWS][COLS];
+#pragma HLS ARRAY_PARTITION variable=old_out_N complete dim=0
+#pragma HLS ARRAY_PARTITION variable=old_out_S complete dim=0
+#pragma HLS ARRAY_PARTITION variable=old_out_E complete dim=0
+#pragma HLS ARRAY_PARTITION variable=old_out_W complete dim=0
 
     cgra_mesh_static_c_detail::snapshot_all(mesh, old_out_N, old_out_S, old_out_E, old_out_W,
                                              cgra_mesh_static_c_detail::make_index_seq<sizeof...(CellTs)>{});

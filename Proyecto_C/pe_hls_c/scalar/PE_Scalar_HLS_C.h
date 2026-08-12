@@ -33,6 +33,11 @@ struct PE_Scalar_State {
     Instr instr_mem[INSTR_MEM_SIZE];
     ap_int<DATA_W> reg_file[NUM_REGS];
     ap_uint<16> pc;
+    // Memorias locales del PE particionadas por completo -- ver la
+    // justificacion en PE_MAC_HLS_C.h (fetch + 2 operandos + writeback en el
+    // mismo ciclo; como RAM inferida el PE no cerraria II=1).
+#pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
+#pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
 
     // Salidas registradas: cada una es el ultimo escalar escrito, difundido a
     // los VLEN lanes del wire de la malla.
@@ -45,8 +50,13 @@ namespace pe_scalar_hls_c_detail {
 
 template <int DATA_W, int VLEN>
 inline PE_VectorData<DATA_W, VLEN> broadcast(ap_int<DATA_W> v) {
+#pragma HLS INLINE
     PE_VectorData<DATA_W, VLEN> r;
-    for (int i = 0; i < VLEN; ++i) r[i] = v;
+broadcast_lane_loop:
+    for (int i = 0; i < VLEN; ++i) {
+#pragma HLS UNROLL
+        r[i] = v;
+    }
     return r;
 }
 
@@ -56,6 +66,7 @@ inline ap_int<DATA_W> select_src(
     ap_uint<5> reg_idx, ap_int<DATA_W> imm,
     ap_int<DATA_W> in_N, ap_int<DATA_W> in_S, ap_int<DATA_W> in_E, ap_int<DATA_W> in_W)
 {
+#pragma HLS INLINE
     switch (sel) {
         case SRC_REG:   return s.reg_file[reg_idx.to_uint() % NUM_REGS];
         case SRC_NORTH: return in_N;
@@ -69,6 +80,7 @@ inline ap_int<DATA_W> select_src(
 
 template <int DATA_W>
 inline ap_int<DATA_W> alu_compute(ap_uint<4> opcode, ap_int<DATA_W> a, ap_int<DATA_W> b) {
+#pragma HLS INLINE
     unsigned shamt = b.to_uint() & (DATA_W - 1);
     switch (opcode) {
         case OP_ADD:  return a + b;
@@ -91,6 +103,7 @@ template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline void writeback(PE_Scalar_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                        const PE_Instruction<DATA_W>& ins, ap_int<DATA_W> r)
 {
+#pragma HLS INLINE
     switch (ins.dst) {
         case DST_REG:
             s.reg_file[ins.reg_dst.to_uint() % NUM_REGS] = r;
@@ -133,6 +146,9 @@ inline void pe_scalar_step(PE_Scalar_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZ
                             const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                             const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+    // Un ciclo de PE = una iteracion de pipeline con II=1 (ver PE_MAC_HLS_C.h).
+#pragma HLS INLINE
+#pragma HLS PIPELINE II=1
     if (rst) {
         s.pc = 0;
         return;

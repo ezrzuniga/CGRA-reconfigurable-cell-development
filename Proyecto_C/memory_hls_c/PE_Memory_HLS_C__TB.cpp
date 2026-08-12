@@ -1,7 +1,19 @@
 // PE_Memory_HLS_C__TB.cpp
-// Testbench plano de PE_Memory_HLS_C.h: precarga 3 palabras en SRAM,
-// programa un contexto en modo STRIDE (SRAM -> NoC oeste) y verifica que la
-// rafaga las transfiere una por ciclo a out_W, terminando en done=true.
+// Testbench plano de PE_Memory_HLS_C.h. Cubre las TRES direcciones de rafaga
+// que soporta la celda, en los dos modos de direccionamiento:
+//
+//   1. dir=0 STRIDE  : SRAM -> NoC(oeste), 3 palabras consecutivas, una por
+//                      ciclo (este caso no lo cubria el TB SystemC, que solo
+//                      usaba MODE_DIRECT de 1 palabra).
+//   2. dir=1 DIRECT  : NoC(oeste) -> SRAM  (la ida del round trip que si hacia
+//                      memory_hls/PE_Memory_HLS_Cell__TB.cpp).
+//   3. dir=2 DIRECT  : SRAM -> SRAM        (copia interna; no la ejercitaba
+//                      ningun testbench del arbol SystemC).
+//
+// El round trip completo NoC->SRAM->NoC a traves de la malla, que era el otro
+// escenario del TB SystemC, se sigue cubriendo en
+// mesh_hls_c/CGRA_Mesh_2x2_Heterogeneous_HLS_C__TB.cpp con la celda de
+// enrutamiento de por medio.
 #include <cstdio>
 #include "PE_Memory_HLS_C.h"
 
@@ -39,6 +51,53 @@ int main() {
     printf("%s done=true, busy=false tras agotar la rafaga\n", pass_done ? "PASS" : "FAIL");
     ok = ok && pass_done;
 
-    if (ok) printf("\nPASS: PE_Memory_HLS_C transfiere 3 palabras SRAM->NoC(oeste) y cierra la rafaga.\n");
+    //=======================================================================
+    // 2) dir=1 (NoC oeste -> SRAM), MODE_DIRECT, 1 palabra: la ida del round
+    //    trip que hacia memory_hls/PE_Memory_HLS_Cell__TB.cpp.
+    //=======================================================================
+    memory_program(s, /*ctx=*/1, make_memory_field_instr_c<DATA_W>(MEM_FIELD_DST_ADDR, 10));
+    memory_program(s, /*ctx=*/1, make_memory_field_instr_c<DATA_W>(MEM_FIELD_COUNT, 1));
+    memory_program(s, /*ctx=*/1, make_memory_field_instr_c<DATA_W>(MEM_FIELD_MODE, AccessController::MODE_DIRECT));
+    memory_program(s, /*ctx=*/1, make_memory_field_instr_c<DATA_W>(MEM_FIELD_DIR, 1));  // NoC(W)->SRAM
+    memory_program(s, /*ctx=*/1, make_memory_field_instr_c<DATA_W>(MEM_FIELD_START, 0));
+
+    in_W[0] = 100;                                        // el vecino oeste presenta el dato
+    memory_step(s, false, true, in_N, in_S, in_E, in_W);  // transfiere la palabra
+    memory_step(s, false, true, in_N, in_S, in_E, in_W);  // cierra la rafaga
+    bool pass_in = (s.sram[10].to_int() == 100 && s.done && !s.busy);
+    printf("%s dir=1 NoC(oeste)->SRAM  sram[10] esperado=100 obtenido=%d (done=%d)\n",
+           pass_in ? "PASS" : "FAIL", s.sram[10].to_int(), s.done ? 1 : 0);
+    ok = ok && pass_in;
+
+    //=======================================================================
+    // 3) dir=2 (SRAM -> SRAM), MODE_DIRECT: copia interna, sin tocar el puerto
+    //    NoC. No la ejercitaba ningun testbench del arbol SystemC.
+    //=======================================================================
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_SRC_ADDR, 10));
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_DST_ADDR, 20));
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_COUNT, 1));
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_MODE, AccessController::MODE_DIRECT));
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_DIR, 2));  // SRAM->SRAM
+    memory_program(s, /*ctx=*/2, make_memory_field_instr_c<DATA_W>(MEM_FIELD_START, 0));
+
+    memory_step(s, false, true, in_N, in_S, in_E, in_W);
+    memory_step(s, false, true, in_N, in_S, in_E, in_W);
+    bool pass_copy = (s.sram[20].to_int() == 100 && s.done && !s.busy);
+    printf("%s dir=2 SRAM->SRAM  sram[20] esperado=100 obtenido=%d (done=%d)\n",
+           pass_copy ? "PASS" : "FAIL", s.sram[20].to_int(), s.done ? 1 : 0);
+    ok = ok && pass_copy;
+
+    //=======================================================================
+    // 4) rst limpia solo la FSM, NO la SRAM ni los contextos (mismo precedente
+    //    que el pc en las celdas tipo PE).
+    //=======================================================================
+    memory_step(s, /*rst=*/true, true, in_N, in_S, in_E, in_W);
+    bool pass_rst = (!s.busy && !s.done && s.sram[20].to_int() == 100);
+    printf("%s rst limpia la FSM pero conserva la SRAM (sram[20] sigue en 100)\n",
+           pass_rst ? "PASS" : "FAIL");
+    ok = ok && pass_rst;
+
+    if (ok) printf("\nPASS: PE_Memory_HLS_C cubre las 3 direcciones de rafaga "
+                   "(SRAM->NoC en stride, NoC->SRAM, SRAM->SRAM) y conserva la SRAM ante rst.\n");
     return ok ? 0 : 1;
 }

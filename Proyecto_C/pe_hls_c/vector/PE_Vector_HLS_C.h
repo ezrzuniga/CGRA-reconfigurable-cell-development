@@ -29,6 +29,11 @@ struct PE_Vector_State {
     Instr instr_mem[INSTR_MEM_SIZE];
     Link  reg_file[NUM_REGS];
     ap_uint<16> pc;
+    // Memorias locales del PE particionadas por completo -- ver la
+    // justificacion en PE_MAC_HLS_C.h (fetch + 2 operandos + writeback en el
+    // mismo ciclo; como RAM inferida el PE no cerraria II=1).
+#pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
+#pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
 
     Link out_N, out_S, out_E, out_W;
 
@@ -44,6 +49,7 @@ inline PE_VectorData<DATA_W, VLEN> select_src(
     const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
     const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+#pragma HLS INLINE
     switch (sel) {
         case SRC_REG:   return s.reg_file[reg_idx.to_uint() % NUM_REGS];
         case SRC_NORTH: return in_N;
@@ -63,8 +69,13 @@ template <int DATA_W, int VLEN>
 inline PE_VectorData<DATA_W, VLEN> alu_compute(
     ap_uint<4> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
 {
+#pragma HLS INLINE
     PE_VectorData<DATA_W, VLEN> r;
+    // UNROLL: una ALU fisica por lane -- el paralelismo SIMD del PE vectorial
+    // (ver PE_MAC_HLS_C.h).
+alu_lane_loop:
     for (int i = 0; i < VLEN; ++i) {
+#pragma HLS UNROLL
         unsigned shamt = b[i].to_uint() & (DATA_W - 1);
         switch (opcode) {
             case OP_ADD:  r[i] = a[i] + b[i]; break;
@@ -89,6 +100,7 @@ template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline void writeback(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                        const PE_Instruction<DATA_W>& ins, const PE_VectorData<DATA_W, VLEN>& r)
 {
+#pragma HLS INLINE
     switch (ins.dst) {
         case DST_REG:
             s.reg_file[ins.reg_dst.to_uint() % NUM_REGS] = r;
@@ -123,6 +135,9 @@ inline void pe_vector_step(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZ
                             const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                             const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+    // Un ciclo de PE = una iteracion de pipeline con II=1 (ver PE_MAC_HLS_C.h).
+#pragma HLS INLINE
+#pragma HLS PIPELINE II=1
     if (rst) {
         s.pc = 0;
         return;

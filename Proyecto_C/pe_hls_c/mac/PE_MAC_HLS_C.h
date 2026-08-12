@@ -33,6 +33,15 @@ struct PE_MAC_State {
     Link  reg_file[NUM_REGS];
     ap_uint<16> pc;
     Link  acc;
+    // Memoria de configuracion (instr_mem) y banco de registros locales
+    // (reg_file) particionados por completo: son las dos "memorias locales" de
+    // un PE de CGRA y ambas se leen en el mismo ciclo que la ALU (fetch +
+    // hasta 2 operandos de reg_file). Como RAM inferida serializarian el
+    // ciclo entero; como registros, el PE ejecuta una instruccion por ciclo
+    // con II=1. Son chicas por diseno (INSTR_MEM_SIZE=4..16, NUM_REGS=8), asi
+    // que el costo en flops es acotado y conocido.
+#pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
+#pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
 
     // Salidas registradas: mismo contrato que un sc_out que solo cambia
     // cuando writeback() lo escribe.
@@ -43,13 +52,18 @@ struct PE_MAC_State {
 
 namespace pe_mac_hls_c_detail {
 
-template <int DATA_W, int VLEN, int NUM_REGS>
+// INSTR_MEM_SIZE viaja en la firma aunque select_src no lo use: sin el, el
+// parametro quedaba fijado a su valor por defecto (4) y la deduccion fallaba
+// para cualquier otra profundidad de instr_mem -- p.ej. las celdas MAC de la
+// malla final 3x3 (cgra_final_c/CGRA_Final_Mesh_C.h), que usan 16.
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
 inline PE_VectorData<DATA_W, VLEN> select_src(
-    const PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s, ap_uint<3> sel,
+    const PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s, ap_uint<3> sel,
     ap_uint<5> reg_idx, ap_int<DATA_W> imm,
     const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
     const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+#pragma HLS INLINE
     switch (sel) {
         case SRC_REG:   return s.reg_file[reg_idx.to_uint() % NUM_REGS];
         case SRC_NORTH: return in_N;
@@ -59,7 +73,11 @@ inline PE_VectorData<DATA_W, VLEN> select_src(
         case SRC_ACC:   return s.acc;
         case SRC_IMM: {
             PE_VectorData<DATA_W, VLEN> v;
-            for (int i = 0; i < VLEN; ++i) v[i] = imm;
+        imm_broadcast_loop:
+            for (int i = 0; i < VLEN; ++i) {
+#pragma HLS UNROLL
+                v[i] = imm;
+            }
             return v;
         }
         default: return PE_VectorData<DATA_W, VLEN>();
@@ -70,8 +88,14 @@ template <int DATA_W, int VLEN>
 inline PE_VectorData<DATA_W, VLEN> alu_compute(
     ap_uint<4> opcode, const PE_VectorData<DATA_W, VLEN>& a, const PE_VectorData<DATA_W, VLEN>& b)
 {
+#pragma HLS INLINE
     PE_VectorData<DATA_W, VLEN> r;
+    // UNROLL: una ALU fisica por lane -- el paralelismo SIMD del PE vectorial
+    // de la CGRA. Con `lane` particionado (pe_isa_hls_c.h) las VLEN ALUs leen
+    // y escriben sus operandos en el mismo ciclo, sin conflicto de puertos.
+alu_lane_loop:
     for (int i = 0; i < VLEN; ++i) {
+#pragma HLS UNROLL
         unsigned shamt = b[i].to_uint() & (DATA_W - 1);
         switch (opcode) {
             case OP_ADD:  r[i] = a[i] + b[i]; break;
@@ -93,12 +117,17 @@ inline PE_VectorData<DATA_W, VLEN> alu_compute(
     return r;
 }
 
-template <int DATA_W, int VLEN, int NUM_REGS>
-inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS>& s,
+template <int DATA_W, int VLEN, int NUM_REGS, int INSTR_MEM_SIZE>
+inline void writeback(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                        const PE_Instruction<DATA_W>& ins, PE_VectorData<DATA_W, VLEN> r)
 {
+#pragma HLS INLINE
     if (ins.opcode == OP_MAC) {
-        for (int i = 0; i < VLEN; ++i) s.acc[i] = s.acc[i] + r[i];
+    acc_lane_loop:
+        for (int i = 0; i < VLEN; ++i) {
+#pragma HLS UNROLL
+            s.acc[i] = s.acc[i] + r[i];
+        }
         r = s.acc;
     } else if (ins.dst == DST_ACC) {
         s.acc = r;
@@ -148,6 +177,12 @@ inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                          const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                          const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
+    // Un ciclo de PE = una iteracion de pipeline con II=1: fetch + 2 selects +
+    // ALU SIMD + writeback, todo en el mismo ciclo, que es el contrato de un PE
+    // de CGRA. INLINE para que la malla vea un unico datapath plano de
+    // ROWS*COLS PEs en paralelo en vez de 9 llamadas a funcion secuenciales.
+#pragma HLS INLINE
+#pragma HLS PIPELINE II=1
     if (rst) {
         s.pc = 0;
         return;
