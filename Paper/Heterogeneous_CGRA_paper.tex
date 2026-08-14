@@ -173,12 +173,12 @@ Currently no other architecture has been found that combines scalar and vector o
 \subsection{Architectural Proposal}
 \label{sec:architectural_proposal}
 
-This architecture proposal is shown in Figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case, it is a basic 2x3 array but this could be expanded according to the necessity.
+The architecture proposal is shown in Figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case, it is a basic 2x3 array but this could be expanded according to the necessity.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1.01\columnwidth]{images/lvl2_diagram.png}
-    \caption{Second-level architecture diagram generated with artificial intelligence.}
+    \caption{Second-level architecture diagram - generated with artificial intelligence}
     \label{fig:diagrama_2nivel_png}
 \end{figure}
 
@@ -201,7 +201,16 @@ A 4-lane int32 SIMD VALU (add, sub, logic, shifts, compare, MUL, the same op set
 This PE uses a VALU op set and 8~$\times$~128~b register file and a dedicated MAC opcode.
 Each lane's product is computed the same way as MUL, then added in the writeback stage into a persistent per-lane accumulator (4~$\times$~32~b) that survives \texttt{rst} and is addressable like any other operand via dedicated source/destination selectors. 
 
+Also, another CGRA with a size of 3x3 is proposed, this is shown in Figure \ref{fig:diagrama_3x3}, where different types of PEs are present and the testbenches are configured to test the majority of the PEs.
+For this, four MAC cells are used as well as one scalar cell and one vector cell, two routing cells and one distributed memory cell. This combination of PEs is expected to deliver good performance when testing the different kernels.
+The implementation of the proposed architecture is available in the GitHub repository \cite{cgra_repo}
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1.01\columnwidth]{images/lvl2_3x3_diagram.png}
+    \caption{Second-level architecture diagram of a 3x3 array CGRA - generated with artificial intelligence}
+    \label{fig:diagrama_3x3}
+\end{figure}
 
 \subsection{Development Tools and Environment}
 
@@ -267,6 +276,9 @@ These suites provide kernel libraries (including Sum-Reduction and GEMM) that ca
 
 For the software validation it is planned to use the softmax kernel. 
 This will be executed using GEM5 to simulate the interaction between a RISC-V core and the CGRA. 
+
+Also a 3x3 array is proposed to be tested with different kernels like GEMM, sum-reduction and softmax. 
+This will allow us to verify the resource utilization and if the architecture is using the different PEs to get the correct results.
 
 \subsection{Monitoring}
 
@@ -552,6 +564,37 @@ Saturation case & Passed & Stable under large spread \\
 \end{table}
 
 These results show that the proposed heterogeneous organization can correctly support more complex nonlinear kernels beyond GEMM and sum-reduction, while maintaining good numerical accuracy under both nominal and extreme input conditions.
+
+
+\subsection{CGRA 3x3 array}
+
+In this section are the results of the CGRA architecture with a 3x3 array, whith the different kernels implemented in the previous sections. 
+The Table \ref{tab:resource_util_3x3_kernels} shows the resource utilization and estimated Fmax for the 3x3 array, the DSP, shift registers and estimated Fmax are the same for each kernel and a little difference in FF and LUT when comparing with the GEMM kernel.
+
+
+
+\begin{table}[htbp]
+\centering
+\caption{Post-synthesis resource utilization and estimated Fmax for the 3x3 array with different kernels}
+\label{tab:resource_util_3x3_kernels}
+\scriptsize
+\begin{adjustbox}{max width=\columnwidth}
+\begin{tabular}{@{}p{0.26\linewidth}p{0.09\linewidth}p{0.07\linewidth}p{0.12\linewidth}p{0.12\linewidth}p{0.13\linewidth}p{0.13\linewidth}@{}}
+\toprule
+\textbf{Kernel} & \textbf{BRAM\_18K} & \textbf{DSP} & \textbf{FF} & \textbf{LUT} & \textbf{Shift Registers} & \textbf{Est. Fmax} \\
+\midrule
+GEMM 2$\times$2 (embedded in 3$\times$3 mesh) & 1 & 65 & 33,712 & 29,621 & 0 & 356.32 MHz \\
+SumReduce8 & 1 & 65 & 33,877 & 29,370 & 0 & 356.32 MHz \\
+Softmax4 & 1 & 65 & 33,877 & 29,370 & 0 & 356.32 MHz \\
+%FFT4 & 1 & 65 & 33,877 & 29,370 & 0 & 356.32 MHz \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+In \cite{leon} the quantity of FF and LUT for a 3x3 array is 7436 and 7040 units respectively, comparing with our results, the proposed architecture needs more resources to be created. 
+This can be justified because of the different types of PEs that are used, meanwhile in \cite{leon} the architecture described is homogeneous and with simpler PEs.
+
 
 
 %-----------------------------------------------
