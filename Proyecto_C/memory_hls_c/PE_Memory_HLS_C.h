@@ -66,13 +66,11 @@ struct PE_Memory_State {
     // puertos alcanzan y particionarla seria un desperdicio enorme de flops --
     // es justo el caso opuesto al de instr_mem/reg_file de un PE.
     ap_int<DATA_W>       sram[SIZE_WORDS];
-#pragma HLS BIND_STORAGE variable=sram type=RAM_2P impl=BRAM
 
     // Los 4 contextos de DMA si son memoria de configuracion (se escriben por
     // el canal lateral y se leen enteros de una al disparar la rafaga):
     // registros, como en el resto de las celdas.
     MemContextRegisters  contexts[4];
-#pragma HLS ARRAY_PARTITION variable=contexts complete dim=1
 
     MemCellFSMState state;
     uint32_t        active_context;
@@ -82,7 +80,14 @@ struct PE_Memory_State {
 
     Link out_N, out_S, out_E, out_W;
 
+    // BIND_STORAGE/ARRAY_PARTITION en el cuerpo del constructor, no en el
+    // cuerpo del struct: Vitis HLS 2024.1 rechaza `#pragma HLS` fuera de
+    // function scope aunque el struct sea trivial -- mismo efecto de
+    // sintesis (sram como BRAM de 2 puertos, contexts particionado por
+    // completo), unica forma que csynth_design acepta.
     PE_Memory_State() : state(MEM_ST_IDLE), active_context(0), dir(0), busy(false), done(false) {
+#pragma HLS BIND_STORAGE variable=sram type=RAM_2P impl=BRAM
+#pragma HLS ARRAY_PARTITION variable=contexts complete dim=1
     sram_init_loop:
         for (int i = 0; i < SIZE_WORDS; i++) {
 #pragma HLS PIPELINE II=1
@@ -145,9 +150,10 @@ inline void memory_step(PE_Memory_State<DATA_W, VLEN, SIZE_WORDS>& s, bool rst, 
                          const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
     // Una palabra por ciclo de rafaga: 1 lectura de sram + 1 escritura, que es
-    // exactamente lo que da un RAM_2P con II=1.
+    // exactamente lo que da un RAM_2P con II=1. INLINE sin PIPELINE propio --
+    // ver PE_MAC_HLS_C.h (Vitis HLS 2024.1 rechaza combinar ambos pragmas en
+    // la misma funcion; el II=1 real lo aporta el PIPELINE de mesh_step()).
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     (void)in_N; (void)in_S; (void)in_E;  // puerto NoC unico: solo in_W/out_W
 
     if (rst) {

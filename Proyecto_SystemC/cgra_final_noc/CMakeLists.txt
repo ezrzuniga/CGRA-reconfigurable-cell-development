@@ -9,3 +9,15 @@ target_link_libraries(CGRA_Final_NoC_GEMM__TB PRIVATE "${SYSTEMC_LIBRARY}")
 add_executable(NoC_Router__TB NoC_Router__TB.cpp)
 target_include_directories(NoC_Router__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
 target_link_libraries(NoC_Router__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(CGRA_Final_NoC_SumReduce8__TB CGRA_Final_NoC_SumReduce8__TB.cpp)
+target_include_directories(CGRA_Final_NoC_SumReduce8__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
+target_link_libraries(CGRA_Final_NoC_SumReduce8__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(CGRA_Final_NoC_FFT4__TB CGRA_Final_NoC_FFT4__TB.cpp)
+target_include_directories(CGRA_Final_NoC_FFT4__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
+target_link_libraries(CGRA_Final_NoC_FFT4__TB PRIVATE "${SYSTEMC_LIBRARY}")
+
+add_executable(CGRA_Final_NoC_Softmax4__TB CGRA_Final_NoC_Softmax4__TB.cpp)
+target_include_directories(CGRA_Final_NoC_Softmax4__TB PRIVATE "${SYSTEMC_INCLUDE_DIR}")
+target_link_libraries(CGRA_Final_NoC_Softmax4__TB PRIVATE "${SYSTEMC_LIBRARY}")

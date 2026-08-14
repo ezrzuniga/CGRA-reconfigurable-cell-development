@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CGRA NoC Data Routes</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a0d12;
+      --surface: #12161f;
+      --surface-2: #1a2130;
+      --surface-3: #212a3c;
+      --border: #262d3d;
+      --border-strong: #333c52;
+      --text: #e8ecf4;
+      --text-dim: #8b93a6;
+      --text-faint: #5c637a;
+      --accent-flow: #5b9dff;
+      --accent-flow-dim: #223a5e;
+      --status-pass-fg: #eafff5;
+      --status-pass-bg: #16362a;
+      --status-pass-border: #2f7a58;
+      --shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0d12;
+    --surface: #12161f;
+    --surface-2: #1a2130;
+    --surface-3: #212a3c;
+    --border: #262d3d;
+    --border-strong: #333c52;
+    --text: #e8ecf4;
+    --text-dim: #8b93a6;
+    --text-faint: #5c637a;
+    --accent-flow: #5b9dff;
+    --accent-flow-dim: #223a5e;
+    --status-pass-fg: #eafff5;
+    --status-pass-bg: #16362a;
+    --status-pass-border: #2f7a58;
+    --shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+  }
+
+  :root {
+    --bg: #f2f3f6;
+    --surface: #ffffff;
+    --surface-2: #eef0f5;
+    --surface-3: #e4e7ee;
+    --border: #d8dce4;
+    --border-strong: #c1c7d2;
+    --text: #1a1f2b;
+    --text-dim: #5b6577;
+    --text-faint: #8891a0;
+    --accent-flow: #1a56cc;
+    --accent-flow-dim: #dce8ff;
+    --status-pass-fg: #0f5132;
+    --status-pass-bg: #e3f6ea;
+    --status-pass-border: #86d8ab;
+    --shadow: 0 20px 50px -20px rgba(30,40,60,0.18);
+
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", "Roboto Mono", Consolas, "Liberation Mono", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible { outline: 2px solid var(--accent-flow); outline-offset: 2px; }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 28px 100px; }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 22px; margin-bottom: 44px; }
+
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent-flow); font-weight: 600;
+  }
+
+  h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+
+  .subtitle { font-family: var(--font-sans); font-size: 16px; color: var(--text-dim); max-width: 72ch; margin: 0; }
+
+  .stat-strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+
+  .stat { background: var(--surface); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .stat .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .value.pass { color: var(--status-pass-fg); }
+  .stat .label { font-family: var(--font-sans); font-size: 12px; color: var(--text-dim); }
+
+  /* ---------- sections ---------- */
+
+  section { margin-bottom: 58px; }
+
+  h2 { font-size: 21px; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+  h3 { font-size: 14px; margin: 0 0 12px; letter-spacing: 0.02em; color: var(--text-dim); font-weight: 600; }
+
+  .algo-kicker {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint);
+  }
+
+  p.lede { font-family: var(--font-sans); color: var(--text-dim); max-width: 76ch; font-size: 15px; margin: 8px 0 22px; }
+
+  /* ---------- utilization table ---------- */
+
+  .util-wrap {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 22px 22px 6px; overflow-x: auto;
+  }
+
+  table.util { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 780px; }
+
+  table.util th {
+    text-align: left; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-faint); font-weight: 600;
+    padding: 0 12px 10px; border-bottom: 1px solid var(--border);
+  }
+
+  table.util td {
+    padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+
+  table.util tr:last-child td { border-bottom: none; }
+  table.util td.cellname { font-weight: 700; white-space: nowrap; }
+  table.util td.pos { color: var(--text-faint); font-weight: 400; }
+  table.util td.count { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
+
+  .role { display: flex; align-items: baseline; gap: 7px; }
+  .role .mark { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; }
+  .role.active .mark { background: var(--accent-flow); }
+  .role.idle .mark { background: none; border: 1px solid var(--border-strong); }
+  .role.idle span.txt { color: var(--text-faint); font-style: italic; }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 0 0 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 20px 6px; box-shadow: var(--shadow);
+  }
+
+  .svg-wrap { overflow-x: auto; }
+  figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
+
+  figcaption {
+    font-family: var(--font-sans); font-size: 13.5px; color: var(--text-dim);
+    border-top: 1px solid var(--border); margin-top: 12px; padding: 13px 2px 16px; max-width: 84ch;
+  }
+  figcaption strong { color: var(--text); font-weight: 600; }
+
+  figure svg .tile-active { fill: var(--surface-2); stroke: var(--accent-flow); stroke-opacity: 0.55; }
+  figure svg .tile-idle { fill: var(--surface); stroke: var(--border); }
+  figure svg .pos-label { fill: var(--text-faint); }
+  figure svg .cell-label { fill: var(--text); }
+  figure svg .role-text { fill: var(--text-dim); }
+  figure svg .idle-text { fill: var(--text-faint); font-style: italic; }
+  figure svg .flow-link { stroke: var(--accent-flow); }
+  figure svg .flow-label { fill: var(--accent-flow); }
+
+  /* ---------- results tables ---------- */
+
+  .tb-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+
+  .tb-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap;
+  }
+
+  .tb-name { font-size: 13.5px; font-weight: 700; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em; padding: 3px 9px; border-radius: 999px; text-transform: uppercase;
+  }
+  .chip.pass { color: var(--status-pass-fg); background: var(--status-pass-bg); border: 1px solid var(--status-pass-border); }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .tb-body { padding: 16px 20px 20px; }
+
+  table.results { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.results th {
+    text-align: left; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-faint); font-weight: 600;
+    padding: 0 10px 8px; border-bottom: 1px solid var(--border);
+  }
+  table.results td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  table.results tr:last-child td { border-bottom: none; }
+  table.results td.num { text-align: right; }
+  table.results td.result { text-align: center; color: var(--status-pass-fg); font-weight: 700; }
+
+  .grid-2col { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }
+
+  footer {
+    border-top: 1px solid var(--border); padding-top: 24px; font-family: var(--font-sans);
+    color: var(--text-dim); font-size: 13px;
+  }
+  footer h3 {
+    font-family: var(--font-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-faint); margin: 0 0 10px;
+  }
+  footer ul { margin: 0; padding-left: 18px; max-width: 78ch; }
+  footer li { margin-bottom: 7px; }
+  footer code {
+    font-family: var(--font-mono); background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px; font-size: 12px; color: var(--text);
+  }
+
+  @media (max-width: 640px) { .page { padding: 36px 16px 80px; } .tb-head { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Proyecto_SystemC / cgra_final_noc</div>
+    <h1>Data routes &amp; cell utilization across four algorithms</h1>
+    <p class="subtitle">
+      GEMM 2×2, an 8-input sum reduction, a 4-point FFT, and a base-2 softmax —
+      four structurally different applications mapped onto the same 3×3
+      <code>CGRA_Final_NoC_Mesh</code>. Same nine cells every time; what
+      changes is which ones work, in what order, and what they hand each
+      other.
+    </p>
+    <div class="stat-strip">
+      <div class="stat"><div class="value pass">4 / 4</div><div class="label">algorithms pass</div></div>
+      <div class="stat"><div class="value pass">12 / 12</div><div class="label">test cases pass</div></div>
+      <div class="stat"><div class="value">30 / 36</div><div class="label">cell-algorithm slots active</div></div>
+      <div class="stat"><div class="value">0 / 4</div><div class="label">algorithms that touch Memoria</div></div>
+    </div>
+  </header>
+
+  <section id="utilization">
+    <h2>Cell utilization across the four algorithms</h2>
+    <p class="lede">
+      Every algorithm was traced by hand against its own instruction schedule
+      to confirm which cells actually do work versus idle. Memoria (0,0) is
+      the one constant: none of these four workloads need a scratchpad at
+      this problem size, so it never turns on.
+    </p>
+    <div class="util-wrap">
+      <table class="util">
+        <thead>
+          <tr><th>cell</th><th>GEMM 2×2</th><th>SumReduce8</th><th>FFT4</th><th>Softmax4</th><th class="count">used</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cellname">Memoria <span class="pos">(0,0)</span></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle</span></div></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle</span></div></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle</span></div></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle</span></div></td>
+            <td class="count">0 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">Vectorial <span class="pos">(0,1)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>B col0 → S</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v4, v5 → S</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x1 → S</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x1 → S</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">Escalar <span class="pos">(0,2)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>B col1 → S</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v6, v7 → S</span></div></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle — collapses complex data</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x3 → S</span></div></td>
+            <td class="count">3 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">Routing <span class="pos">(1,0)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>A row0 in / C00 out</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v0,v1 in / TOTAL out</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x0 in / X0,X2 out</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x0 in / SUM,e0 out</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">Routing <span class="pos">(2,0)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>A row1 in</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v2,v3 in</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x2, x3 in (time-mux)</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>x2 in</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">MAC P00 <span class="pos">(1,1)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>C00 hub, relays A→E, B→S</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>branchA + TOTAL hub</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>a,b butterfly + X0,X2</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>e0,e1 + SUM hub</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">MAC P01 <span class="pos">(1,2)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>C01 = MAC(A,B)</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v6+v7, branchB → W</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>c,d butterfly + X1,X3</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>e3 relay → W</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">MAC P10 <span class="pos">(2,1)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>C10 = MAC(A,B), A → E</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>v2+v3 → E</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>relay only: x2→N, x3→E</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>e2 = 2ˣ² → N</span></div></td>
+            <td class="count">4 / 4</td>
+          </tr>
+          <tr>
+            <td class="cellname">MAC P11 <span class="pos">(2,2)</span></td>
+            <td><div class="role active"><span class="mark"></span><span>C11 = MAC(A,B)</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>branchB hub → N</span></div></td>
+            <td><div class="role active"><span class="mark"></span><span>relay only: x3 → N</span></div></td>
+            <td><div class="role idle"><span class="mark"></span><span class="txt">idle</span></div></td>
+            <td class="count">3 / 4</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- GEMM -->
+  <!-- ============================================================ -->
+  <section id="gemm">
+    <div class="algo-kicker">Algorithm 1 of 4</div>
+    <h2>GEMM 2×2 — systolic matrix multiply</h2>
+    <p class="lede">
+      The classic embedding: all four MAC cells form a 2×2 systolic block.
+      <code>A</code> streams in from the west (one row per feed step),
+      <code>B</code> from the north (one column per feed step); each MAC
+      accumulates one output element while relaying the operand its
+      neighbor still needs.
+    </p>
+
+    <figure>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1100 700" role="img" aria-label="GEMM data route: A enters the west edge through two Routing relays into P00 and P10; B enters the north edge through Vectorial and Escalar into P00 and P01. P00 relays A east to P01 and B south to P10; P10 relays A east to P11; P01 relays B south to P11. Each MAC computes one output element and sends it to a real edge: C00 back out the west edge via Routing, C01 east, C10 south, C11 east.">
+          <defs>
+            <marker id="gArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" class="flow-link" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <!-- tiles -->
+          <g class="tile-idle"><rect x="140" y="120" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="154" y="142" font-size="11">(0,0)</text>
+          <text class="idle-text" x="154" y="166" font-size="14" font-weight="700">Memoria</text>
+          <text class="idle-text" x="154" y="184" font-size="11">idle</text>
+
+          <rect class="tile-active" x="430" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="142" font-size="11">(0,1)</text>
+          <text class="cell-label" x="444" y="166" font-size="14" font-weight="700">Vectorial</text>
+          <text class="role-text" x="444" y="184" font-size="11">B col0 → south</text>
+
+          <rect class="tile-active" x="720" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="142" font-size="11">(0,2)</text>
+          <text class="cell-label" x="734" y="166" font-size="14" font-weight="700">Escalar</text>
+          <text class="role-text" x="734" y="184" font-size="11">B col1 → south</text>
+
+          <rect class="tile-active" x="140" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="322" font-size="11">(1,0)</text>
+          <text class="cell-label" x="154" y="346" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="364" font-size="11">ctx0 A-row0 in</text>
+          <text class="role-text" x="154" y="380" font-size="11">ctx1 C00 out</text>
+
+          <rect class="tile-active" x="430" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="322" font-size="11">(1,1)</text>
+          <text class="cell-label" x="444" y="346" font-size="14" font-weight="700">MAC · P00</text>
+          <text class="role-text" x="444" y="364" font-size="11">C00 = MAC(A,B)</text>
+          <text class="role-text" x="444" y="380" font-size="11">relays A→E, B→S</text>
+
+          <rect class="tile-active" x="720" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="322" font-size="11">(1,2)</text>
+          <text class="cell-label" x="734" y="346" font-size="14" font-weight="700">MAC · P01</text>
+          <text class="role-text" x="734" y="364" font-size="11">C01 = MAC(A,B)</text>
+
+          <rect class="tile-active" x="140" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="502" font-size="11">(2,0)</text>
+          <text class="cell-label" x="154" y="526" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="544" font-size="11">ctx0 A-row1 in</text>
+
+          <rect class="tile-active" x="430" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="502" font-size="11">(2,1)</text>
+          <text class="cell-label" x="444" y="526" font-size="14" font-weight="700">MAC · P10</text>
+          <text class="role-text" x="444" y="544" font-size="11">C10 = MAC(A,B)</text>
+          <text class="role-text" x="444" y="560" font-size="11">relays A→E</text>
+
+          <rect class="tile-active" x="720" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="502" font-size="11">(2,2)</text>
+          <text class="cell-label" x="734" y="526" font-size="14" font-weight="700">MAC · P11</text>
+          <text class="role-text" x="734" y="544" font-size="11">C11 = MAC(A,B)</text>
+
+          <!-- boundary in -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="90" y1="340" x2="140" y2="340" marker-end="url(#gArrow)" />
+            <line x1="90" y1="520" x2="140" y2="520" marker-end="url(#gArrow)" />
+            <line x1="490" y1="70" x2="490" y2="120" marker-end="url(#gArrow)" />
+            <line x1="780" y1="70" x2="780" y2="120" marker-end="url(#gArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="335" font-size="11" text-anchor="end">A row0 (in_W[1])</text>
+          <text class="flow-label" x="86" y="515" font-size="11" text-anchor="end">A row1 (in_W[2])</text>
+          <text class="flow-label" x="490" y="60" font-size="11" text-anchor="middle">B col0 (in_N[1])</text>
+          <text class="flow-label" x="780" y="60" font-size="11" text-anchor="middle">B col1 (in_N[2])</text>
+
+          <!-- internal -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="240" y1="410" x2="240" y2="480" marker-end="url(#gArrow)" />
+            <line x1="530" y1="410" x2="530" y2="480" marker-end="url(#gArrow)" />
+            <line x1="340" y1="330" x2="430" y2="330" marker-end="url(#gArrow)" />
+            <line x1="530" y1="230" x2="530" y2="300" marker-end="url(#gArrow)" />
+            <line x1="340" y1="510" x2="430" y2="510" marker-end="url(#gArrow)" />
+            <line x1="820" y1="230" x2="820" y2="300" marker-end="url(#gArrow)" />
+          </g>
+          <text class="flow-label" x="248" y="450" font-size="10.5">A row0</text>
+          <text class="flow-label" x="538" y="450" font-size="10.5">B col0</text>
+          <text class="flow-label" x="385" y="323" font-size="10.5" text-anchor="middle">A row0</text>
+          <text class="flow-label" x="545" y="270" font-size="10.5">B col0</text>
+          <text class="flow-label" x="385" y="503" font-size="10.5" text-anchor="middle">A row1</text>
+          <text class="flow-label" x="835" y="270" font-size="10.5">B col1</text>
+
+          <!-- boundary out -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="140" y1="380" x2="90" y2="380" marker-end="url(#gArrow)" />
+            <line x1="920" y1="355" x2="970" y2="355" marker-end="url(#gArrow)" />
+            <line x1="240" y1="590" x2="240" y2="640" marker-end="url(#gArrow)" />
+            <line x1="920" y1="535" x2="970" y2="535" marker-end="url(#gArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="397" font-size="11" text-anchor="end">C00 (out_W[1])</text>
+          <text class="flow-label" x="976" y="351" font-size="11">C01 (out_E[1])</text>
+          <text class="flow-label" x="240" y="655" font-size="11" text-anchor="middle">C10 (out_S[1])</text>
+          <text class="flow-label" x="976" y="531" font-size="11">C11 (out_E[2])</text>
+        </svg>
+      </div>
+      <figcaption><strong>Figure 1.</strong> Data route for GEMM 2×2. Memoria (0,0) is the only idle cell.</figcaption>
+    </figure>
+
+    <div class="tb-card">
+      <div class="tb-head"><div class="tb-name">CGRA_Final_NoC_GEMM__TB</div><span class="chip pass"><span class="dot"></span>3 / 3 cases pass</span></div>
+      <div class="tb-body">
+        <table class="results">
+          <thead><tr><th>case</th><th>A</th><th>B</th><th>C obtained</th><th class="result">result</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="num">[-6,-2; -6,-7]</td><td class="num">[0,2; -1,9]</td><td class="num">[2,-30; 7,-75]</td><td class="result">PASS</td></tr>
+            <tr><td>2</td><td class="num">[-3,-9; 3,-7]</td><td class="num">[1,-7; -1,-4]</td><td class="num">[6,57; 10,7]</td><td class="result">PASS</td></tr>
+            <tr><td>3</td><td class="num">[4,1; -6,-1]</td><td class="num">[-4,6; -1,2]</td><td class="num">[-17,26; 25,-38]</td><td class="result">PASS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SUMREDUCE8 -->
+  <!-- ============================================================ -->
+  <section id="sumreduce">
+    <div class="algo-kicker">Algorithm 2 of 4</div>
+    <h2>SumReduce8 — 8-input binary tree</h2>
+    <p class="lede">
+      Only 4 real edges for 8 inputs, so each direct-entry cell
+      time-multiplexes its port (value 1, then value 2) and accumulates in
+      its own register before the spatial tree-combine starts. This is the
+      one workload where all four MAC cells compute a real sum, not just a
+      relay.
+    </p>
+
+    <figure>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1100 700" role="img" aria-label="SumReduce8 data route: v0,v1 enter west through Routing into P00; v4,v5 enter north through Vectorial into P00; v2,v3 enter west through Routing into P10; v6,v7 enter north through Escalar into P01. P00 sums v0+v1+v4+v5 into branchA. P10 relays v2+v3 east to P11; P01 relays v6+v7 south to P11. P11 sums both into branchB and sends it north to P01, which forwards it west to P00. P00 adds branchA and branchB into TOTAL and sends it back out the west edge through Routing.">
+          <defs>
+            <marker id="sArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" class="flow-link" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <g class="tile-idle"><rect x="140" y="120" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="154" y="142" font-size="11">(0,0)</text>
+          <text class="idle-text" x="154" y="166" font-size="14" font-weight="700">Memoria</text>
+          <text class="idle-text" x="154" y="184" font-size="11">idle</text>
+
+          <rect class="tile-active" x="430" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="142" font-size="11">(0,1)</text>
+          <text class="cell-label" x="444" y="166" font-size="14" font-weight="700">Vectorial</text>
+          <text class="role-text" x="444" y="184" font-size="11">v4, v5 → south</text>
+
+          <rect class="tile-active" x="720" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="142" font-size="11">(0,2)</text>
+          <text class="cell-label" x="734" y="166" font-size="14" font-weight="700">Escalar</text>
+          <text class="role-text" x="734" y="184" font-size="11">v6, v7 → south</text>
+
+          <rect class="tile-active" x="140" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="322" font-size="11">(1,0)</text>
+          <text class="cell-label" x="154" y="346" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="364" font-size="11">ctx0 v0,v1 in</text>
+          <text class="role-text" x="154" y="380" font-size="11">ctx1 TOTAL out</text>
+
+          <rect class="tile-active" x="430" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="322" font-size="11">(1,1)</text>
+          <text class="cell-label" x="444" y="346" font-size="14" font-weight="700">MAC · P00</text>
+          <text class="role-text" x="444" y="364" font-size="11">branchA=v0+v1+v4+v5</text>
+          <text class="role-text" x="444" y="380" font-size="11">TOTAL=branchA+branchB</text>
+
+          <rect class="tile-active" x="720" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="322" font-size="11">(1,2)</text>
+          <text class="cell-label" x="734" y="346" font-size="14" font-weight="700">MAC · P01</text>
+          <text class="role-text" x="734" y="364" font-size="11">v6+v7 in; branchB→W</text>
+
+          <rect class="tile-active" x="140" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="502" font-size="11">(2,0)</text>
+          <text class="cell-label" x="154" y="526" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="544" font-size="11">ctx0 v2,v3 in</text>
+
+          <rect class="tile-active" x="430" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="502" font-size="11">(2,1)</text>
+          <text class="cell-label" x="444" y="526" font-size="14" font-weight="700">MAC · P10</text>
+          <text class="role-text" x="444" y="544" font-size="11">v2+v3 → east</text>
+
+          <rect class="tile-active" x="720" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="502" font-size="11">(2,2)</text>
+          <text class="cell-label" x="734" y="526" font-size="14" font-weight="700">MAC · P11</text>
+          <text class="role-text" x="734" y="544" font-size="11">branchB=(v2+v3)+(v6+v7)</text>
+          <text class="role-text" x="734" y="560" font-size="11">→ north</text>
+
+          <!-- boundary in -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="90" y1="340" x2="140" y2="340" marker-end="url(#sArrow)" />
+            <line x1="90" y1="520" x2="140" y2="520" marker-end="url(#sArrow)" />
+            <line x1="490" y1="70" x2="490" y2="120" marker-end="url(#sArrow)" />
+            <line x1="780" y1="70" x2="780" y2="120" marker-end="url(#sArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="335" font-size="11" text-anchor="end">v0,v1 (in_W[1])</text>
+          <text class="flow-label" x="86" y="515" font-size="11" text-anchor="end">v2,v3 (in_W[2])</text>
+          <text class="flow-label" x="490" y="60" font-size="11" text-anchor="middle">v4,v5 (in_N[1])</text>
+          <text class="flow-label" x="780" y="60" font-size="11" text-anchor="middle">v6,v7 (in_N[2])</text>
+
+          <!-- internal -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="340" y1="330" x2="430" y2="330" marker-end="url(#sArrow)" />
+            <line x1="530" y1="230" x2="530" y2="300" marker-end="url(#sArrow)" />
+            <line x1="340" y1="510" x2="430" y2="510" marker-end="url(#sArrow)" />
+            <line x1="820" y1="230" x2="820" y2="300" marker-end="url(#sArrow)" />
+            <line x1="630" y1="535" x2="720" y2="535" marker-end="url(#sArrow)" />
+            <line x1="820" y1="410" x2="820" y2="480" marker-end="url(#sArrow)" />
+            <line x1="820" y1="480" x2="820" y2="410" marker-end="url(#sArrow)" />
+            <line x1="630" y1="345" x2="430" y2="345" marker-end="url(#sArrow)" />
+          </g>
+          <text class="flow-label" x="385" y="323" font-size="10.5" text-anchor="middle">v0+v1</text>
+          <text class="flow-label" x="545" y="270" font-size="10.5">v4+v5</text>
+          <text class="flow-label" x="385" y="503" font-size="10.5" text-anchor="middle">v2+v3</text>
+          <text class="flow-label" x="835" y="270" font-size="10.5">v6+v7</text>
+          <text class="flow-label" x="640" y="528" font-size="10.5">v2+v3</text>
+          <text class="flow-label" x="835" y="450" font-size="10.5">branchB ↑</text>
+          <text class="flow-label" x="500" y="338" font-size="10.5" text-anchor="middle">branchB</text>
+
+          <!-- boundary out -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="140" y1="380" x2="90" y2="380" marker-end="url(#sArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="397" font-size="11" text-anchor="end">TOTAL (out_W[1])</text>
+        </svg>
+      </div>
+      <figcaption><strong>Figure 2.</strong> Data route for the 8-input sum reduction. v6+v7 travels P01 → P11 (south) then branchB returns P11 → P01 (north) before continuing west to P00 — the only route here with a there-and-back leg through the same cell pair.</figcaption>
+    </figure>
+
+    <div class="tb-card">
+      <div class="tb-head"><div class="tb-name">CGRA_Final_NoC_SumReduce8__TB</div><span class="chip pass"><span class="dot"></span>3 / 3 cases pass</span></div>
+      <div class="tb-body">
+        <table class="results">
+          <thead><tr><th>case</th><th>v0..v7</th><th class="num">TOTAL</th><th class="result">result</th></tr></thead>
+          <tbody>
+            <tr><td>1 — ones</td><td class="num">1,1,1,1,1,1,1,1</td><td class="num">8</td><td class="result">PASS</td></tr>
+            <tr><td>2 — powers of two</td><td class="num">1,2,4,8,16,32,64,128</td><td class="num">255</td><td class="result">PASS</td></tr>
+            <tr><td>3 — signed random</td><td class="num">-3,1,17,20,2,0,13,7</td><td class="num">57</td><td class="result">PASS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- FFT4 -->
+  <!-- ============================================================ -->
+  <section id="fft4">
+    <div class="algo-kicker">Algorithm 3 of 4</div>
+    <h2>FFT4 — 4-point radix-2 butterfly</h2>
+    <p class="lede">
+      Escalar drops out here — its scalar bridge collapses a <code>Link</code>
+      to one lane, which would silently discard the imaginary part of any
+      complex value routed through it, so <code>x3</code> instead travels
+      <code>P10 → P11 → P01</code>. The <code>P00 → P01</code> link is reused
+      for two different values at two different times: <code>x1</code> early,
+      then <code>b</code> later, once P01 no longer needs <code>x1</code>.
+    </p>
+
+    <figure>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1100 700" role="img" aria-label="FFT4 data route: x0 enters west through Routing into P00; x1 enters north through Vectorial into P00, which relays it east to P01. x2 enters west through Routing into P10, which relays it north to P00; x3 is written to the same west port afterward and P10 relays it east to P11, which relays it north to P01. P00 computes a and b from x0 and x2; P01 computes c and d from x1 and x3. P01 sends c west to P00; P00 later reuses the same east link to send b to P01. P00 outputs X0 and X2 west through Routing; P01 outputs X1 and X3 east.">
+          <defs>
+            <marker id="fArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" class="flow-link" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <g class="tile-idle"><rect x="140" y="120" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="154" y="142" font-size="11">(0,0)</text>
+          <text class="idle-text" x="154" y="166" font-size="14" font-weight="700">Memoria</text>
+          <text class="idle-text" x="154" y="184" font-size="11">idle</text>
+
+          <rect class="tile-active" x="430" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="142" font-size="11">(0,1)</text>
+          <text class="cell-label" x="444" y="166" font-size="14" font-weight="700">Vectorial</text>
+          <text class="role-text" x="444" y="184" font-size="11">x1 → south</text>
+
+          <g class="tile-idle"><rect x="720" y="120" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="734" y="142" font-size="11">(0,2)</text>
+          <text class="idle-text" x="734" y="166" font-size="14" font-weight="700">Escalar</text>
+          <text class="idle-text" x="734" y="184" font-size="11">idle — lane-0 only,</text>
+          <text class="idle-text" x="734" y="199" font-size="11">would drop imag(x3)</text>
+
+          <rect class="tile-active" x="140" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="322" font-size="11">(1,0)</text>
+          <text class="cell-label" x="154" y="346" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="364" font-size="11">ctx0 x0 in</text>
+          <text class="role-text" x="154" y="380" font-size="11">ctx1 X0,X2 out</text>
+
+          <rect class="tile-active" x="430" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="322" font-size="11">(1,1)</text>
+          <text class="cell-label" x="444" y="346" font-size="14" font-weight="700">MAC · P00</text>
+          <text class="role-text" x="444" y="364" font-size="11">a=x0+x2, b=x0-x2</text>
+          <text class="role-text" x="444" y="380" font-size="11">X0=a+c, X2=a-c</text>
+
+          <rect class="tile-active" x="720" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="322" font-size="11">(1,2)</text>
+          <text class="cell-label" x="734" y="346" font-size="14" font-weight="700">MAC · P01</text>
+          <text class="role-text" x="734" y="364" font-size="11">c=x1+x3, d=twid(x1-x3)</text>
+          <text class="role-text" x="734" y="380" font-size="11">X1=b+d, X3=b-d</text>
+
+          <rect class="tile-active" x="140" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="502" font-size="11">(2,0)</text>
+          <text class="cell-label" x="154" y="526" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="544" font-size="11">ctx0 x2, x3 in</text>
+          <text class="role-text" x="154" y="560" font-size="11">(time-multiplexed)</text>
+
+          <rect class="tile-active" x="430" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="502" font-size="11">(2,1)</text>
+          <text class="cell-label" x="444" y="526" font-size="14" font-weight="700">MAC · P10</text>
+          <text class="role-text" x="444" y="544" font-size="11">relay only:</text>
+          <text class="role-text" x="444" y="560" font-size="11">x2→N, x3→E</text>
+
+          <rect class="tile-active" x="720" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="502" font-size="11">(2,2)</text>
+          <text class="cell-label" x="734" y="526" font-size="14" font-weight="700">MAC · P11</text>
+          <text class="role-text" x="734" y="544" font-size="11">relay only: x3 → N</text>
+
+          <!-- boundary in -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="90" y1="340" x2="140" y2="340" marker-end="url(#fArrow)" />
+            <line x1="90" y1="520" x2="140" y2="520" marker-end="url(#fArrow)" />
+            <line x1="490" y1="70" x2="490" y2="120" marker-end="url(#fArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="335" font-size="11" text-anchor="end">x0 (in_W[1])</text>
+          <text class="flow-label" x="86" y="515" font-size="11" text-anchor="end">x2 then x3 (in_W[2])</text>
+          <text class="flow-label" x="490" y="60" font-size="11" text-anchor="middle">x1 (in_N[1])</text>
+
+          <!-- internal -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="340" y1="330" x2="430" y2="330" marker-end="url(#fArrow)" />
+            <line x1="530" y1="230" x2="530" y2="300" marker-end="url(#fArrow)" />
+            <line x1="340" y1="510" x2="430" y2="510" marker-end="url(#fArrow)" />
+            <line x1="530" y1="480" x2="530" y2="410" marker-end="url(#fArrow)" />
+            <line x1="630" y1="535" x2="720" y2="535" marker-end="url(#fArrow)" />
+            <line x1="820" y1="480" x2="820" y2="410" marker-end="url(#fArrow)" />
+            <line x1="630" y1="358" x2="430" y2="358" marker-end="url(#fArrow)" />
+          </g>
+          <text class="flow-label" x="385" y="323" font-size="10.5" text-anchor="middle">x1</text>
+          <text class="flow-label" x="546" y="270" font-size="10.5">x2</text>
+          <text class="flow-label" x="385" y="503" font-size="10.5" text-anchor="middle">x2 then x3</text>
+          <text class="flow-label" x="546" y="450" font-size="10.5">x2 ↑</text>
+          <text class="flow-label" x="640" y="528" font-size="10.5">x3</text>
+          <text class="flow-label" x="835" y="450" font-size="10.5">x3 ↑</text>
+          <text class="flow-label" x="500" y="352" font-size="10.5" text-anchor="middle">c, then b (reused)</text>
+
+          <!-- boundary out -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="140" y1="380" x2="90" y2="380" marker-end="url(#fArrow)" />
+            <line x1="920" y1="355" x2="970" y2="355" marker-end="url(#fArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="397" font-size="11" text-anchor="end">X0, X2 (out_W[1])</text>
+          <text class="flow-label" x="976" y="351" font-size="11">X1, X3 (out_E[1])</text>
+        </svg>
+      </div>
+      <figcaption><strong>Figure 3.</strong> Data route for the 4-point FFT. The <code>P00↔P01</code> link (highlighted label) is the only wire in any of these four routes reused for two different values — its ordering was the actual bug hit while building the original schedule.</figcaption>
+    </figure>
+
+    <div class="tb-card">
+      <div class="tb-head"><div class="tb-name">CGRA_Final_NoC_FFT4__TB</div><span class="chip pass"><span class="dot"></span>3 / 3 cases pass</span></div>
+      <div class="tb-body">
+        <table class="results">
+          <thead><tr><th>case</th><th>x0..x3</th><th>X0</th><th>X1</th><th>X2</th><th>X3</th><th class="result">result</th></tr></thead>
+          <tbody>
+            <tr><td>1 — impulse</td><td class="num">0, 1, 0, 0</td><td class="num">1+0j</td><td class="num">0-1j</td><td class="num">-1+0j</td><td class="num">0+1j</td><td class="result">PASS</td></tr>
+            <tr><td>2 — step</td><td class="num">1, 1, 0, 0</td><td class="num">2+0j</td><td class="num">1-1j</td><td class="num">0+0j</td><td class="num">1+1j</td><td class="result">PASS</td></tr>
+            <tr><td>3 — random</td><td class="num">-6-2j..-1+9j</td><td class="num">-13+2j</td><td class="num">-22+1j</td><td class="num">1-2j</td><td class="num">10-9j</td><td class="result">PASS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SOFTMAX4 -->
+  <!-- ============================================================ -->
+  <section id="softmax">
+    <div class="algo-kicker">Algorithm 4 of 4</div>
+    <h2>Softmax4 — base-2 exponential + reduction</h2>
+    <p class="lede">
+      The mesh has no exponential or divide, so it computes the parallel
+      part only: <code>2ˣ</code> per element via an exact bit-shift, then a
+      2-level reduction tree. The single division that turns the sum into a
+      probability distribution happens once, off-array, in the testbench —
+      the same split a real accelerator makes.
+    </p>
+
+    <figure>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1100 700" role="img" aria-label="Softmax4 data route: x0 enters west through Routing into P00; x1 enters north through Vectorial into P00; x2 enters west through Routing into P10, which relays 2 to the power x2 north to P00; x3 enters north through Escalar into P01, which relays 2 to the power x3 west to P00. P00 computes e0, e1 locally and sums all four exponentials into SUM, then outputs SUM followed by e0 back out the west edge through Routing. P11 is idle.">
+          <defs>
+            <marker id="mArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" class="flow-link" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <g class="tile-idle"><rect x="140" y="120" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="154" y="142" font-size="11">(0,0)</text>
+          <text class="idle-text" x="154" y="166" font-size="14" font-weight="700">Memoria</text>
+          <text class="idle-text" x="154" y="184" font-size="11">idle</text>
+
+          <rect class="tile-active" x="430" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="142" font-size="11">(0,1)</text>
+          <text class="cell-label" x="444" y="166" font-size="14" font-weight="700">Vectorial</text>
+          <text class="role-text" x="444" y="184" font-size="11">x1 → south</text>
+
+          <rect class="tile-active" x="720" y="120" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="142" font-size="11">(0,2)</text>
+          <text class="cell-label" x="734" y="166" font-size="14" font-weight="700">Escalar</text>
+          <text class="role-text" x="734" y="184" font-size="11">x3 → south</text>
+
+          <rect class="tile-active" x="140" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="322" font-size="11">(1,0)</text>
+          <text class="cell-label" x="154" y="346" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="364" font-size="11">ctx0 x0 in</text>
+          <text class="role-text" x="154" y="380" font-size="11">ctx1 SUM,e0 out</text>
+
+          <rect class="tile-active" x="430" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="322" font-size="11">(1,1)</text>
+          <text class="cell-label" x="444" y="346" font-size="14" font-weight="700">MAC · P00</text>
+          <text class="role-text" x="444" y="364" font-size="11">e0=2ˣ⁰, e1=2ˣ¹</text>
+          <text class="role-text" x="444" y="380" font-size="11">SUM=e0+e1+e2+e3</text>
+
+          <rect class="tile-active" x="720" y="300" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="734" y="322" font-size="11">(1,2)</text>
+          <text class="cell-label" x="734" y="346" font-size="14" font-weight="700">MAC · P01</text>
+          <text class="role-text" x="734" y="364" font-size="11">e3=2ˣ³ → west</text>
+
+          <rect class="tile-active" x="140" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="154" y="502" font-size="11">(2,0)</text>
+          <text class="cell-label" x="154" y="526" font-size="14" font-weight="700">Routing</text>
+          <text class="role-text" x="154" y="544" font-size="11">ctx0 x2 in</text>
+
+          <rect class="tile-active" x="430" y="480" width="200" height="110" rx="9" stroke-width="1.5" />
+          <text class="pos-label" x="444" y="502" font-size="11">(2,1)</text>
+          <text class="cell-label" x="444" y="526" font-size="14" font-weight="700">MAC · P10</text>
+          <text class="role-text" x="444" y="544" font-size="11">e2=2ˣ² → north</text>
+
+          <g class="tile-idle"><rect x="720" y="480" width="200" height="110" rx="9" stroke-width="1.5" /></g>
+          <text class="pos-label" x="734" y="502" font-size="11">(2,2)</text>
+          <text class="idle-text" x="734" y="526" font-size="14" font-weight="700">MAC · P11</text>
+          <text class="idle-text" x="734" y="544" font-size="11">idle</text>
+
+          <!-- boundary in -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="90" y1="340" x2="140" y2="340" marker-end="url(#mArrow)" />
+            <line x1="90" y1="520" x2="140" y2="520" marker-end="url(#mArrow)" />
+            <line x1="490" y1="70" x2="490" y2="120" marker-end="url(#mArrow)" />
+            <line x1="780" y1="70" x2="780" y2="120" marker-end="url(#mArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="335" font-size="11" text-anchor="end">x0 (in_W[1])</text>
+          <text class="flow-label" x="86" y="515" font-size="11" text-anchor="end">x2 (in_W[2])</text>
+          <text class="flow-label" x="490" y="60" font-size="11" text-anchor="middle">x1 (in_N[1])</text>
+          <text class="flow-label" x="780" y="60" font-size="11" text-anchor="middle">x3 (in_N[2])</text>
+
+          <!-- internal -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="340" y1="330" x2="430" y2="330" marker-end="url(#mArrow)" />
+            <line x1="530" y1="230" x2="530" y2="300" marker-end="url(#mArrow)" />
+            <line x1="340" y1="510" x2="430" y2="510" marker-end="url(#mArrow)" />
+            <line x1="530" y1="480" x2="530" y2="410" marker-end="url(#mArrow)" />
+            <line x1="820" y1="230" x2="820" y2="300" marker-end="url(#mArrow)" />
+            <line x1="720" y1="345" x2="630" y2="345" marker-end="url(#mArrow)" />
+          </g>
+          <text class="flow-label" x="385" y="323" font-size="10.5" text-anchor="middle">x0</text>
+          <text class="flow-label" x="545" y="270" font-size="10.5">x1</text>
+          <text class="flow-label" x="385" y="503" font-size="10.5" text-anchor="middle">x2</text>
+          <text class="flow-label" x="546" y="450" font-size="10.5">e2 ↑</text>
+          <text class="flow-label" x="835" y="270" font-size="10.5">x3</text>
+          <text class="flow-label" x="675" y="338" font-size="10.5" text-anchor="middle">e3</text>
+
+          <!-- boundary out -->
+          <g class="flow-link" stroke-width="2" fill="none">
+            <line x1="140" y1="380" x2="90" y2="380" marker-end="url(#mArrow)" />
+          </g>
+          <text class="flow-label" x="86" y="397" font-size="11" text-anchor="end">SUM, e0 (out_W[1])</text>
+        </svg>
+      </div>
+      <figcaption><strong>Figure 4.</strong> Data route for base-2 softmax's parallel stage. Shallowest tree of the four (2 levels vs. SumReduce8's 3) since there's no time-multiplexing needed — 4 real edges are enough for 4 inputs.</figcaption>
+    </figure>
+
+    <div class="tb-card">
+      <div class="tb-head"><div class="tb-name">CGRA_Final_NoC_Softmax4__TB</div><span class="chip pass"><span class="dot"></span>3 / 3 cases pass</span></div>
+      <div class="tb-body">
+        <table class="results">
+          <thead><tr><th>case</th><th>x0..x3</th><th class="num">SUM</th><th class="num">e0 spot-check</th><th class="result">result</th></tr></thead>
+          <tbody>
+            <tr><td>1 — equal logits</td><td class="num">0, 0, 0, 0</td><td class="num">2048</td><td class="num">512</td><td class="result">PASS</td></tr>
+            <tr><td>2 — one dominant</td><td class="num">0, 0, 6, 0</td><td class="num">34304</td><td class="num">512</td><td class="result">PASS</td></tr>
+            <tr><td>3 — signed random</td><td class="num">-6, -2, -6, -7</td><td class="num">148</td><td class="num">8</td><td class="result">PASS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <h3>Notes</h3>
+    <ul>
+      <li>All four routes were traced against their real instruction schedules (<code>build_*_program()</code> in each testbench) and cross-checked against the mesh's own <code>CGRA_Final_Mesh.h</code> boundary-port documentation — not inferred from the algorithm's math alone.</li>
+      <li>Every result above is real program output, re-run against SystemC 3.0.2 for this report, not reconstructed from memory.</li>
+      <li>These are application-level routes: the packets each arrow represents still travel through <code>NoC_Router</code>'s XY-routed fabric underneath, cycle-accurate-identical to the direct-wire mesh — see the companion report <code>CGRA_Final_NoC_Report.html</code> for the fabric mechanism itself.</li>
+      <li>Full source: <code>Proyecto_SystemC/cgra_final_noc/CGRA_Final_NoC_{GEMM,SumReduce8,FFT4,Softmax4}__TB.cpp</code>.</li>
+    </ul>
+  </footer>
+
+</div>
+</body>
+</html>

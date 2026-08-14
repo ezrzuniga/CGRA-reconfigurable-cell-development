@@ -74,17 +74,20 @@ struct Routing_Cell_State {
 
     RC_Config  config_bank[RC_NUM_CONTEXTS];
     ap_uint<2> active_ctx;
-    // Memoria de configuracion del switch-box: los 4 selectores del contexto
-    // activo se leen los 4 en el mismo ciclo (un mux por salida), asi que el
-    // banco tiene que ser registros y no una RAM de 1-2 puertos -- si no, los
-    // 4 muxes se serializan y la celda de routing deja de ser un relevo de 1
-    // ciclo. Son 4 contextos x 16 bits: costo despreciable.
-#pragma HLS ARRAY_PARTITION variable=config_bank complete dim=1
 
     Link out_N, out_S, out_E, out_W;
     Link out_L_N, out_L_S, out_L_E, out_L_W;   // hacia la PE co-ubicada
 
-    Routing_Cell_State() : active_ctx(0) {}
+    // Memoria de configuracion del switch-box: los 4 selectores del contexto
+    // activo se leen los 4 en el mismo ciclo (un mux por salida), asi que el
+    // banco tiene que ser registros y no una RAM de 1-2 puertos -- si no, los
+    // 4 muxes se serializan y la celda de routing deja de ser un relevo de 1
+    // ciclo. Son 4 contextos x 16 bits: costo despreciable. ARRAY_PARTITION en
+    // el cuerpo del constructor, no en el cuerpo del struct: Vitis HLS 2024.1
+    // rechaza `#pragma HLS` fuera de function scope.
+    Routing_Cell_State() : active_ctx(0) {
+#pragma HLS ARRAY_PARTITION variable=config_bank complete dim=1
+    }
 };
 
 // Mismo empaquetado que make_routing_config_instr_hls (pe_hls/routing/
@@ -178,10 +181,11 @@ inline void routing_cell_step_local(Routing_Cell_State<DATA_W, VLEN>& s, bool rs
                                      const PE_VectorData<DATA_W, VLEN>& in_L_E, const PE_VectorData<DATA_W, VLEN>& in_L_W)
 {
     // Los 8 muxes de salida son independientes entre si: se evaluan en
-    // paralelo dentro del mismo ciclo (II=1), igual que el switch-box
-    // combinacional del original.
+    // paralelo dentro del mismo ciclo, igual que el switch-box combinacional
+    // del original. INLINE sin PIPELINE propio -- ver PE_MAC_HLS_C.h (Vitis
+    // HLS 2024.1 rechaza combinar ambos pragmas en la misma funcion; el II=1
+    // real lo aporta el PIPELINE de mesh_step()).
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     typedef PE_VectorData<DATA_W, VLEN> Link;
     using routing_cell_hls_c_detail::select;
 

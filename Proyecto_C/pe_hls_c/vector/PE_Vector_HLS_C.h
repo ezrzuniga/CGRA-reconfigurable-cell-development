@@ -29,15 +29,18 @@ struct PE_Vector_State {
     Instr instr_mem[INSTR_MEM_SIZE];
     Link  reg_file[NUM_REGS];
     ap_uint<16> pc;
-    // Memorias locales del PE particionadas por completo -- ver la
-    // justificacion en PE_MAC_HLS_C.h (fetch + 2 operandos + writeback en el
-    // mismo ciclo; como RAM inferida el PE no cerraria II=1).
-#pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
-#pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
 
     Link out_N, out_S, out_E, out_W;
 
-    PE_Vector_State() : pc(0) {}
+    // Memorias locales del PE particionadas por completo -- ver la
+    // justificacion en PE_MAC_HLS_C.h (fetch + 2 operandos + writeback en el
+    // mismo ciclo; como RAM inferida el PE no cerraria II=1). ARRAY_PARTITION
+    // en el cuerpo del constructor, no en el cuerpo del struct: Vitis HLS
+    // 2024.1 rechaza `#pragma HLS` fuera de function scope.
+    PE_Vector_State() : pc(0) {
+#pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
+#pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
+    }
 };
 
 namespace pe_vector_hls_c_detail {
@@ -135,9 +138,10 @@ inline void pe_vector_step(PE_Vector_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZ
                             const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                             const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
-    // Un ciclo de PE = una iteracion de pipeline con II=1 (ver PE_MAC_HLS_C.h).
+    // INLINE sin PIPELINE propio -- ver PE_MAC_HLS_C.h (Vitis HLS 2024.1
+    // rechaza combinar ambos pragmas en la misma funcion; el II=1 real lo
+    // aporta el PIPELINE de mesh_step()).
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     if (rst) {
         s.pc = 0;
         return;

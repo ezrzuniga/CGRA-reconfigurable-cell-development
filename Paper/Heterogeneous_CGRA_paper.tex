@@ -40,8 +40,8 @@ Costa Rica Institute of Technology \\
 \begin{abstract}
 
 Coarse-Grained Reconfigurable Arrays (CGRAs) are gaining interest in the industry due to the flexibility they provide and the facility to program them. 
-There different architectures of CGRAs, being the most common the homogeneous CGRA but these present a problem of underutilization of resources when the workload is not uniform.
-This works presents a heterogeneous CGRA cell architecture composed of five different elements: a routing cell, distribuited memory cell, scalar processing element (PE), vector PE and a MAC PE.
+There are different architectures of CGRAs, being the most common the homogeneous CGRA but these present a problem of underutilization of resources when the workload is not uniform.
+This work presents a heterogeneous CGRA cell architecture composed of five different elements: a routing cell, distributed memory cell, scalar cell, vector cell and a MAC cell.
 The design was implemented in SystemC and validated with Vitis HLS, using two main kernels: GEMM and sum-reduction.
 For GEMM, the spatial mapping reaches higher throughput (33.74 MOP/s vs 13.56 MOP/s) and lower latency per operation (29.64 ns/op vs 73.72 ns/op), at the cost of higher resource usage (up to 4.58$\times$ FF and 4.00$\times$ DSP). 
 For sum-reduction, the temporal MAC-based mapping achieves better efficiency, with higher utilization (79.7\% vs 47.8\%) and lower latency (50.95 ns/op vs 55.65 ns/op), while also requiring fewer resources. 
@@ -61,11 +61,11 @@ coarse-grained reconfigurable architecture (CGRA), heterogeneous CGRA, spatial C
 \section{Introduction}
 
 
-The reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
+Reconfigurable architectures have been very successful in industry because software evolution has advanced rapidly, with diverse applications,
 different user needs, and scientific progress, so hardware cannot adapt at the same pace as software \cite{LeiboLiu}. Special-purpose systems
 can suffer from rapid obsolescence, and if the price of hardware development and production is high, it becomes economically unviable \cite{LeiboLiu}.
 
-Currently, architectures such as FPGAs (Field Programmable Gate Arrays) have been widely adopted in diverse applications due to their flexibility and customization capability, gaining traction in HPC (High-Performance Computing).
+Currently, architectures such as FPGAs (Field Programmable Gate Arrays) have been widely adopted in diverse applications due to their flexibility and customization capability, gaining traction in HPC (High Performance Computing).
 However, FPGAs present certain limitations such as slow configuration times, long compilation times, and in cases, low operating frequencies \cite{Podobas}.
 
 In the recent years there has been growing interest in HPC in using architectures such as CGRAs (Coarse-Grained Reconfigurable Arrays), which offer an intermediate solution between FPGAs and ASICs (Application Specific Integrated Circuits).
@@ -88,9 +88,9 @@ The development and research of these architectures has been strongly driven by 
 
 At the level of practical implementation, these architectures are the result of cutting-edge open-source efforts. 
 Repositories such as risc-v-cgra (developed by ECASLab) investigate these integrations at the system level.
-OpenCGRA is a unified framework that supports the full top-to-botton design flow, this adopts a Python-based PyMTL3 framework to model the architecture and enabling the RTL generation and muti-level simulation \cite{OpenCGRA}
+OpenCGRA is a unified framework that supports the full top-to-bottom design flow, this adopts a Python-based PyMTL3 framework to model the architecture and enabling the RTL generation and multi-level simulation \cite{OpenCGRA}
 TRAM is another example which adopts a Chisel-based CGRA template to model hardware architecture with register transfer level (RTL) code generation and functional-level (FL) simulation; TRAM proposes a flexible and scalable CGRA template composed of GPEs, IOBs and GIBs with two-dimensional (2D) island-style topology \cite{TRAM}. 
-HETA is a temporal CGRA implementing a heterogeneous architecture with a Bayesian optimization, this CGRA is a 2D island style layout build from four type of blocks: GPE (Generic Processing Element), GIB (General Interconnect Block), LSU (Load/Store Unit) and IOB (I/O Block) \cite{HETA}. 
+HETA is a temporal CGRA implementing a heterogeneous architecture with a Bayesian optimization, this CGRA is a 2D island style layout built from four type of blocks: GPE (Generic Processing Element), GIB (General Interconnect Block), LSU (Load/Store Unit) and IOB (I/O Block) \cite{HETA}. 
 
 For this type of system to reach its full potential, the internal design of the individual reconfigurable cell (PE) and its associated compilation tools are critical \cite{satyajit}. 
 They highlight the need for context-memory-aware mapping to ensure energy-efficient acceleration, emphasizing that data-access latency dictates overall performance. 
@@ -104,14 +104,14 @@ Within this framework, the design and development of a new reconfigurable CGRA c
 \section{Analysis of Existing Solutions (SOTA)} %Jose
 \label{sec:sota}
 
-Nowadays there are different types of CGRAs, you can classify them by their elements in heterogeneous or homogeneous, also depending on how you use structure the hardware and the handling of the data, they can be classified as temporal or spatial. 
+Nowadays there are different types of CGRAs, they can be classified by their elements in heterogeneous or homogeneous, also based on how the data is handled, they can be classified as temporal or spatial. 
 Examples of homogeneous CGRAs are the HyCUBE, DySER, TRAM and OpenCGRA \cite{Blocks2022, TRAM, OpenCGRA} which have an array of homogeneous or equal PEs, while examples of heterogeneous CGRAs are Plasticine and HETA \cite{plasticine2017, HETA} which combine different PE.
 
 CGRA systems are no longer seen as an isolated element; today they are presented as a heterogeneous part of an architecture system \cite{dvhetero}.
 Furthermore, CGRAs have become highly important in HPC (High Performance Computing) systems, which greatly benefit from having heterogeneous-type PEs, with a mix of basic and complex PEs \cite{exploration_tradeoffs}. 
 This is highly important for mathematical functions, since traditional CGRAs do not handle them optimally.
 
-In the table \ref{tab:comparativa_sota} it is shown a comparison between four types of CGRAs. They present different trade-offs, where they are developed according to the area of application or workload. 
+In Table \ref{tab:comparativa_sota} it is shown a comparison between four types of CGRAs. They present different trade-offs, where they are developed according to the area of application or workload. 
 For example the HETA CGRA is good when the physical space is a concern \cite{HETA} or the Plasticine is a good option when the workload is highly parallel \cite{plasticine2017}.
 \begin{table}[htbp]
 \caption{Comparison of state-of-the-art solutions}
@@ -124,7 +124,7 @@ For example the HETA CGRA is good when the physical space is a concern \cite{HET
   \toprule
   \textbf{Solution} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Viability} & \textbf{PE / CGRA Type}\\
   \midrule
-  HETA \cite{HETA} & Bayesian DSE requires zero manual intervention, very fast CGRA. & Only functional and RTL simulation, limited veification tooling. & Good for research, ideal for temporal CGRA exploration. & Heterogeneous / Temporal.\\
+  HETA \cite{HETA} & Bayesian DSE requires zero manual intervention, very fast CGRA. & Only functional and RTL simulation, limited verification tooling. & Good for research, ideal for temporal CGRA exploration. & Heterogeneous / Temporal.\\
   \addlinespace
   TRAM \cite{TRAM} & High PE utilization and clean interconnect model. & Spatial CGRA only, cannot time-multiplex resources. & Good for research, when the interconnect flexibility and mapping are priorities. & Homogeneous / Spatial.\\
   \addlinespace
@@ -151,10 +151,11 @@ In addition, the uniform interconnects can leave many routes unused \cite{dvhete
 This kind of architecture has the advantage of being simple to design and implement, but that same simplicity is a limitation when high parallelism and throughput are required. 
 Such architectures are not energy-efficient and have low performance \cite{Blocks2022}.
 
-In contrast, heterogeneous CGRAs have different types of PEs, which allows a better utilization of the resources like the HETA architecture \cite{HETA}, however even in this case still exists a limitation, where the PEs are not specialized enough and are limited to a specific workflow.
-For example the HETA architecture supports scalar operations but doesn't mention the support for vector operations \cite{HETA}, on the other hand, the Plasticine architecture supports vector operations but doesn't mention the support for scalar operations \cite{plasticine2017}.
+In contrast, the heterogeneous CGRAs have different types of cells, allowing better performance and resource utilization based on the objective of the CGRA, like the HETA architecture \cite{HETA}.
+The HETA architecture uses scalar PEs \cite{HETA} while the Plasticine architecture uses vector PEs \cite{plasticine2017}. Even though these architectures are heterogeneous, there is a dominant type of PE to do the operations.
 
-This work presents a heterogeneous CGRA with different PE types, routing cells and distributed memory cells. This design is proposed in order to have specialized cells according to the necessity of the workload, having a specialized element for a wider range of operations with less elements. The elements of the CGRA are as follows:
+
+This work presents a heterogeneous CGRA with different PE types, routing cells and distributed memory cells. This design is proposed in order to have specialized cells according to the necessity of the workload, having a specialized element for a wider range of operations with fewer elements. The elements of the CGRA are as follows:
 
 \begin{itemize}
     \item \textbf{Routing:} statically-configured combinational switch (4 stored contexts).
@@ -164,15 +165,15 @@ This work presents a heterogeneous CGRA with different PE types, routing cells a
     \item \textbf{MAC processing unit:} multiply-accumulate unit with a persistent per-lane accumulator for high-throughput operations.
 \end{itemize}
 
-With these elements, we are introducing a new heterogeneous CGRA architecture that can be used for scalar operations and vector operations, with a better utilization of the resources and a better performance.
-Currently no other architecture has been found that combines scalar and vector operations, neither with routing cells and distributed memory cells, which makes this architecture unique in its kind.
+With these elements, we are introducing a new heterogeneous CGRA architecture that can be used for scalar operations and vector operations, also with the introduction of the MAC PE it is expected to have good performance with different specialized cells.
+Currently no other architecture has been found that combines scalar and vector operations, routing cells and distributed memory cells, which makes this architecture unique in its kind.
 
 
 
 \subsection{Architectural Proposal}
 \label{sec:architectural_proposal}
 
-This architecture proposal is shown in the figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case is a basic array of 2x3 but this could be expanded according to the necessity.
+This architecture proposal is shown in Figure \ref{fig:diagrama_2nivel_png}, where the different elements of the CGRA are present. In this case, it is a basic 2x3 array but this could be expanded according to the necessity.
 
 \begin{figure}[htbp]
     \centering
@@ -187,14 +188,14 @@ Concurrent readers of the same source are served as copies rather than arbitrate
 Four contexts are stored per cell, each loaded in a single clock edge; which context is active is chosen combinationally. 
 
 \subsubsection{Distributed Memory Cell}
-Dual-port SRAM (2~KB per cell in the current instantiation, configurable via a template parameter); direct and strided access modes ; a local DMA engine performs host-free block transfers between SRAM and the NoC. 
+Dual-port SRAM (2~KB per cell in the current instantiation, configurable via a template parameter); direct and strided access modes; a local DMA engine performs host-free block transfers between SRAM and the NoC. 
 Four independently configurable access contexts are supported. This design still eliminates centralized memory contention by giving each cell its own local bank.
 
 \subsubsection{Scalar Cell}
-Integraded by a 32-bit ALU (RV32I integer/logic ops plus MUL) with a 8~$\times$~32~b register file and a single 16-instruction program memory that the program counter loops through. 
+Integrated by a 32-bit ALU (RV32I integer/logic ops plus MUL) with a 8~$\times$~32~b register file and a single 16-instruction program memory that the program counter loops through. 
 
 \subsubsection{Vector Cell}
-A 4-lane int32 SIMD VALU (add, sub, logic, shifts, compare, MUL,  the same op set as the Scalar ALU, applied per lane) with 8~$\times$~128~b vector registers and a single 16-instruction program memory.
+A 4-lane int32 SIMD VALU (add, sub, logic, shifts, compare, MUL, the same op set as the Scalar ALU, applied per lane) with 8~$\times$~128~b vector registers and a single 16-instruction program memory.
 
 \subsubsection{MAC Cell}
 This PE uses a VALU op set and 8~$\times$~128~b register file and a dedicated MAC opcode.
@@ -206,9 +207,9 @@ Each lane's product is computed the same way as MUL, then added in the writeback
 
 The development of this heterogeneous CGRA starts with the implementation of SystemC to verify the functionality of the architecture and its elements. 
 Afterwards, the SystemC model is translated so it can be used in Vitis 2024.1 and generate a RTL code and get the metrics of the design.
-Also there will be a sofware validation using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA will be modeled in SystemC.
+Also there will be a software validation using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA will be modeled in SystemC.
 
-In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in the table \ref{tab:herramientas}.
+In order to ensure strict reproducibility of the design and simulation tests, the software tooling infrastructure and its respective versions are defined in Table \ref{tab:herramientas}.
 
 \begin{table}[htbp]
 \caption{Development Tools and Environment Versions}
@@ -264,7 +265,7 @@ The following steps are proposed:
 Once these basic tests are passed, progress can be made toward typical benchmarks from the CGRA literature, such as MachSuite and PolyBench \cite{PolyBenchC,MachSuite}, which together with Wavelib and BEEBS make up the set of suites used by Morpher to evaluate its compilation flow \cite{Juneja}. 
 These suites provide kernel libraries (including Sum-Reduction and GEMM) that can be mapped onto the CGRA through a compilation flow similar to the one described above.
 
-For the software validation it is planed to use the softmax kernel. 
+For the software validation it is planned to use the softmax kernel. 
 This will be executed using GEM5 to simulate the interaction between a RISC-V core and the CGRA. 
 
 \subsection{Monitoring}
@@ -328,11 +329,11 @@ This section presents the results obtained from the implementation of the CGRA w
 
 The GEMM (General Matrix-Matrix Multiplication) kernel was implemented in two ways using the MAC cell, the temporal implementation and spatial implementation. 
 The first one uses a single MAC cell to perform the operation, while the other one uses 4 MAC cells in total to do the same operation. 
-The table \ref{tab:resource_util_GEMM} shows the resource utilization of both implementations, where as expected, the temporal implementation is cheaper in resources than the spatial implementation. 
+Table \ref{tab:resource_util_GEMM} shows the resource utilization of both implementations, where as expected, the temporal implementation is cheaper in resources than the spatial implementation. 
 
 \begin{table}[htbp]
 \centering
-\caption{Post-synthesis resource utilization (Vivado) for temporal vs. spatial implementations.}
+\caption{Post-synthesis resource utilization (Vivado) for temporal vs. spatial implementations}
 \label{tab:resource_util_GEMM}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -350,12 +351,12 @@ BRAM & 0 & 0 & -- \\
 \end{adjustbox}
 \end{table}
 
-Regarding the performance of each configuration, the table \ref{tab:perf_metrics_gemm} shows that the spacial implementation has a better performance than the temporal implementation.
+Regarding the performance of each configuration, Table \ref{tab:perf_metrics_gemm} shows that the spatial implementation has a better performance than the temporal implementation.
 The quantity of operations per second is higher in the spatial implementation and has a lower latency per operation, since the PEs are the same, the spatial has the advantage because it has more parallelism available.
 
 \begin{table}[htbp]
 \centering
-\caption{Performance metrics from measured 2$\times$2 GEMM execution.}
+\caption{Performance metrics from measured 2$\times$2 GEMM execution}
 \label{tab:perf_metrics_gemm}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -373,11 +374,11 @@ Utilization rate (\%) & 58.6 & 71.9 & 1.23$\times$ \\
 
 
 The downside of the temporal implementation is the necessity to have a start=true transaction for each invocation, while the spatial implementation only needs one invocation. 
-This represents a total of 204 cycles vs 82 cycles of the spatial implementation, in the table \ref{tab:rtl_transaction_cycles_gemm} are the values of each implementation.
+This represents a total of 204 cycles vs 82 cycles of the spatial implementation, in Table \ref{tab:rtl_transaction_cycles_gemm} are the values of each implementation.
 
 \begin{table}[htbp]
 \centering
-\caption{Per-transaction RTL cycle counts from cosimulation (actual simulated hardware).}
+\caption{Per-transaction RTL cycle counts from cosimulation (actual simulated hardware)}
 \label{tab:rtl_transaction_cycles_gemm}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -396,13 +397,13 @@ Spatial & 16 & 2 cycles & \textbf{82 cycles} & 4 (whole matrix) \\
 
 \subsection{Sum-Reduction Kernel}
 
-For the sum-reduction kernel we did two comparison, one temporal implementation with our new MAC cell and other spatial implementation with 4 scalar cells. 
+For the sum-reduction kernel two comparisons were done, one temporal implementation with our new MAC cell and another spatial implementation with 4 scalar cells. 
 Both of the solutions were implemented under the same hardware considerations, using a Kria K26 SoM as reference with a 250 MHz clock target.
-The setup for this validation is shown in the table \ref{tab:sum_setup}.
+The setup for this validation is shown in Table \ref{tab:sum_setup}.
 
 \begin{table}[htbp]
 \centering
-\caption{Temporal vs. spatial sum-reduction setup.}
+\caption{Temporal vs. spatial sum-reduction setup}
 \label{tab:sum_setup}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -421,12 +422,12 @@ Test vectors & \texttt{\{6,-2,9,4,0,7,-5,3\}} = 22, \texttt{\{100,-55,30,7,-12,4
 \end{table}
 
 
-The results of these implementations are shown in the table \ref{tab:resource_util_sumReduction}. 
+The results of these implementations are shown in Table \ref{tab:resource_util_sumReduction}. 
 The new MAC cell shows a better utilization compared with the standard solution given by the literature, like the TRAM solution \cite{TRAM}. 
 
 \begin{table}[htbp]
 \centering
-\caption{Post-synthesis resource utilization for Sum-Reduction kernel.}
+\caption{Post-synthesis resource utilization for Sum-Reduction kernel}
 \label{tab:resource_util_sumReduction}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -445,13 +446,13 @@ BRAM & 0 & 0 & -- \\
 \end{table}
 
 
-Regarding the performance metrics, the table \ref{tab:perf_metrics_sumReduction} shows that the temporal implementation with the MAC cell shows a better performance since this kind cell is designed to perform the sum-reduction operation in a more efficiente way that a normal scalar cell. 
-With this results is possible to confirm the importance of having a heterogeneous CGRA with specialized cells for specific operations, since this allows to have a better performance and a better resource utilization.
+Regarding the performance metrics, Table \ref{tab:perf_metrics_sumReduction} shows that the temporal implementation with the MAC cell shows a better performance since this kind cell is designed to perform the sum-reduction operation in a more efficient way that a normal scalar cell. 
+With this results it is possible to confirm the importance of having a heterogeneous CGRA with specialized cells for specific operations, since this allows to have a better performance and a better resource utilization.
 
 
 \begin{table}[htbp]
 \centering
-\caption{Performance metrics from measured sum-reduction execution.}
+\caption{Performance metrics from measured sum-reduction execution}
 \label{tab:perf_metrics_sumReduction}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -468,7 +469,7 @@ Utilization rate (\%) & 79.7 & 47.8 & 0.60$\times$ \\
 \end{table}
 
 Regarding the software validation for this kernel, GEM5 was used to simulate the interaction between an ARM core and the CGRA. 
-The table \ref{tab:gem5_results_sumReduction} shows the cycle counts for the implementation, which are matching the RTL cosimulation results. 
+Table \ref{tab:gem5_results_sumReduction} shows the cycle counts for the implementation, which are matching the RTL cosimulation results. 
 
 %\begin{table}[htbp]
 %\centering
@@ -489,8 +490,8 @@ The table \ref{tab:gem5_results_sumReduction} shows the cycle counts for the imp
 %\end{adjustbox}
 %\end{table}
 
-Also the table \ref{tab:gem5_results_sumReduction} shows the results of the GEM5 co-simulation for the sum-reduction kernel, where the output of the operation was the expected one.
-With this results is possible to confirm that the drivers to interact with the CGRA are working correctly.
+Also Table \ref{tab:gem5_results_sumReduction} shows the results of the GEM5 co-simulation for the sum-reduction kernel, where the output of the operation was the expected one.
+With this results it is possible to confirm that the drivers to interact with the CGRA are working correctly.
 
 \begin{table}[htbp]
 \centering
@@ -515,17 +516,19 @@ With this results is possible to confirm that the drivers to interact with the C
 \end{table}
 
 
-\subsubsection{Softmax Kernel}
+\subsection{Softmax Kernel}
 
 For the validation of the softmax kernel, the proposed heterogeneous CGRA was tested using GEM5 to simulate the RISC-V core and the CSR/DMA interface, while the CGRA was modeled in SystemC.
 In this validation, the vector unit performed the parallel reduction, exponential, and normalization stages, while the scalar unit computed the reciprocal term $1/S$ using a Newton--Raphson approximation. 
 
-The softmax kernel was also validated end-to-end on the proposed heterogeneous CGRA. Six representative test cases were executed with different inputs flavors: uniform inputs, dominant-lane cases, negative fractional inputs, and a saturation scenario with input spread beyond the useful exponential range to verify the CGRA accuracy in computation terms of such algorithm. In the table \ref{tab:softmax_validation} the summary of the validation is shown, where all the test cases passed successfully, with an error below the acceptance threshold
+The softmax kernel was also validated end-to-end on the proposed heterogeneous CGRA. 
+Six representative test cases were executed with different input flavors: uniform inputs, dominant-lane cases, negative fractional inputs, and a saturation scenario with input spread beyond the useful exponential range to verify the CGRA accuracy in computation terms of such algorithm. 
+In Table \ref{tab:softmax_validation} the summary of the validation is shown, where all the test cases passed successfully, with an error below the acceptance threshold
 
 
 \begin{table}[htbp]
 \centering
-\caption{Validation summary for end-to-end softmax execution.}
+\caption{Validation summary for end-to-end softmax execution}
 \label{tab:softmax_validation}
 \scriptsize
 \begin{adjustbox}{max width=\columnwidth}
@@ -555,10 +558,10 @@ These results show that the proposed heterogeneous organization can correctly su
 
 \section{Conclusions}
 
-In this work we propose a heterogeneous CGRA with diffent types of cells, including a new MAC PE that haven't been mention in past works. 
+In this work we propose a heterogeneous CGRA with different types of cells, including a new MAC PE that has not been mentioned in past works. 
 This work shows that having different types of cells in a CGRA architecture can translate in a better performance. 
-The design of a CGRA depends on the type of workload that is going to be executed, but for general purposes the heterogeneous architecture with specialized cells present a better solution for performance.
-Also the type of architecture: spatial or temporal is very important to take into consideration because of the space available to implement the GGRA, the spatial is going to use more resources. 
+The design of a CGRA depends on the type of workload that is going to be executed, but for general purposes the heterogeneous architecture with specialized cells presents a better solution for performance.
+Also the type of architecture: spatial or temporal is very important to take into consideration because of the space available to implement the CGRA, the spatial is going to use more resources. 
 It is important to confirm not only the hardware functionality but also the software integration with the CGRA, since this is a key point to have a complete solution.
 
 
@@ -568,10 +571,10 @@ It is important to confirm not only the hardware functionality but also the soft
 
 \section{Future Work}
 
-This work is first the first step in the development of a heterogeneous CGRA, so there is still work that can be done to improve the architecture and validation of the design. 
+This work is the first step in the development of a heterogeneous CGRA, so there is still work that can be done to improve the architecture and validation of the design. 
 The architecture can be increased in complexity by implementing a large number of PEs, this needs a more complex communication between the different cells but improving the capacity of the CGRA.
-Also adding more variety of PEs can improve the performance of the CGRA, since depending of the workload, the more suitable PE can be used to improve the performance. 
-In terms of validation, the CGRA can be tested with more complex kernels and also can be emulated in a FPGA to get more accurate results.
+Also adding more variety of PEs can improve the performance of the CGRA, since depending on the workload, the more suitable PE can be used to improve the performance. 
+In terms of validation, the CGRA can be tested with more complex kernels and also can be emulated in an FPGA to get more accurate results.
 
 
 %-----------------------------------------------
@@ -580,9 +583,9 @@ In terms of validation, the CGRA can be tested with more complex kernels and als
 
 \section*{AI Tool Usage Declaration}
 
-All the content presented in this work was determined by the authors of this proyect, using tools like Gemini, Github Copilot and Claude as supportive resources.
+All the content presented in this work was determined by the authors of this project, using tools like Gemini, GitHub Copilot and Claude as supportive resources.
 These tools were used to help with the clarification of concepts and ideas, to improve the structure of the documents as well as the grammar of it.
-Finally, the tables and figures were generated using the assistance of AI tools. 
+Finally, the formatting of figures was generated using the assistance of AI tools. 
 
 
 \bibliographystyle{IEEEtran}

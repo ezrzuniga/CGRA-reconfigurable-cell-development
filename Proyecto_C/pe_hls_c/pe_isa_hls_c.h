@@ -88,9 +88,14 @@ struct PE_InstrIn {
 template <int DATA_W = 32, int VLEN = 4>
 struct PE_VectorData {
     ap_int<DATA_W> lane[VLEN];
-#pragma HLS ARRAY_PARTITION variable=lane complete dim=1
 
+    // ARRAY_PARTITION en el cuerpo del constructor, no en el cuerpo del
+    // struct: Vitis HLS 2024.1 rechaza `#pragma HLS` fuera de function scope
+    // ("'#pragma HLS' is only allowed in function scope") aunque el struct
+    // sea trivial -- mismo efecto (particiona por instancia), unica forma que
+    // csynth_design acepta.
     PE_VectorData() {
+#pragma HLS ARRAY_PARTITION variable=lane complete dim=1
         for (int i = 0; i < VLEN; i++) {
 #pragma HLS UNROLL
             lane[i] = 0;

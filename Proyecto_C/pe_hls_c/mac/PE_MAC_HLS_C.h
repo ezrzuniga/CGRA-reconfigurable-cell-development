@@ -33,21 +33,24 @@ struct PE_MAC_State {
     Link  reg_file[NUM_REGS];
     ap_uint<16> pc;
     Link  acc;
+
+    // Salidas registradas: mismo contrato que un sc_out que solo cambia
+    // cuando writeback() lo escribe.
+    Link out_N, out_S, out_E, out_W;
+
     // Memoria de configuracion (instr_mem) y banco de registros locales
     // (reg_file) particionados por completo: son las dos "memorias locales" de
     // un PE de CGRA y ambas se leen en el mismo ciclo que la ALU (fetch +
     // hasta 2 operandos de reg_file). Como RAM inferida serializarian el
     // ciclo entero; como registros, el PE ejecuta una instruccion por ciclo
     // con II=1. Son chicas por diseno (INSTR_MEM_SIZE=4..16, NUM_REGS=8), asi
-    // que el costo en flops es acotado y conocido.
+    // que el costo en flops es acotado y conocido. ARRAY_PARTITION en el
+    // cuerpo del constructor, no en el cuerpo del struct: Vitis HLS 2024.1
+    // rechaza `#pragma HLS` fuera de function scope.
+    PE_MAC_State() : pc(0) {
 #pragma HLS ARRAY_PARTITION variable=instr_mem complete dim=1
 #pragma HLS ARRAY_PARTITION variable=reg_file complete dim=1
-
-    // Salidas registradas: mismo contrato que un sc_out que solo cambia
-    // cuando writeback() lo escribe.
-    Link out_N, out_S, out_E, out_W;
-
-    PE_MAC_State() : pc(0) {}
+    }
 };
 
 namespace pe_mac_hls_c_detail {
@@ -177,12 +180,14 @@ inline void pe_mac_step(PE_MAC_State<DATA_W, VLEN, NUM_REGS, INSTR_MEM_SIZE>& s,
                          const PE_VectorData<DATA_W, VLEN>& in_N, const PE_VectorData<DATA_W, VLEN>& in_S,
                          const PE_VectorData<DATA_W, VLEN>& in_E, const PE_VectorData<DATA_W, VLEN>& in_W)
 {
-    // Un ciclo de PE = una iteracion de pipeline con II=1: fetch + 2 selects +
-    // ALU SIMD + writeback, todo en el mismo ciclo, que es el contrato de un PE
-    // de CGRA. INLINE para que la malla vea un unico datapath plano de
-    // ROWS*COLS PEs en paralelo en vez de 9 llamadas a funcion secuenciales.
+    // Un ciclo de PE = fetch + 2 selects + ALU SIMD + writeback, todo en el
+    // mismo ciclo, que es el contrato de un PE de CGRA. INLINE (sin PIPELINE
+    // propio -- Vitis HLS 2024.1 rechaza combinar ambos pragmas en la misma
+    // funcion) para que la malla vea un unico datapath plano de ROWS*COLS PEs
+    // en paralelo en vez de 9 llamadas a funcion secuenciales: el II=1 real lo
+    // aporta el PIPELINE de mesh_step() (CGRA_Mesh_Static_C.h), que envuelve
+    // esta funcion ya inlineada junto con las otras ROWS*COLS-1 celdas.
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     if (rst) {
         s.pc = 0;
         return;
